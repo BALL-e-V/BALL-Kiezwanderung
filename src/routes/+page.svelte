@@ -3,61 +3,41 @@
 
     import "leaflet/dist/leaflet.css";
 
-    import L, { Map, TileLayer, GeoJSON } from "leaflet";
+    import { Map, TileLayer, GeoJSON, Marker, Icon } from "leaflet";
+
+    import { hikingTrails } from "./hikingTrails.ts";
+    import type { Feature } from "geojson";
 
     var map: Map;
 
-    let featureCollection: GeoJSON.FeatureCollection<any> = {
-        type: "FeatureCollection",
-        features: [
-            {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                    coordinates: [
-                        [13.543479807587346, 52.53054386152698],
-                        [13.546721358635153, 52.53317281141938],
-                    ],
-                    type: "LineString",
-                },
-            },
-            {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                    coordinates: [
-                        [13.548619503066163, 52.53700454365986],
-                        [13.542058670876855, 52.535136039345076],
-                        [13.544878436967252, 52.53912661472464],
-                    ],
-                    type: "LineString",
-                },
-            },
-            {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                    coordinates: [13.551199340472891, 52.53493589797725],
-                    type: "Point",
-                },
-            },
-            {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                    coordinates: [13.540472820402812, 52.53907578567669],
-                    type: "Point",
-                },
-            },
-        ],
-    };
+    var testjson = new GeoJSON(hikingTrails[1].trail);
 
-    const testjson = new GeoJSON(featureCollection);
+    const toiletIcon = new Icon({
+        iconUrl:
+            "https://www.citypng.com/public/uploads/preview/png-wc-toilet-men-and-women-black-icon-logo-sign-704081694708943a5kik6dvov.png",
+        iconSize: [30, 30],
+        iconAnchor: [0, 0],
+    });
 
-    function addjson() {
+    function replaceMarkers(point: any, latLng: any) {
+        if (point.properties && point.properties.amenity == "toilet") {
+            console;
+            return new Marker(latLng, { icon: toiletIcon });
+        } else {
+            return new Marker(latLng);
+        }
+    }
+    function changeTrail(
+        newTrail: GeoJSON.FeatureCollection<any>,
+        location: Array<number>,
+    ) {
+        testjson.removeFrom(map);
+        testjson = new GeoJSON(newTrail, {
+            pointToLayer: replaceMarkers,
+        });
+        map.setView([location[0], location[1]], location[2]);
         testjson.addTo(map);
     }
-
     if (browser) {
         map = new Map("map").setView([52.54, 13.52], 13);
         const tiles = new TileLayer(
@@ -70,11 +50,19 @@
                     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             },
         ).addTo(map);
+
+        testjson.addTo(map);
     }
 </script>
 
 <div id="map"></div>
-<button onclick={addjson}>addjson</button>
+{#each hikingTrails as Trail}
+    <button
+        onclick={() => {
+            changeTrail(Trail.trail, Trail.location);
+        }}>{Trail.name}</button
+    >
+{/each}
 
 <style>
     #map {
