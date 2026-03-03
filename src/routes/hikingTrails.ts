@@ -1,9 +1,12 @@
 
-export const hikingTrails: { name: string; trail: GeoJSON.FeatureCollection<any>; location: Array<number> }[] =
+export const hikingTrails: { name: string; image: string; description: string; location: Array<number>; trail: GeoJSON.FeatureCollection<any> }[] =
     [
         {
-            location: [52.53631, 13.5473, 14.56],
+
             name: "random",
+            image: "src/routes/trailPictures/random.png",
+            description: "Consciousness consists of vibrations of quantum energy. “Quantum” means an unfolding of the internal. We exist as ultra-sentient particles. Guidance requires exploration. It can be difficult to know where to begin. How should you navigate this life-affirming quantum soup? Have you found your journey?",
+            location: [52.53631, 13.5473, 14.56],
             trail: {
                 type: "FeatureCollection",
                 features: [
@@ -54,8 +57,10 @@ export const hikingTrails: { name: string; trail: GeoJSON.FeatureCollection<any>
             },
         },
         {
-            location: [52.53003, 13.54647, 14.9],
             name: "smiley",
+            image: "src/routes/trailPictures/smiely.png",
+            description: "Fulfillment is a constant. The goal of sonar energy is to plant the seeds of inseparability rather than delusion. Passion is the driver of ecstasy. If you have never experienced this vision on a cosmic scale, it can be difficult to reflect. The infinite is calling to you via sub-atomic particles. Can you hear it? Have you found your mission?",
+            location: [52.53003, 13.54647, 14.9],
             trail: {
                 type: "FeatureCollection",
                 features: [

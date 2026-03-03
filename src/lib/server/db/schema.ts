@@ -1,3 +1,4 @@
+
 import { mysqlTable, serial, int, text } from 'drizzle-orm/mysql-core';
 
 export const task = mysqlTable('task', {
@@ -6,4 +7,7 @@ export const task = mysqlTable('task', {
 	priority: int('priority').notNull().default(1)
 });
 
-export *  from './auth.schema';
+export * from './auth.schema';
+
+export * from './trails'
+

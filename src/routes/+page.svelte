@@ -6,7 +6,7 @@
     import { Map, TileLayer, GeoJSON, Marker, Icon } from "leaflet";
 
     import { hikingTrails } from "./hikingTrails.ts";
-    import type { Feature } from "geojson";
+    import TrailSelector from "./TrailSelector.svelte";
 
     var map: Map;
 
@@ -55,18 +55,48 @@
     }
 </script>
 
-<div id="map"></div>
-{#each hikingTrails as Trail}
-    <button
-        onclick={() => {
-            changeTrail(Trail.trail, Trail.location);
-        }}>{Trail.name}</button
-    >
-{/each}
+<h1>Kiezwanderungen</h1>
+<div class="alignment">
+    <div id="map"></div>
+    <div id="trailSelector">
+        {#each hikingTrails as Trail}
+            <button
+                onclick={() => {
+                    changeTrail(Trail.trail, Trail.location);
+                }}
+            >
+                <TrailSelector {...Trail} />
+            </button>
+        {/each}
+    </div>
+</div>
 
 <style>
     #map {
         height: 500px;
         width: 800px;
+    }
+    @media print {
+        :global(body) {
+            visibility: hidden;
+        }
+        #map {
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    }
+    #trailSelector {
+        width: 290px;
+        height: 490px;
+        border: solid;
+        border-width: 5px;
+        border-color: darkgray;
+        overflow: scroll;
+        overflow-x: hidden;
+    }
+    .alignment {
+        display: flex;
     }
 </style>
