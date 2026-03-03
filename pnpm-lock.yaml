@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@vercel/blob':
+        specifier: ^2.3.0
+        version: 2.3.0
       mysql:
         specifier: ^2.18.1
         version: 2.18.1
