@@ -8,8 +8,8 @@ export const hikingTrails: { name: string; image: string; description: string; l
             description: "Consciousness consists of vibrations of quantum energy. “Quantum” means an unfolding of the internal. We exist as ultra-sentient particles. Guidance requires exploration. It can be difficult to know where to begin. How should you navigate this life-affirming quantum soup? Have you found your journey?",
             location: [52.53631, 13.5473, 14.56],
             trail: {
-                type: "FeatureCollection",
-                features: [
+                "type": "FeatureCollection",
+                "features": [
                     {
                         type: "Feature",
                         properties: {},

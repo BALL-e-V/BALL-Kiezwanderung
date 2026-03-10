@@ -9,5 +9,5 @@ export const task = mysqlTable('task', {
 
 export * from './auth.schema';
 
-export * from './trails'
+export * from './trails.schema'
 

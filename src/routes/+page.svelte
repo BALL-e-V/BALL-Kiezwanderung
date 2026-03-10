@@ -56,6 +56,9 @@
 </script>
 
 <h1>Kiezwanderungen</h1>
+
+<a href="/addTrail">Neuer Wanderweg</a>
+
 <div class="alignment">
     <div id="map"></div>
     <div id="trailSelector">
