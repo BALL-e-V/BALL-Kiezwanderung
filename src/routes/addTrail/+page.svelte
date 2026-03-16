@@ -1,7 +1,8 @@
 <script lang="ts">
     import { addTrail } from "./addTrail.remote";
     import { hikingTrail } from "./valiSchemata";
-    import { GeoJSON } from "leaflet";
+    import { allTrails } from "./getTrail.remote";
+    import { deleteTrail } from "./deleteTrail.remote";
     const { title, description, zoom, mapLat, mapLong, trail } =
         addTrail.fields;
 </script>
@@ -16,13 +17,23 @@
     >
 
     <p>kartenparameter</p>
-    <label for="zoom"><input {...zoom.as("number")} />zoom</label>
-    <label for="maplat"><input {...mapLat.as("number")} />latitude</label>
-    <label for="maplong"><input {...mapLong.as("number")} />longitude</label>
+    <label for="zoom"><input {...zoom.as("number")} step="any" />zoom</label>
+    <label for="maplat"
+        ><input {...mapLat.as("number")} step="any" />latitude</label
+    >
+    <label for="maplong"
+        ><input {...mapLong.as("number")} step="any" />longitude</label
+    >
+
     <p>geojson</p>
     <input {...trail.as("text")} />
+
     <input type="submit" />
 </form>
 {#each addTrail.fields.allIssues() as issue}
     <p>{issue.message}</p>
+{/each}
+{#each await allTrails() as trail}
+    <p>{trail.title}</p>
+    <button onclick={async () => deleteTrail(trail.id)}>delete</button>
 {/each}

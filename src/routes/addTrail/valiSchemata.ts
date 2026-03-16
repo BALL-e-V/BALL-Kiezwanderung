@@ -4,7 +4,7 @@ import { GeoJSONSchema } from './geoJasonSchema';
 
 
 export const hikingTrail = v.object({
-    title: v.pipe(v.string(), v.maxLength(128, 'Der Namie ist zu lang')),
+    title: v.pipe(v.string(), v.maxLength(128, 'Der Name ist zu lang')),
     description: v.pipe(v.string(), v.maxLength(1024, 'Die Beschreibung ist zu lang.')),
     zoom: v.message(v.pipe(v.number(), v.minValue(0), v.maxValue(19)), 'Zoom muss zwichen 0 und 19 sein.'),
     mapLat: v.pipe(v.number(), v.minValue(-90, 'Latitude muss gößer als -90 sein.'), v.maxValue(90, 'Latitude muss kleiner als 90 sein.')),
@@ -21,7 +21,7 @@ export const hikingTrail = v.object({
             }
         }, 'Ungültiges JSON-Format.'),
         v.transform((val) => JSON.parse(val)),
-        GeoJSONSchema // Validates the parsed object against the GeoJSONSchema above
+        GeoJSONSchema // Validates the parsed object against the imported GeoJSONSchema
     )
 });
 
