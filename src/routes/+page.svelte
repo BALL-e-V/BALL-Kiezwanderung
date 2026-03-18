@@ -38,19 +38,19 @@
         map.setView([location[0], location[1]], location[2]);
         testjson.addTo(map);
     }
-    if (browser) {
-        map = new Map("map").setView([52.54, 13.52], 13);
+    function createMap(html: any) {
+        map = new Map(html).setView([52.54, 13.52], 13);
         const tiles = new TileLayer(
             "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
 
             {
-                maxZoom: 18,
+                maxZoom: 19,
 
                 attribution:
                     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             },
-        ).addTo(map);
-
+        );
+        tiles.addTo(map);
         testjson.addTo(map);
     }
 </script>
@@ -60,7 +60,8 @@
 <a href="/addTrail">Neuer Wanderweg</a>
 
 <div class="alignment">
-    <div id="map"></div>
+    <!---->
+    <div class="map" style="height:800px;width:1200px" use:createMap></div>
     <div id="trailSelector">
         {#each hikingTrails as Trail}
             <button
@@ -75,24 +76,9 @@
 </div>
 
 <style>
-    #map {
-        height: 500px;
-        width: 800px;
-    }
-    @media print {
-        :global(body) {
-            visibility: hidden;
-        }
-        #map {
-            visibility: visible;
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
-    }
     #trailSelector {
         width: 290px;
-        height: 490px;
+        height: 100%;
         border: solid;
         border-width: 5px;
         border-color: darkgray;

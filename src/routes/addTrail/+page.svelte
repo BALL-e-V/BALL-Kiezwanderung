@@ -3,6 +3,8 @@
     import { hikingTrail } from "./valiSchemata";
     import { allTrails } from "./getTrail.remote";
     import { deleteTrail } from "./deleteTrail.remote";
+    import { Map, TileLayer } from "leaflet";
+    import { browser } from "$app/environment";
     const { title, description, zoom, mapLat, mapLong, trail } =
         addTrail.fields;
 </script>
