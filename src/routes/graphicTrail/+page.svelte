@@ -15,9 +15,10 @@
 
     //leaflet map and the dom element
     let map: Map;
-    let trail: [Polyline];
-    let trailMarkers: [Marker];
+    let trail: Polyline[] = [];
+    let trailMarkers: Marker[] = [];
     let makingTrail = $state(false);
+    let loadingTrail = $state(0);
 
     class pointOfInterest {
         caption = $state("Namen Eintragen");
@@ -40,7 +41,6 @@
             this.marker = new Marker(latlng, {
                 draggable: true,
             });
-            this.marker.setIcon(iconmaker("orange", 2));
 
             this.marker.addTo(map);
             if (caption) {
@@ -49,6 +49,7 @@
             if (serial) {
                 this.serial = serial;
             }
+            this.marker.on("click", () => heromaker(this));
         }
 
         destructor() {
@@ -59,7 +60,7 @@
         //creates an html based icon with adjustable size and color
     }
 
-    let poiList = $state() as [pointOfInterest];
+    let poiList = $state([]) as pointOfInterest[];
 
     function heromaker(poi: pointOfInterest) {
         poiList.forEach((element) => {
@@ -74,45 +75,51 @@
 
     // add the point at coordinats, with -1 as serial because its new and to the map
     function poiCreator(e: LeafletMouseEvent) {
-        if (poiList) {
-            poiList.forEach((element) => {
-                if (element.hero) {
-                    element.marker.setIcon(iconmaker("green", 1.5));
-                    element.hero = false;
-                }
-            });
-            poiList.push(new pointOfInterest(map, e.latlng));
-        } else {
-            poiList = [new pointOfInterest(map, e.latlng)];
-        }
-        poiList[poiList.length - 1].marker.on("click", () =>
-            heromaker(poiList[poiList.length - 1]),
-        ),
-            map.off("click", poiCreator);
-        poiList[poiList.length - 1].hero = true;
+        poiList.forEach((element) => {
+            if (element.hero) {
+                element.marker.setIcon(iconmaker("green", 1.5));
+                element.hero = false;
+            }
+        });
+        poiList.push(new pointOfInterest(map, e.latlng));
+        map.off("click", poiCreator);
+        const listPosition = poiList.length - 1;
+        poiList[listPosition].hero = true;
+        poiList[listPosition].marker
+            .setIcon(iconmaker("orange", 2))
+            .on("click", () => heromaker(poiList[listPosition]));
+    }
+
+    function responseToLatlngs(response: any) {
+        //need to swap coordinates and turn them into latlngs
+        let coords = response.routes[0].geometry.coordinates;
+        let latlngs: LatLng[] = [];
+
+        coords.forEach((c: [number, number]) =>
+            latlngs.push(new LatLng(c[1], c[0])),
+        );
+        return latlngs;
     }
 
     async function trailMaker(e: LeafletMouseEvent) {
         let response;
+        loadingTrail++;
+        if (trailMarkers.length == 0) {
+            // creating a first marker for the trail if none exist
 
-        if (trailMarkers) {
-            if (trail) {
-                // creating and saving positions in case user clicks faster than the app responds
-                trail.push(
-                    new Polyline([
-                        [0, 0],
-                        [0, 0],
-                    ]),
-                );
-            } else {
-                trail = [
-                    new Polyline([
-                        [0, 0],
-                        [0, 0],
-                    ]),
-                ];
-            }
-            let position = trail.length - 1;
+            trailMarkers = [new Marker(e.latlng, { draggable: true })];
+
+            trailMarkers[0].setIcon(iconmaker("green", 1)).addTo(map);
+        } else {
+            // creating and saving positions in the array in case user clicks faster than the app responds
+            trail.push(
+                new Polyline([
+                    [-1, -1],
+                    [0, 0],
+                ]),
+            );
+            let trailPosition = trail.length - 1;
+
             let coordinates = [
                 {
                     lat: trailMarkers[trailMarkers.length - 1].getLatLng()
@@ -125,13 +132,19 @@
                     lng: e.latlng.lng as number,
                 },
             ];
-            trailMarkers[trailMarkers.length - 1] //stopping the previous end from being draggable
-                .setIcon(iconmaker("blue", 1))
-                .off("dragend");
+            if (trailMarkers.length > 1) {
+                trailMarkers[trailMarkers.length - 1] //stopping the previous end from being draggable
+                    .setIcon(iconmaker("black", 1))
+                    .off("dragend");
+            }
             trailMarkers[trailMarkers.length - 1].dragging?.disable();
             //making markers as editing cornerstones for the trail
-            trailMarkers.push(new Marker(e.latlng, { draggable: true }));
-            trailMarkers[trailMarkers.length - 1] //making the last marker draggable
+            trailMarkers.push(new Marker(e.latlng, { draggable: false }));
+
+            let markerPosition = trailMarkers.length - 1;
+            trailMarkers[markerPosition].dragging?.enable();
+            trailMarkers[markerPosition]
+                .addTo(map)
                 .on("dragend", () =>
                     moveTrail(
                         trailMarkers.length - 2,
@@ -139,72 +152,71 @@
                         trailMarkers.length,
                     ),
                 )
-                .setIcon(iconmaker("orange", 1.5))
-                .on("click", (e) => console.log(e))
-                .addTo(map);
-
+                .setIcon(iconmaker("orange", 1.5));
             try {
                 response = await getPath(coordinates);
             } catch {
                 console.log(error);
             }
-            let coords = response.routes[0].geometry.coordinates; //need to swap coordinates and turn them into latlngs
-            let latlngs = [new LatLng(coords[0][1], coords[0][0])];
-            coords.shift;
-            coords.forEach((c: [number, number]) =>
-                latlngs.push(new LatLng(c[1], c[0])),
-            );
-
-            trail[position].setLatLngs(latlngs).addTo(map);
-        } else {
-            trailMarkers = [new Marker(e.latlng, { draggable: true })];
-            trailMarkers[trailMarkers.length - 1]
-                .setIcon(iconmaker("orange", 1.5))
-                .addTo(map);
+            //checking is the marker is still in the same place
+            if (
+                trailMarkers.length > markerPosition &&
+                e.latlng == trailMarkers[markerPosition].getLatLng()
+            ) {
+                //making the new piece of trail
+                trail[trailPosition]
+                    .setLatLngs(responseToLatlngs(response))
+                    .addTo(map);
+            } // else discarding the response
         }
+        loadingTrail--;
     }
 
     function trailMakerSwitch() {
         if (makingTrail) {
             map.off("click", trailMaker);
             makingTrail = false;
-            if (trailMarkers) {
-                trailMarkers[trailMarkers.length - 1].setIcon(
-                    iconmaker("blue", 1),
-                );
-                trailMarkers.forEach((m) => {
-                    m.dragging?.enable();
-                });
-                if (trailMarkers.length > 1) {
-                    for (let i = 0; i < trailMarkers.length - 1; i++) {
-                        trailMarkers[i].on("dragend", () =>
-                            moveTrail(i - 1, i, i + 1),
-                        );
-                    }
+            if (trailMarkers.length > 1) {
+                for (let i = 0; i < trailMarkers.length - 1; i++) {
+                    trailMarkers[i]
+                        .on("dragend", () => moveTrail(i - 1, i, i + 1))
+                        .setIcon(iconmaker("blue", 1))
+                        .dragging?.enable();
                 }
+                trailMarkers[trailMarkers.length - 1].setIcon(
+                    iconmaker("orange", 1),
+                );
+                trailMarkers[0].setIcon(iconmaker("green", 1));
             }
         } else {
             map.on("click", trailMaker);
             makingTrail = true;
-            if (trailMarkers) {
+
+            if (trailMarkers.length > 1) {
+                for (let i = 0; i < trailMarkers.length - 1; i++) {
+                    trailMarkers[i].dragging?.disable();
+                    trailMarkers[i]
+                        .off("dragend")
+                        .setIcon(iconmaker("black", 1));
+                }
                 trailMarkers[trailMarkers.length - 1].setIcon(
                     iconmaker("orange", 1.5),
                 );
-                if (trailMarkers.length > 1) {
-                    for (let i = 0; i < trailMarkers.length - 1; i++) {
-                        trailMarkers[i].off("dragend");
-                        trailMarkers[i].dragging?.disable;
-                    }
-                }
+                trailMarkers[0].setIcon(iconmaker("green", 1));
             }
         }
     }
 
+    //function to move the trail by dragging markers, input is the number of the marker and the surrounding markers in the array
     async function moveTrail(previous: number, current: number, next: number) {
+        //change 1 path if the start of the trail is moved and there is no previous marker
+        //getting the latlngs for comparison and sending
+        loadingTrail++;
         if (previous < 0) {
-            //change 1 path if the start of the trail is moved and there is no previous marker
+            const curLatlng = trailMarkers[current].getLatLng();
+            const nextLatlng = trailMarkers[next].getLatLng();
             let response;
-            let coordinates = [
+            const coordinates = [
                 {
                     lat: trailMarkers[current].getLatLng().lat as number,
                     lng: trailMarkers[current].getLatLng().lng as number,
@@ -214,30 +226,28 @@
                     lng: trailMarkers[next].getLatLng().lng as number,
                 },
             ];
-            //turn markers balck and make them unmovable while processing
-            trailMarkers[current].setIcon(iconmaker("black", 1)).dragging
-                ?.disable;
-            trailMarkers[next].setIcon(iconmaker("black", 1)).dragging?.disable;
+            //turn markers black and make them unmovable while processing
             try {
                 response = await getPath(coordinates);
             } catch {
                 console.log(error);
             }
-            let coords = response.routes[0].geometry.coordinates;
-            let latlngs = [new LatLng(coords[0][1], coords[0][0])];
-            coords.shift;
-            coords.forEach((c: [number, number]) =>
-                latlngs.push(new LatLng(c[1], c[0])),
-            );
-            trail[0].setLatLngs(latlngs);
+            //check if markers have been moved while we waited
+            if (
+                trailMarkers.length > 1 &&
+                curLatlng == trailMarkers[current].getLatLng() &&
+                nextLatlng == trailMarkers[next].getLatLng()
+            ) {
+                // turn coordinates into latlngs and the changed part of the trail
+                trail[0].setLatLngs(responseToLatlngs(response));
+            } // else discard the response
 
-            //turning markers blue and enabling draggine since we are done
-            trailMarkers[current].setIcon(iconmaker("blue", 1)).dragging
-                ?.enable;
-            trailMarkers[next].setIcon(iconmaker("blue", 1)).dragging?.enable;
-        } else if (next >= trailMarkers.length) {
+            //returning colors to markers and enabling draggine since we are done
+
             //change one path if the end of the trail is moved and the next marker is after the end of the array
-
+        } else if (next >= trailMarkers.length) {
+            const preLatlng = trailMarkers[previous].getLatLng();
+            const curLatlng = trailMarkers[current].getLatLng();
             let response;
             let coordinates = [
                 {
@@ -249,32 +259,28 @@
                     lng: trailMarkers[current].getLatLng().lng as number,
                 },
             ];
-            //turn makrers balck and disable dragging while processing
-            trailMarkers[previous].setIcon(iconmaker("black", 1)).dragging
-                ?.disable;
-            trailMarkers[current].setIcon(iconmaker("black", 1)).dragging
-                ?.disable;
             //save the location now incase the trail is build further
-            let position = trail.length - 1;
+
             try {
                 response = await getPath(coordinates);
             } catch {
                 console.log(error);
             }
-            let coords = response.routes[0].geometry.coordinates;
-            let latlngs = [new LatLng(coords[0][1], coords[0][0])];
-            coords.shift;
-            coords.forEach((c: [number, number]) =>
-                latlngs.push(new LatLng(c[1], c[0])),
-            );
-            trail[position].setLatLngs(latlngs);
-            //turning markers blue and draggable because we are done
+            //checking if markers have been moved while loading
 
-            trailMarkers[previous].setIcon(iconmaker("blue", 1)).dragging
-                ?.enable;
-            trailMarkers[current].setIcon(iconmaker("blue", 1)).dragging
-                ?.enable;
+            if (
+                trailMarkers.length > current &&
+                curLatlng == trailMarkers[current].getLatLng() &&
+                preLatlng == trailMarkers[previous].getLatLng()
+            ) {
+                // turn coordinates into latlngs and the changed part of the trail
+                trail[previous].setLatLngs(responseToLatlngs(response));
+            } //else discard the response
         } else {
+            const preLatlng = trailMarkers[previous].getLatLng();
+
+            const curLatlng = trailMarkers[current].getLatLng();
+            const nextLatlng = trailMarkers[next].getLatLng();
             //get 2 pathes around the marker when a marker in the middle is moved
             let coordinates = [
                 {
@@ -291,17 +297,11 @@
                 },
             ];
             //turn markers black and make them unmovable
-            trailMarkers[previous].setIcon(iconmaker("black", 1)).dragging
-                ?.disable;
-            trailMarkers[current].setIcon(iconmaker("black", 1)).dragging
-                ?.disable;
-            trailMarkers[next].setIcon(iconmaker("black", 1)).dragging?.disable;
 
             // since mapbox only resurns 1 array for any number of coordinates and there isn't a way in the api to mark where
             let part1;
             let part2;
             try {
-                // Promise.all runs both requests at the same time!
                 [part1, part2] = await Promise.all([
                     getPath([coordinates[0], coordinates[1]]),
                     getPath([coordinates[1], coordinates[2]]),
@@ -310,27 +310,53 @@
                 console.log(err);
             }
 
-            let coords = part1.routes[0].geometry.coordinates;
-            let latlngs = [new LatLng(coords[0][1], coords[0][0])];
-            coords.shift;
-            coords.forEach((c: [number, number]) =>
-                latlngs.push(new LatLng(c[1], c[0])),
-            );
-            trail[previous].setLatLngs(latlngs);
-            coords = part2.routes[0].geometry.coordinates;
-            latlngs = [new LatLng(coords[0][1], coords[0][0])];
-            coords.shift;
-            coords.forEach((c: [number, number]) =>
-                latlngs.push(new LatLng(c[1], c[0])),
-            );
-            trail[current].setLatLngs(latlngs);
-            //turning markers blue and draggable because we are done
+            // checking if markers have been moved while loading
+            if (
+                trailMarkers.length > current &&
+                curLatlng == trailMarkers[current].getLatLng() &&
+                preLatlng == trailMarkers[previous].getLatLng()
+            ) {
+                trail[previous].setLatLngs(responseToLatlngs(part1));
+            }
+            if (
+                trailMarkers.length > next &&
+                curLatlng == trailMarkers[current].getLatLng() &&
+                nextLatlng == trailMarkers[next].getLatLng()
+            ) {
+                trail[current].setLatLngs(responseToLatlngs(part2));
+            } // else discarding responses
+        }
+        loadingTrail--;
+    }
+    function deleteTrailend() {
+        trailMarkers[trailMarkers.length - 1].off("click").off("dragend");
+        trailMarkers[trailMarkers.length - 1].removeFrom(map);
+        trailMarkers.pop();
+        if (trailMarkers.length > 1) {
+            if (makingTrail) {
+                trailMarkers[trailMarkers.length - 1]
+                    .setIcon(iconmaker("orange", 1.5))
+                    .on("dragend", () =>
+                        moveTrail(
+                            trailMarkers.length - 2,
+                            trailMarkers.length - 1,
+                            trailMarkers.length,
+                        ),
+                    )
+                    .dragging?.enable();
+            } else {
+                trailMarkers[trailMarkers.length - 1].setIcon(
+                    iconmaker("orange", 1),
+                );
+            }
+        } else if (trailMarkers.length == 1) {
+            trailMarkers[0].dragging?.enable();
+            trailMarkers[0].off("dragend");
+        }
 
-            trailMarkers[previous].setIcon(iconmaker("blue", 1)).dragging
-                ?.enable;
-            trailMarkers[current].setIcon(iconmaker("blue", 1)).dragging
-                ?.enable;
-            trailMarkers[next].setIcon(iconmaker("blue", 1)).dragging?.enable;
+        if (trail.length > 0) {
+            trail[trail.length - 1].removeFrom(map);
+            trail.pop();
         }
     }
 
@@ -382,7 +408,19 @@
         {/if}
         <button onclick={() => map.on("click", poiCreator)}>POI setzen</button>
     </div>
-    <button onclick={trailMakerSwitch}>{makingTrail ? "stop" : "trail"}</button>
+    <div>
+        <button onclick={trailMakerSwitch}
+            >{makingTrail ? "stop" : "trail"}</button
+        >
+
+        <button
+            onclick={() => {
+                if (trailMarkers.length > 0) {
+                    deleteTrailend();
+                }
+            }}>ende löchen aaa</button
+        >
+    </div>
 </div>
 
 <style>

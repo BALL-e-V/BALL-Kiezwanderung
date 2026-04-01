@@ -17,6 +17,6 @@ export function iconmaker(color: string, size: number) {
     className: "my-custom-pin",
     iconAnchor: [0, 12 * size],
     popupAnchor: [0, -36],
-    html: `<span style="${markerHtmlStyles}" />`,
+    html: `<span style="${markerHtmlStyles}"/>`,
   });
 }
