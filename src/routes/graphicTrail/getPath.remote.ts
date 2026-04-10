@@ -5,7 +5,7 @@ import { env } from '$env/dynamic/private';
 
 export const getPath = command(v.array(
     v.object({
-        lat: v.pipe(v.number(), v.minValue(-90, 'Latitude muss gößer als -90 sein.'), v.maxValue(90, 'Latitude muss kleiner als 90 sein.')),
+        lat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
         lng: v.pipe(v.number(), v.minValue(0), v.maxValue(360)),
     })),
 
