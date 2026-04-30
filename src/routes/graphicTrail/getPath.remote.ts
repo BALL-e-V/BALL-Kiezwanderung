@@ -6,7 +6,7 @@ import { env } from '$env/dynamic/private';
 export const getPath = command(v.array(
     v.object({
         lat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
-        lng: v.pipe(v.number(), v.minValue(0), v.maxValue(360)),
+        lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     })),
 
     async (coordinates) => {

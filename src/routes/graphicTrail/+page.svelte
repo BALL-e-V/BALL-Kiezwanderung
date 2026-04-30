@@ -2,17 +2,18 @@
     import "leaflet/dist/leaflet.css";
     import {
         LatLng,
+        LatLngBounds,
         Map,
         Marker,
         Polyline,
         TileLayer,
-        type LatLngLiteral,
         type LeafletEvent,
         type LeafletMouseEvent,
     } from "leaflet";
     import { getPath } from "./getPath.remote";
     import { error } from "@sveltejs/kit";
-    import { iconmaker } from "./iconmaker";
+    import { iconmaker, latlngsToDataobject, responseToLatlngs } from "./utils";
+    import { allTrails, deleteTrail, saveTrail } from "./dbInteractions.remote";
     //leaflet map and the dom element
     let map: Map;
     //the set of polylines that make up the hiking trail
@@ -40,7 +41,13 @@
     //list of points of interest
     let poiList = $state([]) as pointOfInterest[];
     let trailDescription = $state("");
-    let trailCaption = $state("");
+    let trailTitle = $state("Namen Eingeben");
+    let trailID = "";
+    let trailUpdate = false;
+    //timer to wait until the user didnt change anything for a while
+    let timeToSave = 5000;
+    // variable to save the according timeout
+    let waitToSave = setTimeout(() => {}, timeToSave);
 
     const colors = {
         trailStart: "green",
@@ -80,7 +87,7 @@
         constructor(
             //the poi needs at least a position on the map, the map element and a caption to be displayed in the list
             map: Map,
-            latlng: LatLngLiteral,
+            latlng: LatLng,
             caption?: string,
         ) {
             this.lat = latlng.lat;
@@ -220,54 +227,8 @@
         map.getContainer().style.cursor = "all-scroll";
     }
 
-    function responseToLatlngs(response: any) {
-        //need to swap coordinates and turn them into latlngs
-        let coords = response.routes[0].geometry.coordinates;
-        let latlngs = [new LatLng(coords[0][1], coords[0][0])];
-        let latlng: LatLng;
-        for (let i = 1; i < coords.length; i++) {
-            latlng = new LatLng(coords[i][1], coords[i][0]);
-            //checking how far apart this and the last point are
-            let distance = latlng.distanceTo(latlngs[latlngs.length - 1]);
-
-            //interpolating extra spots in the trail if 2 coordinate points are too far apart, so the location of a point of interest can be assigned properly
-            if (distance > trailResolution) {
-                let latIncrement =
-                    (coords[i][1] - coords[i - 1][1]) /
-                    Math.ceil(distance / trailResolution);
-                let lngIncrement =
-                    (coords[i][0] - coords[i - 1][0]) /
-                    Math.ceil(distance / trailResolution);
-                for (
-                    let j = 1;
-                    j < Math.ceil(distance / trailResolution);
-                    j++
-                ) {
-                    //its not quite a straight/grand circle line but close enough for the distances we deal with
-                    latlngs.push(
-                        new LatLng(
-                            coords[i - 1][1] + j * latIncrement,
-                            coords[i - 1][0] + j * lngIncrement,
-                        ),
-                    );
-                }
-            }
-            //adding the new point to the latlngs
-            latlngs.push(latlng);
-        }
-
-        return latlngs;
-    }
-    //function to turn latlngs into a transferable dataobject
-    function latlngsToDataobject(latlngs: LatLng[]) {
-        let coordinates: { lat: number; lng: number }[] = [];
-        latlngs.forEach((l) =>
-            coordinates.push({ lat: l.lat as number, lng: l.lng as number }),
-        );
-        return coordinates;
-    }
-
     async function trailMaker(e: LeafletMouseEvent) {
+        trailUpdate = true;
         let response;
         loadingTrail++;
         if (trailMarkers.length == 0) {
@@ -325,7 +286,9 @@
                 e.latlng == trailMarkers[markerPosition].getLatLng()
             ) {
                 //making the new piece of trail
-                trail[trailPosition].setLatLngs(responseToLatlngs(response));
+                trail[trailPosition].setLatLngs(
+                    responseToLatlngs(response, trailResolution),
+                );
             } // else discarding the response
         }
         loadingTrail--;
@@ -400,6 +363,7 @@
 
     //function to move the trail by dragging markers, input is the number of the marker and the surrounding markers in the array
     async function moveTrail(e: LeafletEvent) {
+        trailUpdate = true;
         // finding the dragged marker and both around it in the array
         let current = trailMarkers.indexOf(e.target);
         let next = current + 1;
@@ -429,10 +393,16 @@
                 nextLatlng == trailMarkers[next].getLatLng()
             ) {
                 // turn coordinates into latlngs and the changed part of the trail
-                trail[0].setLatLngs(responseToLatlngs(response));
+                trail[0].setLatLngs(
+                    responseToLatlngs(response, trailResolution),
+                );
+                //adapt the position of all the markers on the moved part of the trail
+                poiList.forEach((p) => {
+                    if (p.trailPosition[0] == 0) {
+                        p.addToTrail();
+                    }
+                });
             } // else discard the response
-
-            //returning colors to markers and enabling dragging since we are done
 
             //change one path if the end of the trail is moved and the next marker is after the end of the array
         } else if (next >= trailMarkers.length) {
@@ -458,7 +428,15 @@
                 preLatlng == trailMarkers[previous].getLatLng()
             ) {
                 // turn coordinates into latlngs and the changed part of the trail
-                trail[previous].setLatLngs(responseToLatlngs(response));
+                trail[previous].setLatLngs(
+                    responseToLatlngs(response, trailResolution),
+                );
+                //adapt the position of all the markers on the moved part of the trail
+                poiList.forEach((p) => {
+                    if (p.trailPosition[0] == previous) {
+                        p.addToTrail();
+                    }
+                });
             } //else discard the response
         } else {
             const preLatlng = trailMarkers[previous].getLatLng();
@@ -485,19 +463,36 @@
                 curLatlng == trailMarkers[current].getLatLng() &&
                 preLatlng == trailMarkers[previous].getLatLng()
             ) {
-                trail[previous].setLatLngs(responseToLatlngs(part1));
+                trail[previous].setLatLngs(
+                    responseToLatlngs(part1, trailResolution),
+                );
+                //adapt the position of all the markers on the moved part of the trail
+                poiList.forEach((p) => {
+                    if (p.trailPosition[0] == previous) {
+                        p.addToTrail();
+                    }
+                });
             }
             if (
                 trailMarkers.length > next &&
                 curLatlng == trailMarkers[current].getLatLng() &&
                 nextLatlng == trailMarkers[next].getLatLng()
             ) {
-                trail[current].setLatLngs(responseToLatlngs(part2));
+                trail[current].setLatLngs(
+                    responseToLatlngs(part2, trailResolution),
+                );
+                //adapt the position of all the markers on the moved part of the trail
+                poiList.forEach((p) => {
+                    if (p.trailPosition[0] == current) {
+                        p.addToTrail();
+                    }
+                });
             } // else discarding responses
         }
         loadingTrail--;
     }
     function deleteTrailend() {
+        trailUpdate = true;
         // making sure all the related dom elements, event listeners and any object references are gone
         trailMarkers[trailMarkers.length - 1].off("dragend").off("contextmenu");
         trailMarkers[trailMarkers.length - 1].remove();
@@ -530,9 +525,16 @@
             trail[trail.length - 1] = null as any;
             trail.pop();
         }
+        //adapt the position of all the markers on the moved part of the trail
+        poiList.forEach((p) => {
+            if (p.trailPosition[0] == trail.length - 1) {
+                p.addToTrail();
+            }
+        });
     }
 
     async function deleteWaypoint(righclickTarget: number) {
+        trailUpdate = true;
         loadingTrail++;
 
         if (righclickTarget == trailMarkers.length - 1) {
@@ -551,7 +553,18 @@
             trailMarkers[0].setIcon(
                 iconmaker(colors.trailStart, trailMarkerSize),
             );
+            poiList.forEach((p) => {
+                if (p.trailPosition[0] == 0) {
+                    p.addToTrail();
+                }
+            });
         } else {
+            //reducing the position of the poi because of the deleted piece
+            poiList.forEach((p) => {
+                if (p.trailPosition[0] >= righclickTarget) {
+                    p.trailPosition[0]--;
+                }
+            });
             trailMarkers[righclickTarget]
                 .off("dragend")
                 .off("contextmenu")
@@ -584,8 +597,14 @@
                 endLatlng == trailMarkers[righclickTarget].getLatLng()
             ) {
                 trail[righclickTarget - 1].setLatLngs(
-                    responseToLatlngs(response),
+                    responseToLatlngs(response, trailResolution),
                 );
+                //adapt the position of all the markers on the moved part of the trail
+                poiList.forEach((p) => {
+                    if (p.trailPosition[0] == righclickTarget - 1) {
+                        p.addToTrail();
+                    }
+                });
             } //else discarding the response
         }
         loadingTrail--;
@@ -636,9 +655,16 @@
         event: LeafletMouseEvent,
         righclickTarget: number,
     ) {
+        trailUpdate = true;
         loadingTrail++;
         insertSwitch();
 
+        //advancing the position in the trail becuase of the additional segment
+        poiList.forEach((p) => {
+            if (p.trailPosition[0] > righclickTarget) {
+                p.trailPosition[0]++;
+            }
+        });
         //insert new marker and give it all the funcionality
         trailMarkers.splice(
             righclickTarget + 1,
@@ -685,15 +711,26 @@
             startLatlng == trailMarkers[righclickTarget].getLatLng() &&
             midLatlng == trailMarkers[righclickTarget + 1].getLatLng()
         ) {
-            trail[righclickTarget].setLatLngs(responseToLatlngs(part1));
+            trail[righclickTarget].setLatLngs(
+                responseToLatlngs(part1, trailResolution),
+            );
         }
         if (
             endLatlng == trailMarkers[righclickTarget + 2].getLatLng() &&
             midLatlng == trailMarkers[righclickTarget + 1].getLatLng()
         ) {
-            trail[righclickTarget + 1].setLatLngs(responseToLatlngs(part2));
+            trail[righclickTarget + 1].setLatLngs(
+                responseToLatlngs(part2, trailResolution),
+            );
         } //else discarding the response
         loadingTrail--;
+        //adapt the position of all the markers on the moved part of the trail
+        //sometimes doing double work to avoid bugs
+        poiList.forEach((p) => {
+            if (p.trailPosition[0] == righclickTarget) {
+                p.addToTrail();
+            }
+        });
     }
 
     //function to make the map once the html is created
@@ -720,6 +757,43 @@
             },
         };
     }
+
+    async function trailToDatabase() {
+        trailUpdate = false;
+        let trailData: { lat: number; lng: number }[][] = [];
+        if (trailUpdate) {
+            trailData = [];
+            trail.forEach((t) =>
+                trailData.push(latlngsToDataobject(t.getLatLngs() as LatLng[])),
+            );
+        } else {
+            trailData = [[{ lat: 0, lng: 0 }]];
+        }
+        let response;
+        try {
+            response = await saveTrail({
+                trail: trailData,
+                author: "firstCause",
+                title: trailTitle,
+                description: trailDescription,
+                id: trailID,
+                trailUpdate: trailUpdate,
+            });
+        } catch (err) {
+            console.log(err);
+        }
+        if (response) {
+            trailID = response[0].id;
+        }
+    }
+
+    $effect(() => {
+        clearTimeout(waitToSave);
+
+        if (loadingTrail == 0 && trail.length > 0) {
+            waitToSave = setTimeout(() => trailToDatabase(), timeToSave);
+        }
+    });
 </script>
 
 <svelte:window on:click={onPageClick} />
@@ -754,12 +828,12 @@
         {#if editing === "trail"}
             <h3>Pfad bearbeiten</h3>
             <div>
-                <label for="trailCaption">Titel:</label>
+                <label for="trailTitle">Titel:</label>
                 <input
-                    id="trailCaption"
+                    id="trailTitle"
                     class="block"
                     type="text"
-                    bind:value={trailCaption}
+                    bind:value={trailTitle}
                 />
             </div>
             <div>
@@ -882,6 +956,10 @@
         {/if}
     </div>
 {/if}
+{#each await allTrails() as trail}
+    <p>{trail.title}</p>
+    <button onclick={async () => deleteTrail(trail.id)}>delete</button>
+{/each}
 
 <style>
     .alignment {

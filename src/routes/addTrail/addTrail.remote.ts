@@ -1,23 +1,21 @@
 import { hikingTrail } from './valiSchemata';
 import { form } from '$app/server';
-import { hikingTrails } from '$lib/server/db/trails.schema';
+import { hikingtrails } from '$lib/server/db/trails.schema';
 import { db } from '$lib/server/db';
 
 
-type createTrail = typeof hikingTrails.$inferInsert;
+type createTrail = typeof hikingtrails.$inferInsert;
 
 export const addTrail = form(hikingTrail, async (data) => {
     const Trail: createTrail = {
         title: data.title,
         description: data.description,
-        zoom: data.zoom,
-        mapLat: data.mapLat,
-        mapLong: data.mapLong,
         trail: data.trail,
-        author: "FirstCause"
+        author: "FirstCause",
+        editor: "asdf"
     }
     try {
-        const result = await db.insert(hikingTrails).values(Trail).$returningId();
+        const result = await db.insert(hikingtrails).values(Trail).$returningId();
         console.log(result);
     } catch (error) {
         console.log(error)
