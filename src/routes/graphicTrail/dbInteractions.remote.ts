@@ -17,7 +17,8 @@ export const saveTrail = command(v.object({
     title: v.string(),
     description: v.string(),
     id: v.string(),
-    trailUpdate: v.boolean()
+    trailUpdate: v.boolean(),
+    length: v.number()
 
 }),
     async (data) => {
@@ -27,11 +28,11 @@ export const saveTrail = command(v.object({
                 description: data.description,
                 trail: data.trail,
                 author: data.author,
-                editor: data.author
+                editor: data.author,
+                length: data.length
             }
             try {
                 const result = await db.insert(hikingtrails).values(Trail).$returningId();
-                console.log(result);
                 return result;
             } catch (error) {
                 console.log(error)
@@ -39,12 +40,14 @@ export const saveTrail = command(v.object({
             }
         } else {
             if (data.trailUpdate) {
+
                 try {
                     await db.update(hikingtrails).set({
                         title: data.title,
                         description: data.description,
                         trail: data.trail,
-                        editor: data.author
+                        editor: data.author,
+                        length: data.length
                     }).where(eq(hikingtrails.id, data.id))
                 } catch (error) {
                     console.log(error)
@@ -67,7 +70,7 @@ export const saveTrail = command(v.object({
 )
 export const allTrails = query(async () => {
     try {
-        const Trails = await db.query.hikingtrails.findMany();
+        const Trails = await db.select({ id: hikingtrails.id, title: hikingtrails.title }).from(hikingtrails)
         return Trails;
     } catch (error) {
         console.log(error)
@@ -81,3 +84,12 @@ export const deleteTrail = command(v.string(), async (trailId) => {
         console.log(error);
     }
 });
+
+export const getTrail = command(v.string(), async (trailId) => {
+    try {
+        const trail = await db.select().from(hikingtrails).where(eq(hikingtrails.id, trailId))
+        return trail
+    } catch (error) {
+        console.log(error)
+    }
+})

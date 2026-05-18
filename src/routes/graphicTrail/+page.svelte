@@ -2,7 +2,6 @@
     import "leaflet/dist/leaflet.css";
     import {
         LatLng,
-        LatLngBounds,
         Map,
         Marker,
         Polyline,
@@ -13,11 +12,19 @@
     import { getPath } from "./getPath.remote";
     import { error } from "@sveltejs/kit";
     import { iconmaker, latlngsToDataobject, responseToLatlngs } from "./utils";
-    import { allTrails, deleteTrail, saveTrail } from "./dbInteractions.remote";
+    import {
+        allTrails,
+        deleteTrail,
+        getTrail,
+        saveTrail,
+    } from "./dbInteractions.remote";
+    import { colors, sizes, timeToSave, trailResolution } from "./config";
+    import { onMount } from "svelte";
+
     //leaflet map and the dom element
     let map: Map;
     //the set of polylines that make up the hiking trail
-    let trail: Polyline[] = [];
+    let trail: Polyline[] = $state([]);
     //markers at the start and end of all the polylines for help editing the trail
     let trailMarkers: Marker[] = $state([]);
     //are you editing the trail or the poi
@@ -37,36 +44,24 @@
     //is the onclick function to insert a marker active?
     let insertingMarker = false;
     //maximum distance(meters) between two coordinate points in the polylines, else we will interpolate some
-    let trailResolution = 40;
+
     //list of points of interest
     let poiList = $state([]) as pointOfInterest[];
     let trailDescription = $state("");
     let trailTitle = $state("Namen Eingeben");
-    let trailID = "";
+    //uuid from database
+    let trailID = $state("");
+    //hase the path of the trail been updated since the last save?
     let trailUpdate = false;
-    //timer to wait until the user didnt change anything for a while
-    let timeToSave = 5000;
+
+    let loadID = "";
+    let listofTrails: { title: string; id: string }[] = $state([]);
     // variable to save the according timeout
     let waitToSave = setTimeout(() => {}, timeToSave);
-
-    const colors = {
-        trailStart: "green",
-        trailEnd: "white",
-        movableMarker: "blue",
-        editing: "orange",
-        poi: "yellow",
-        buildTrail: "black",
-        path: "#3388ff",
-        inactiveTrail: "darkblue",
-    };
-
-    const trailMarkerSize = 1.2;
-    const activeTrailendSize = 1.5;
-    const poiSize = 1.5;
-    const poiHeroSize = 2;
-    const buildTrailSize = 3;
-    const clickableTrailSize = 4;
-    const inactiveTrailSize = 2;
+    //to get a confimation step before deleting trails/poi
+    let deleteQuery = $state(false);
+    //<p> to display the editing data
+    let editorial: HTMLElement;
 
     class pointOfInterest {
         //caption
@@ -96,7 +91,7 @@
 
             this.marker
                 .addTo(map)
-                .setIcon(iconmaker(colors.editing, poiHeroSize));
+                .setIcon(iconmaker(colors.editing, sizes.poiHero));
             if (caption) {
                 this.caption = caption;
             }
@@ -137,6 +132,7 @@
             this.marker = null as any;
         }
     }
+    //switch between editing trail and poi
     function editorSwitch() {
         if (editing == "trail") {
             if (trailMarkers.length === 0) return;
@@ -157,7 +153,7 @@
             trail.forEach((t) =>
                 t.setStyle({
                     color: colors.inactiveTrail,
-                    weight: inactiveTrailSize,
+                    weight: sizes.inactiveTrail,
                 }),
             );
             poiList.forEach((p) => p.marker.addTo(map));
@@ -172,7 +168,10 @@
             });
             trail.forEach((t) => {
                 t.on("contextmenu", (e) => rightClickContextMenu(e));
-                t.setStyle({ color: colors.path, weight: clickableTrailSize });
+                t.setStyle({
+                    color: colors.path,
+                    weight: sizes.clickableTrail,
+                });
             });
             map.getContainer().style.cursor = "all-scroll";
             editing = "trail";
@@ -182,12 +181,12 @@
     function heromaker(poi: pointOfInterest) {
         poiList.forEach((element) => {
             if (element.hero) {
-                element.marker.setIcon(iconmaker(colors.poi, poiSize));
+                element.marker.setIcon(iconmaker(colors.poi, sizes.poi));
                 element.hero = false;
             }
         });
         poi.hero = true;
-        poi.marker.setIcon(iconmaker(colors.editing, poiHeroSize));
+        poi.marker.setIcon(iconmaker(colors.editing, sizes.poiHero));
     }
 
     //clicking on the page stops displaying the right-click menu
@@ -216,7 +215,7 @@
     function poiCreator(e: LeafletMouseEvent) {
         poiList.forEach((element) => {
             if (element.hero) {
-                element.marker.setIcon(iconmaker(colors.poi, poiSize));
+                element.marker.setIcon(iconmaker(colors.poi, sizes.poi));
                 element.hero = false;
             }
         });
@@ -231,13 +230,14 @@
         trailUpdate = true;
         let response;
         loadingTrail++;
+        clearTimeout(waitToSave);
         if (trailMarkers.length == 0) {
             // creating a first marker for the trail if none exist
 
             trailMarkers = [new Marker(e.latlng, { draggable: true })];
 
             trailMarkers[0]
-                .setIcon(iconmaker(colors.trailStart, trailMarkerSize))
+                .setIcon(iconmaker(colors.trailStart, sizes.trailMarker))
                 .addTo(map);
         } else {
             // Creating a straight line as filler while loading and to save the position in the array
@@ -268,7 +268,7 @@
                 .on("dragend", (e) => {
                     moveTrail(e);
                 })
-                .setIcon(iconmaker(colors.editing, activeTrailendSize));
+                .setIcon(iconmaker(colors.editing, sizes.activeTrailend));
             //api call for pathfinding the route
             try {
                 response = await getPath(
@@ -292,6 +292,9 @@
             } // else discarding the response
         }
         loadingTrail--;
+        if (loadingTrail == 0) {
+            waitToSave = setTimeout(trailToDatabase, timeToSave);
+        }
     }
 
     function trailMakerSwitch() {
@@ -307,15 +310,15 @@
                         moveTrail(e);
                     })
                         .setIcon(
-                            iconmaker(colors.movableMarker, trailMarkerSize),
+                            iconmaker(colors.movableMarker, sizes.trailMarker),
                         )
                         .dragging?.enable();
                 });
                 trailMarkers[trailMarkers.length - 1].setIcon(
-                    iconmaker(colors.trailEnd, trailMarkerSize),
+                    iconmaker(colors.trailEnd, sizes.trailMarker),
                 );
                 trailMarkers[0].setIcon(
-                    iconmaker(colors.trailStart, trailMarkerSize),
+                    iconmaker(colors.trailStart, sizes.trailMarker),
                 );
             }
             //menus for adding and deleting markers
@@ -328,7 +331,7 @@
                     .on("contextmenu", (e) => rightClickContextMenu(e))
                     .setStyle({
                         color: colors.path,
-                        weight: clickableTrailSize,
+                        weight: sizes.clickableTrail,
                     }),
             );
         } else {
@@ -345,16 +348,16 @@
                         .setIcon(iconmaker(colors.buildTrail, 1));
                 }
                 trailMarkers[trailMarkers.length - 1].setIcon(
-                    iconmaker(colors.editing, activeTrailendSize),
+                    iconmaker(colors.editing, sizes.activeTrailend),
                 );
                 trailMarkers[0].setIcon(
-                    iconmaker(colors.trailStart, trailMarkerSize),
+                    iconmaker(colors.trailStart, sizes.trailMarker),
                 );
             }
             trail.forEach((p) =>
                 p.off("contextmenu").setStyle({
                     color: colors.buildTrail,
-                    weight: buildTrailSize,
+                    weight: sizes.buildTrail,
                 }),
             );
             trailMarkers.forEach((m) => m.off("contextmenu"));
@@ -364,6 +367,8 @@
     //function to move the trail by dragging markers, input is the number of the marker and the surrounding markers in the array
     async function moveTrail(e: LeafletEvent) {
         trailUpdate = true;
+
+        clearTimeout(waitToSave);
         // finding the dragged marker and both around it in the array
         let current = trailMarkers.indexOf(e.target);
         let next = current + 1;
@@ -490,9 +495,14 @@
             } // else discarding responses
         }
         loadingTrail--;
+        if (loadingTrail == 0) {
+            waitToSave = setTimeout(trailToDatabase, timeToSave);
+        }
     }
     function deleteTrailend() {
         trailUpdate = true;
+
+        clearTimeout(waitToSave);
         // making sure all the related dom elements, event listeners and any object references are gone
         trailMarkers[trailMarkers.length - 1].off("dragend").off("contextmenu");
         trailMarkers[trailMarkers.length - 1].remove();
@@ -502,14 +512,14 @@
             //enabling all the properties of the end marker on the previous one unless there is only one left
             if (makingTrail) {
                 trailMarkers[trailMarkers.length - 1]
-                    .setIcon(iconmaker(colors.editing, activeTrailendSize))
+                    .setIcon(iconmaker(colors.editing, sizes.activeTrailend))
                     .on("dragend", (e) => {
                         moveTrail(e);
                     })
                     .dragging?.enable();
             } else {
                 trailMarkers[trailMarkers.length - 1].setIcon(
-                    iconmaker(colors.trailEnd, trailMarkerSize),
+                    iconmaker(colors.trailEnd, sizes.trailMarker),
                 );
             }
         } else if (trailMarkers.length == 1) {
@@ -531,11 +541,15 @@
                 p.addToTrail();
             }
         });
+        if (loadingTrail == 0) {
+            waitToSave = setTimeout(trailToDatabase, timeToSave);
+        }
     }
 
     async function deleteWaypoint(righclickTarget: number) {
         trailUpdate = true;
         loadingTrail++;
+        clearTimeout(waitToSave);
 
         if (righclickTarget == trailMarkers.length - 1) {
             deleteTrailend();
@@ -551,7 +565,7 @@
             trailMarkers.shift();
             trail.shift();
             trailMarkers[0].setIcon(
-                iconmaker(colors.trailStart, trailMarkerSize),
+                iconmaker(colors.trailStart, sizes.trailMarker),
             );
             poiList.forEach((p) => {
                 if (p.trailPosition[0] == 0) {
@@ -608,6 +622,9 @@
             } //else discarding the response
         }
         loadingTrail--;
+        if (loadingTrail == 0) {
+            waitToSave = setTimeout(trailToDatabase, timeToSave);
+        }
     }
     //function to switch on the onclick to add a trailmarker into the trail between 2 others and all related graphical indicators
     function insertSwitch() {
@@ -620,20 +637,20 @@
             //getting start and end markers their respective colors if they were changed
             if (righclickTarget == 0) {
                 trailMarkers[righclickTarget].setIcon(
-                    iconmaker(colors.trailStart, trailMarkerSize),
+                    iconmaker(colors.trailStart, sizes.trailMarker),
                 );
             } else {
                 trailMarkers[righclickTarget].setIcon(
-                    iconmaker(colors.movableMarker, trailMarkerSize),
+                    iconmaker(colors.movableMarker, sizes.trailMarker),
                 );
             }
             if (righclickTarget + 1 == trailMarkers.length - 1) {
                 trailMarkers[righclickTarget + 1].setIcon(
-                    iconmaker(colors.trailEnd, trailMarkerSize),
+                    iconmaker(colors.trailEnd, sizes.trailMarker),
                 );
             } else {
                 trailMarkers[righclickTarget + 1].setIcon(
-                    iconmaker(colors.movableMarker, trailMarkerSize),
+                    iconmaker(colors.movableMarker, sizes.trailMarker),
                 );
             }
         } else {
@@ -643,10 +660,10 @@
             insertingMarker = true;
             trail[righclickTarget].setStyle({ color: colors.editing });
             trailMarkers[righclickTarget].setIcon(
-                iconmaker(colors.editing, trailMarkerSize),
+                iconmaker(colors.editing, sizes.trailMarker),
             );
             trailMarkers[righclickTarget + 1].setIcon(
-                iconmaker(colors.editing, trailMarkerSize),
+                iconmaker(colors.editing, sizes.trailMarker),
             );
         }
     }
@@ -657,6 +674,7 @@
     ) {
         trailUpdate = true;
         loadingTrail++;
+        clearTimeout(waitToSave);
         insertSwitch();
 
         //advancing the position in the trail becuase of the additional segment
@@ -676,7 +694,7 @@
                 moveTrail(e);
             })
             .on("contextmenu", (e) => rightClickContextMenu(e))
-            .setIcon(iconmaker(colors.movableMarker, trailMarkerSize))
+            .setIcon(iconmaker(colors.movableMarker, sizes.trailMarker))
             .addTo(map);
         //save all the latlngs in case markers are moved during loading
         const startLatlng = trailMarkers[righclickTarget].getLatLng();
@@ -689,7 +707,7 @@
             0,
             new Polyline([midLatlng, endLatlng], {
                 color: colors.path,
-                weight: clickableTrailSize,
+                weight: sizes.clickableTrail,
             }),
         );
         trail[righclickTarget + 1]
@@ -731,8 +749,184 @@
                 p.addToTrail();
             }
         });
+        if (loadingTrail == 0) {
+            waitToSave = setTimeout(trailToDatabase, timeToSave);
+        }
     }
 
+    async function trailToDatabase() {
+        loadingTrail++;
+        let trailData: { lat: number; lng: number }[][] = [];
+        let length = 0;
+        if (trailUpdate) {
+            let latlngs: LatLng[];
+            trail.forEach((t) => {
+                latlngs = t.getLatLngs() as LatLng[];
+                trailData.push(latlngsToDataobject(latlngs));
+                for (let i = 0; i < latlngs.length - 2; i++) {
+                    length += latlngs[i].distanceTo(latlngs[i + 1]);
+                }
+            });
+        }
+
+        let response;
+        try {
+            response = await saveTrail({
+                trail: trailData,
+                author: "firstCause",
+                title: trailTitle,
+                description: trailDescription,
+                id: trailID,
+                trailUpdate: trailUpdate,
+                length: length,
+            });
+        } catch (err) {
+            console.log(err);
+        }
+        if (response) {
+            trailID = response[0].id;
+            let i = 0;
+            while (
+                i < listofTrails.length &&
+                listofTrails[i].title < trailTitle
+            ) {
+                i++;
+            }
+            listofTrails.splice(i, 0, { id: trailID, title: trailTitle });
+        } else {
+            let index = listofTrails.findIndex((t) => t.id == trailID);
+            if (listofTrails[index].title != trailTitle) {
+                listofTrails.splice(index, 1);
+                let i = 0;
+                while (
+                    i < listofTrails.length &&
+                    listofTrails[i].title < trailTitle
+                ) {
+                    i++;
+                }
+                console.log(i);
+                listofTrails.splice(i, 0, { id: trailID, title: trailTitle });
+            }
+        }
+        trailUpdate = false;
+        loadingTrail--;
+    }
+
+    async function trailFromDB(id: string) {
+        if (makingTrail) {
+            trailMakerSwitch();
+        }
+        if (insertingMarker) {
+            insertSwitch();
+        }
+        if (trailID != "") {
+            clearInterval(waitToSave);
+            trailToDatabase();
+        }
+        loadingTrail++;
+
+        let result;
+
+        try {
+            result = await getTrail(id);
+        } catch (err) {
+            console.log(err);
+        }
+        if (result) {
+            trailID = result[0].id;
+            trailTitle = result[0].title;
+            trailDescription = result[0].description;
+
+            trail.forEach((t) => {
+                t.off("contextmenu");
+                t.remove();
+                t = null as any;
+            });
+            trail = [];
+            trailMarkers.forEach((m) => {
+                m.off("contextmenu");
+                m.off("dragend");
+                m.remove();
+                m = null as any;
+            });
+            trailMarkers = [];
+            const coordinates = result[0].trail as {
+                lat: number;
+                lng: number;
+            }[][];
+            coordinates.forEach((t) => {
+                trailMarkers.push(new Marker(t[0], { draggable: true }));
+                trail.push(new Polyline(t));
+            });
+            trailMarkers.push(
+                new Marker(
+                    //selecting the last element of the lest element in [][] is a nightmare
+                    coordinates[coordinates.length - 1][
+                        coordinates[coordinates.length - 1].length - 1
+                    ],
+                    { draggable: true },
+                ),
+            );
+            trail.forEach((t) => {
+                t.addTo(map);
+                t.on("contextmenu", (e) => rightClickContextMenu(e));
+            });
+            trailMarkers.forEach((m) => {
+                m.addTo(map);
+                m.on("contextmenu", (e) => rightClickContextMenu(e));
+                m.on("dragend", (e) => moveTrail(e));
+                m.setIcon(iconmaker(colors.movableMarker, sizes.trailMarker));
+            });
+            trailMarkers[0].setIcon(
+                iconmaker(colors.trailStart, sizes.trailMarker),
+            );
+            trailMarkers[trailMarkers.length - 1].setIcon(
+                iconmaker(colors.trailEnd, sizes.trailMarker),
+            );
+            let mapBounds = trail[0].getBounds();
+            trail.forEach((t) => mapBounds.extend(t.getBounds()));
+            map.fitBounds(mapBounds);
+            editorial.innerHTML =
+                "erstellt: " +
+                result[0].created.toLocaleString() +
+                " von " +
+                result[0].author +
+                "    zulezt bearbeited: " +
+                result[0].updated?.toLocaleString() +
+                " von " +
+                result[0].editor +
+                " Länge: " +
+                Math.round(Number(result[0].length) / 100) / 10 +
+                "km";
+        }
+        loadingTrail--;
+    }
+
+    function newTrail() {
+        if (insertingMarker) {
+            insertSwitch();
+        }
+
+        trail.forEach((t) => {
+            t.off("contextmenu");
+            t.remove();
+            t = null as any;
+        });
+        trail = [];
+        trailMarkers.forEach((m) => {
+            m.off("contextmenu");
+            m.off("dragend");
+            m.remove();
+            m = null as any;
+        });
+        trailMarkers = [];
+        trailTitle = "Namen Eintragen";
+        trailDescription = "";
+        trailID = "";
+        if (!makingTrail) {
+            trailMakerSwitch;
+        }
+    }
     //function to make the map once the html is created
     function createMap(html: any) {
         map = new Map(html).setView([52.54, 13.52], 13);
@@ -757,47 +951,24 @@
             },
         };
     }
-
-    async function trailToDatabase() {
-        trailUpdate = false;
-        let trailData: { lat: number; lng: number }[][] = [];
-        if (trailUpdate) {
-            trailData = [];
-            trail.forEach((t) =>
-                trailData.push(latlngsToDataobject(t.getLatLngs() as LatLng[])),
-            );
-        } else {
-            trailData = [[{ lat: 0, lng: 0 }]];
-        }
-        let response;
-        try {
-            response = await saveTrail({
-                trail: trailData,
-                author: "firstCause",
-                title: trailTitle,
-                description: trailDescription,
-                id: trailID,
-                trailUpdate: trailUpdate,
-            });
-        } catch (err) {
-            console.log(err);
-        }
-        if (response) {
-            trailID = response[0].id;
+    async function loadTrailList() {
+        let result = await allTrails();
+        if (result) {
+            listofTrails = result;
         }
     }
 
-    $effect(() => {
-        clearTimeout(waitToSave);
-
-        if (loadingTrail == 0 && trail.length > 0) {
-            waitToSave = setTimeout(() => trailToDatabase(), timeToSave);
-        }
+    onMount(() => {
+        loadTrailList();
     });
 </script>
 
-<svelte:window on:click={onPageClick} />
-
+<svelte:window
+    on:click={onPageClick}
+    on:contextmenu={() => {
+        if (deleteQuery) deleteQuery = false;
+    }}
+/>
 <div class="alignment">
     <div
         id="map"
@@ -818,47 +989,116 @@
     <div class="ui-panel">
         {#if editing === "trail" && trailMarkers.length === 0}
             <button onclick={trailMakerSwitch}
-                >Bitte zeichnen Sie zuerst einen Pfad auf</button
+                >Bitte zeichnen Sie zuerst einen Wanderweg auf</button
             >
+        {:else if loadingTrail != 0}
+            <button disabled>Wanderweg wird geladen</button>
         {:else}
             <button onclick={() => editorSwitch()} class="block switch-btn">
-                Modus: {editing === "trail" ? "Pfad" : "POI"} (wechseln)
+                Modus: {editing === "trail"
+                    ? "Wanderweg"
+                    : "Sehenswürdigkeiten"} (wechseln)
             </button>{/if}
 
         {#if editing === "trail"}
-            <h3>Pfad bearbeiten</h3>
+            <h3>Wanderweg bearbeiten</h3>
             <div>
-                <label for="trailTitle">Titel:</label>
+                <label for="trailTitle">Name:</label>
                 <input
+                    autocomplete="off"
                     id="trailTitle"
                     class="block"
                     type="text"
                     bind:value={trailTitle}
+                    onchange={() => {
+                        if (loadingTrail == 0) {
+                            clearTimeout(waitToSave);
+                            waitToSave = setTimeout(
+                                trailToDatabase,
+                                timeToSave,
+                            );
+                        }
+                    }}
                 />
             </div>
             <div>
                 <label for="trailDescription">Beschreibung:</label>
                 <textarea
+                    autocomplete="off"
                     id="trailDescription"
                     class="block"
                     bind:value={trailDescription}
+                    onchange={() => {
+                        if (loadingTrail == 0) {
+                            clearTimeout(waitToSave);
+                            waitToSave = setTimeout(
+                                trailToDatabase,
+                                timeToSave,
+                            );
+                        }
+                    }}
                 ></textarea>
             </div>
             <div>
                 <button onclick={trailMakerSwitch}>
                     {makingTrail
-                        ? "Pfadaufzeichnung stoppen"
-                        : "Pfad aufzeichnen"}
+                        ? "Wegaufzeichnung stoppen"
+                        : "Wanderweg aufzeichnen"}
                 </button>
             </div>
             <div>
                 <button
+                    disabled={trail.length == 0 || loadingTrail != 0}
                     onclick={() => {
-                        if (trailMarkers.length > 0) {
-                            deleteTrailend();
-                        }
-                    }}>Ende löschen</button
+                        clearInterval(waitToSave);
+                        trailToDatabase();
+                    }}>Speichern</button
                 >
+            </div>
+            <div>
+                {#if deleteQuery}
+                    <p>Wirklich Löschen?</p>
+                    <button
+                        onclick={() => {
+                            deleteTrail(trailID);
+                            newTrail();
+                        }}>Löschen</button
+                    >
+                    <button onclick={() => (deleteQuery = false)}
+                        >Abbrechen</button
+                    >
+                {:else}
+                    <button
+                        disabled={trailID == "" || loadingTrail != 0}
+                        onclick={() => (deleteQuery = true)}
+                        >Wanderweg löschen</button
+                    >
+                {/if}
+            </div>
+            <div>
+                <button
+                    disabled={loadingTrail != 0}
+                    onclick={() => {
+                        if (trailID != "") {
+                            clearInterval(waitToSave);
+                            trailToDatabase();
+                        }
+                        newTrail();
+                    }}>Neuer Wanderweg</button
+                >
+            </div>
+
+            <div>
+                <p>Wanderweg laden</p>
+                <select
+                    disabled={loadingTrail != 0}
+                    bind:value={loadID}
+                    onchange={() => trailFromDB(loadID)}
+                >
+                    {#each listofTrails as trail}
+                        <option value={trail.id}>{trail.title}</option>
+                    {/each}
+                </select>
             </div>
         {:else if editing === "poi"}
             <h3>POI bearbeiten</h3>
@@ -956,10 +1196,7 @@
         {/if}
     </div>
 {/if}
-{#each await allTrails() as trail}
-    <p>{trail.title}</p>
-    <button onclick={async () => deleteTrail(trail.id)}>delete</button>
-{/each}
+<p bind:this={editorial}>Neu erstellter Wanderweg</p>
 
 <style>
     .alignment {

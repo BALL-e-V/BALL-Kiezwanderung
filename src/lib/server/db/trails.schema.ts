@@ -10,7 +10,8 @@ export const hikingtrails = mysqlTable("hikingtrails",
         author: varchar({ length: 128 }).notNull(),
         created: timestamp().defaultNow().notNull(),
         editor: varchar({ length: 128 }).notNull(),
-        updated: timestamp().onUpdateNow()
+        updated: timestamp().onUpdateNow(),
+        length: float(),
     },
     (table) => [
         index('titleIdx').on(table.title)
@@ -39,9 +40,9 @@ export const poiRelations = relations(poi, ({ many }) => ({
 }))
 
 export const trailsToPoi = mysqlTable("trails_to_poi", {
-    trailID: varchar("trailID", { length: 191 }).notNull().references(() => hikingtrails.id),
-    poiID: varchar("poiID", { length: 191 }).notNull().references(() => poi.id),
-    position1: smallint(),
+    trailID: varchar("trailID", { length: 191 }).notNull(),
+    poiID: varchar("poiID", { length: 191 }).notNull(),
+    position1: smallint(),//positions of the closest point in the trail arrays
     position2: smallint(),
 },
     (t) => [
