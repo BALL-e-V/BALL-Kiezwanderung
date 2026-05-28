@@ -6,7 +6,7 @@ export const hikingtrails = mysqlTable("hikingtrails",
         id: varchar("id", { length: 191 }).primaryKey().$defaultFn(() => crypto.randomUUID()).notNull(),
         title: varchar({ length: 128 }).notNull(),
         description: text().notNull(),
-        trail: json().notNull(),
+        trail: json(),
         author: varchar({ length: 128 }).notNull(),
         created: timestamp().defaultNow().notNull(),
         editor: varchar({ length: 128 }).notNull(),
@@ -22,13 +22,14 @@ export const trailRelations = relations(hikingtrails, ({ many }) => ({
     poiSchema: many(poi),
 }));
 
-export const poi = mysqlTable("pictures", {
+export const poi = mysqlTable("poi", {
     id: varchar("id", { length: 191 }).primaryKey().$defaultFn(() => crypto.randomUUID()).notNull(),
     imageUrl: varchar({ length: 128 }),
     caption: varchar({ length: 128 }),
     latitude: double(),
     longitude: double(),
     description: text(),
+    imageAlt:text(),
     author: varchar({ length: 128 }).notNull(),
     created: timestamp().defaultNow().notNull(),
     editor: varchar({ length: 128 }),
