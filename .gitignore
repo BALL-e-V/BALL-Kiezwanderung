@@ -7,6 +7,8 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
+/.vs
+/.vscode
 
 # OS
 .DS_Store

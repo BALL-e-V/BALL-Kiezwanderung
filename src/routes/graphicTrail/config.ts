@@ -7,6 +7,7 @@ export const colors = {
     buildTrail: "black",
     path: "#3388ff",
     inactiveTrail: "darkblue",
+    inactivePoi: "lightgray",
 };
 export const sizes = {
     trailMarker: 1.2,
@@ -16,6 +17,7 @@ export const sizes = {
     buildTrail: 3,
     clickableTrail: 4,
     inactiveTrail: 2,
+    inactivePoi: 1,
 };
 //ms to save after last action
 export const timeToSave = 5000;
