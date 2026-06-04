@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { hikingtrails, trailsToPoi } from '$lib/server/db/trails.schema';
 import { db } from "$lib/server/db";
 import { eq } from "drizzle-orm";
+import {deleteTrailPOIRelation} from "./poiDB.remote";
 
 type createTrail = typeof hikingtrails.$inferInsert;
 
@@ -108,9 +109,14 @@ export const allTrails = query(async () => {
 export const deleteTrail = command(v.string(), async (trailId) => {
     try {
         await db.delete(hikingtrails).where(eq(hikingtrails.id, trailId));
+            const relatedPOIs = await db.select({poiId: trailsToPoi.poiId}).from(trailsToPoi).where(eq(trailsToPoi.trailId, trailId));
+            relatedPOIs.forEach(async (relation) => {       
+                await deleteTrailPOIRelation({ trailId: trailId, poiId: relation.poiId })
+            })
     } catch (error) {
         console.log(error);
     }
+
 });
 //get all the data form a single selected trail
 export const getTrail = command(v.string(), async (trailId) => {

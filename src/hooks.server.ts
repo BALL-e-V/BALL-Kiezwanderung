@@ -1,9 +1,16 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import { building } from '$app/environment';
-import { auth } from '$lib/server/auth';
-import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
+import { auth } from "$lib/auth";
+import { svelteKitHandler } from "better-auth/svelte-kit";
+import { building } from '$app/environment'
+
+const handleBetterAuth: Handle = async ({ event, resolve }) => {
+	const result = await auth.api.getSession({ headers: event.request.headers });
+	event.locals.session = result?.session;
+	event.locals.user = result?.user;
+	return svelteKitHandler({ event, resolve, auth, building });
+};
 
 const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(event.request, ({ request, locale }) => {
 	event.request = request;
@@ -13,15 +20,4 @@ const handleParaglide: Handle = ({ event, resolve }) => paraglideMiddleware(even
 	});
 });
 
-const handleBetterAuth: Handle = async ({ event, resolve }) => {
-	const session = await auth.api.getSession({ headers: event.request.headers });
-
-	if (session) {
-		event.locals.session = session.session;
-		event.locals.user = session.user;
-	}
-
-	return svelteKitHandler({ event, resolve, auth, building });
-};
-
-export const handle: Handle = sequence(handleParaglide, handleBetterAuth);
+export const handle: Handle = sequence(handleBetterAuth, handleParaglide);

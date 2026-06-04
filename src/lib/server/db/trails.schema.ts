@@ -41,24 +41,24 @@ export const poiRelations = relations(poi, ({ many }) => ({
 }))
 
 export const trailsToPoi = mysqlTable("trails_to_poi", {
-    trailID: varchar("trailID", { length: 191 }).notNull(),
-    poiID: varchar("poiID", { length: 191 }).notNull(),
+    trailId: varchar("trailId", { length: 191 }).notNull(),
+    poiId: varchar("poiId", { length: 191 }).notNull(),
     position1: smallint(),//positions of the closest point in the trail arrays
     position2: smallint(),
 },
     (t) => [
-        primaryKey({ columns: [t.trailID, t.poiID] })
+        primaryKey({ columns: [t.trailId, t.poiId] })
     ],
 )
 
 export const trailsToPoiRelations = relations(trailsToPoi, ({ one }) => ({
     hikingTrails: one(hikingtrails, {
-        fields: [trailsToPoi.trailID],
+        fields: [trailsToPoi.trailId],
         references: [hikingtrails.id]
 
     }),
     poi: one(poi, {
-        fields: [trailsToPoi.poiID],
+        fields: [trailsToPoi.poiId],
         references: [poi.id]
     })
 }))

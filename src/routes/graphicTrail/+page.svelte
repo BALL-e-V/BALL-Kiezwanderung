@@ -24,10 +24,10 @@
     savePOI,
     saveTrailPOIRelation,
     getTrailPOIs,
+    deleteTrailPOIRelation,
     allPOIs,
     deletePOI,
-    allRelations,
-    deleteTrailPOIRelation,
+    saveImage,
   } from "./poiDB.remote";
 
   //leaflet map and the dom element
@@ -51,21 +51,22 @@
   //position of the right-click menu
   let menuPos = $state({ x: 0, y: 0 });
   //is the onclick function to insert a marker active?
-  let insertingMarker = false;
+  let insertingWaypoint = false;
   //maximum distance(meters) between two coordinate points in the polylines, else we will interpolate some
 
   //list of points of interest
   let poiList = $state([]) as pointOfInterest[];
+  //keeping track of the poi being moved to update trailposition when saved
   let poiPositionUpdate = $state(false);
+  //keeping track if the poiCreator onclick is running
+  let creatingPoi = $state(false);
 
   let trailDescription = $state("");
   let trailTitle = $state("Namen Eingeben");
   //uuid from database
-  let trailID = $state("");
+  let trailId = $state("");
   //hase the path of the trail been updated since the last save?
   let trailUpdate = false;
-  //Id of the selected trail in the list of trails to load from the database
-  let loadID = "";
   //list of all trails in the database for display in the load menu
   let listofTrails: { title: string; id: string }[] = $state([]);
   // variable to save the according timeout
@@ -75,112 +76,21 @@
   //<p> to display the editing data
   let editorial: HTMLElement;
   //the currently selected point of interest whose data is displayed and can be edited
-  let heroPOI = $state(null as any) as pointOfInterest;
+  let heroPOI = $state(-1) as number;
 
-  class pointOfInterest {
-    //caption
-    caption = $state("Foto");
-    imageURL = "";
-    description = $state("");
-    imageAlt = "";
-    //keeping lat and lng separately to write them into the database later
-    lat: number;
-    lng: number;
-    //serial uuid assigned by the database
-    id = "";
-    //leaflet marker to display the poi on the map and for interaction
-    marker: Marker;
-    // the position of the polyline in trail, and the position of the latlng in the latlng array of the polyline which is closest to the point of interest
-    trailPosition = [0, 0];
-
-    constructor(
-      //the poi needs at least a position on the map, the map element and a caption to be displayed in the list
-      map: Map,
-      latlng: { lat: number; lng: number },
-    ) {
-      this.lat = latlng.lat;
-      this.lng = latlng.lng;
-      this.marker = new Marker(latlng, { draggable: true });
-
-      this.marker.addTo(map);
-      this.marker.setIcon(iconmaker(colors.poi, sizes.poi));
-      this.marker.on("click", () => heromaker(this));
-      this.marker.on("dragend", (e) => {
-        this.lat = Number(e.target.getLatLng.lat);
-        this.lng = Number(e.target.getLatLng.lng);
-        if (trail.length > 0) {
-          this.getTrailPosition();
-          this.addToTrail();
-        }
-      });
-    }
-    //position of the closest coordinate in the array of latlngs of the polylines in the trail, saved as the position of the poi in the trail for sorting and display purposes
-    getTrailPosition() {
-      let latlngs: LatLng[];
-      let distance = this.marker
-        .getLatLng()
-        .distanceTo(trailMarkers[0].getLatLng());
-      for (let i = 0; i < trail.length; i++) {
-        latlngs = trail[i].getLatLngs() as LatLng[];
-        for (let j = 0; j < latlngs.length; j++) {
-          let d = this.marker.getLatLng().distanceTo(latlngs[j]);
-          if (distance > d) {
-            distance = d;
-            this.trailPosition = [i, j];
-          }
-        }
-      }
-    }
-    //adding a poi in the list in its correct position accoding to its position on the trail
-    addToTrail() {
-      console.log("adtotrail");
-      for (let i = 0; i < poiList.length; i++) {
-        if (
-          (poiList[i].trailPosition[0] == this.trailPosition[0] &&
-            poiList[i].trailPosition[1] > this.trailPosition[1]) ||
-          poiList[i].trailPosition[0] > this.trailPosition[0]
-        ) {
-          poiList.splice(i, 0, this);
-
-          return;
-        }
-      }
-      poiPositionUpdate = true;
-      poiList.push(this);
-    }
-
-    destroy() {
-      this.marker.remove();
-      this.marker.off("click").off("dragend");
-      this.marker = null as any;
-    }
-  }
-  //for sorting the poi list according to the position on the trail
-  function compareMarkerPosition(a: pointOfInterest, b: pointOfInterest) {
-    if (
-      a.trailPosition[0] < b.trailPosition[0] ||
-      (a.trailPosition[0] == b.trailPosition[0] &&
-        a.trailPosition[1] < b.trailPosition[1])
-    ) {
-      return -1;
-    } else if (
-      a.trailPosition[0] > b.trailPosition[0] ||
-      (a.trailPosition[0] == b.trailPosition[0] &&
-        a.trailPosition[1] > b.trailPosition[1])
-    ) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }
-  //switch between editing trail and poi
+  //function to switch between editing pois and the trail
   function editorSwitch() {
     if (editing == "trail") {
-      if (trailMarkers.length === 0) return;
       if (makingTrail) {
+        //turning off trail interactivity
         map.off("click");
-        trailMarkers[trailMarkers.length - 1].off("dragend");
+        if (trailMarkers.length > 0) {
+          trailMarkers[trailMarkers.length - 1].off("dragend");
+        }
         makingTrail = false;
+      } else if (insertingWaypoint) {
+        map.off("click");
+        insertingWaypoint = false;
       } else {
         trail.forEach((t) => {
           t.off("contextmenu");
@@ -197,23 +107,29 @@
           weight: sizes.inactiveTrail,
         }),
       );
+      //turning on poi interactivity
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+        p.marker.dragging?.enable();
         p.marker.on("click", () => heromaker(p));
         p.marker.on("dragend", (e) => {
           p.lat = Number(e.target.getLatLng.lat);
           p.lng = Number(e.target.getLatLng.lng);
           if (trail.length > 0) {
             p.getTrailPosition();
-            p.addToTrail();
+            p.placeInPoilist();
           }
         });
       });
-      if (heroPOI) {
-        heroPOI.marker.setIcon(iconmaker(colors.editing, sizes.poiHero));
+      map.getContainer().style.cursor = "all-scroll";
+      if (heroPOI >= 0) {
+        poiList[heroPOI].marker.setIcon(
+          iconmaker(colors.editing, sizes.poiHero),
+        );
       }
       editing = "poi";
     } else {
+      //turning on trail interactivity
       trailMarkers.forEach((m) => {
         m.addTo(map);
         m.on("dragend", (e) => {
@@ -231,41 +147,19 @@
       map.getContainer().style.cursor = "all-scroll";
       editing = "trail";
       map.off("click");
-    }
-    poiList.forEach((p) => {
-      p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
-      p.marker.off("click").off("dragend");
-    });
-  }
-
-  function poiCreator(e: LeafletMouseEvent) {
-    if (heroPOI) {
-      heroPOI.marker.setIcon(iconmaker(colors.poi, sizes.poi));
-    }
-
-    let newPOI = new pointOfInterest(map, e.latlng);
-    map.off("click", poiCreator);
-    map.getContainer().style.cursor = "all-scroll";
-    if (trail.length > 0) {
-      newPOI.getTrailPosition();
-      newPOI.addToTrail();
-    } else {
-      poiList.push(newPOI);
-    }
-    heromaker(newPOI);
-    waitToSave = setTimeout(() => poiToDatabase(heroPOI), timeToSave);
-  }
-
-  function heromaker(poi: pointOfInterest) {
-    if (heroPOI) {
-      heroPOI.marker.setIcon(iconmaker(colors.poi, sizes.poi));
-      if (waitToSave) {
-        clearTimeout(waitToSave);
-        poiToDatabase(heroPOI);
+      //turning off poi interactivity
+      if (creatingPoi) {
+        //if creatingPoi interactivity is already off
+        map.off("click", poiCreator);
+        creatingPoi = false;
+      } else {
+        poiList.forEach((p) => {
+          p.marker.dragging?.disable();
+          p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
+          p.marker.off("click").off("dragend");
+        });
       }
     }
-    heroPOI = poi;
-    poi.marker.setIcon(iconmaker(colors.editing, sizes.poiHero));
   }
 
   //clicking on the page stops displaying the right-click menu
@@ -290,7 +184,165 @@
       y: e.originalEvent.clientY,
     };
   }
-  // add the point at coordinates, with -1 as serial because it's new and to the map
+
+  class pointOfInterest {
+    //caption
+    caption = $state("Foto");
+    imageUrl = $state("");
+    description = $state("");
+    imageAlt = $state("");
+    //keeping lat and lng separately to write them into the database later
+    lat: number;
+    lng: number;
+    //serial uuid assigned by the database
+    id = "";
+    //leaflet marker to display the poi on the map and for interaction
+    marker: Marker;
+    // the position of the polyline in trail, and the position of the latlng in the latlng array of the polyline which is closest to the point of interest
+    trailPosition = [0, 0];
+
+    constructor(
+      //the poi needs at least a position on the map, the map element and a caption to be displayed in the list
+      map: Map,
+      latlng: { lat: number; lng: number },
+    ) {
+      this.lat = latlng.lat;
+      this.lng = latlng.lng;
+      this.marker = new Marker(latlng, { draggable: true });
+
+      this.marker.addTo(map);
+      this.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+    }
+    //position of the closest coordinate in the array of latlngs of the polylines in the trail, saved as the position of the poi in the trail for sorting and display purposes
+    getTrailPosition() {
+      let latlngs: LatLng[];
+      let distance = this.marker
+        .getLatLng()
+        .distanceTo(trailMarkers[0].getLatLng());
+      for (let i = 0; i < trail.length; i++) {
+        latlngs = trail[i].getLatLngs() as LatLng[];
+        for (let j = 0; j < latlngs.length; j++) {
+          let d = this.marker.getLatLng().distanceTo(latlngs[j]);
+          if (distance > d) {
+            distance = d;
+            this.trailPosition = [i, j];
+          }
+        }
+      }
+    }
+    //adding a poi in the list in its correct position accoding to its position on the trail
+    placeInPoilist() {
+      if (poiList.indexOf(this) >= 0) {
+        poiList.splice(poiList.indexOf(this), 1);
+      }
+      for (let i = 0; i < poiList.length; i++) {
+        if (
+          (poiList[i].trailPosition[0] == this.trailPosition[0] &&
+            poiList[i].trailPosition[1] > this.trailPosition[1]) ||
+          poiList[i].trailPosition[0] > this.trailPosition[0]
+        ) {
+          poiList.splice(i, 0, this);
+
+          return;
+        }
+      }
+      poiPositionUpdate = true;
+      poiList.push(this);
+    }
+
+    destroy() {
+      this.marker.remove();
+      this.marker.off("click").off("dragend");
+      this.marker = null as any;
+    }
+  }
+  //for sorting the poi list according to the position on the trail
+  function compareMapPosition(a: pointOfInterest, b: pointOfInterest) {
+    if (
+      a.trailPosition[0] < b.trailPosition[0] ||
+      (a.trailPosition[0] == b.trailPosition[0] &&
+        a.trailPosition[1] < b.trailPosition[1])
+    ) {
+      return -1;
+    } else if (
+      a.trailPosition[0] > b.trailPosition[0] ||
+      (a.trailPosition[0] == b.trailPosition[0] &&
+        a.trailPosition[1] > b.trailPosition[1])
+    ) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+  //switch between editing trail and poi
+
+  function poiCreator(e: LeafletMouseEvent) {
+    if (heroPOI >= 0) {
+      poiList[heroPOI].marker.setIcon(iconmaker(colors.poi, sizes.poi));
+    }
+
+    poiList.push(new pointOfInterest(map, e.latlng));
+    let newPOI = poiList[poiList.length - 1];
+    if (trail.length > 0) {
+      poiList[poiList.length - 1].getTrailPosition();
+      poiList[poiList.length - 1].placeInPoilist();
+    } else {
+      //position update needs to be true so the relation to the trail gets saved
+      poiPositionUpdate = true;
+    }
+    heroPOI = poiList.findIndex((p) => p === newPOI);
+    poiCreatorSwitch();
+    poiToDatabase(heroPOI);
+  }
+  //function to switch the onclick for creating a new poi
+  function poiCreatorSwitch() {
+    //i turn of poi interactivity while creating a new poi because its not needet and to have a visual indicator
+    if (creatingPoi) {
+      map.off("click", poiCreator);
+      map.getContainer().style.cursor = "all-scroll";
+      creatingPoi = false;
+      poiList.forEach((p) => {
+        p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+        p.marker.dragging?.enable();
+        p.marker.on("click", () => heromaker(p));
+        p.marker.on("dragend", (e) => {
+          p.lat = Number(e.target.getLatLng().lat);
+          p.lng = Number(e.target.getLatLng().lng);
+          if (trail.length > 0) {
+            p.getTrailPosition();
+            p.placeInPoilist();
+          }
+        });
+      });
+      if (heroPOI >= 0) {
+        poiList[heroPOI].marker.setIcon(
+          iconmaker(colors.editing, sizes.poiHero),
+        );
+      }
+    } else {
+      map.on("click", poiCreator);
+      map.getContainer().style.cursor = "crosshair";
+      creatingPoi = true;
+      poiList.forEach((p) => {
+        console.log(p.marker.getLatLng());
+        p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
+        p.marker.off("click").off("dragend");
+        p.marker.dragging?.disable();
+      });
+    }
+  }
+
+  function heromaker(poi: pointOfInterest) {
+    if (heroPOI >= 0) {
+      poiList[heroPOI].marker.setIcon(iconmaker(colors.poi, sizes.poi));
+      if (waitToSave) {
+        clearTimeout(waitToSave);
+        poiToDatabase(heroPOI);
+      }
+    }
+    heroPOI = poiList.findIndex((p) => p === poi);
+    poi.marker.setIcon(iconmaker(colors.editing, sizes.poiHero));
+  }
 
   //onclick functions to add a new waypoint at the end of the trail and find the path to it
   async function trailMaker(e: LeafletMouseEvent) {
@@ -630,11 +682,11 @@
   }
   //function to switch on the onclick to add a trailmarker into the trail between 2 others and all related graphical indicators
   function insertSwitch() {
-    if (insertingMarker) {
+    if (insertingWaypoint) {
       map.off("click");
 
       map.getContainer().style.cursor = "all-scroll";
-      insertingMarker = false;
+      insertingWaypoint = false;
       trail[righclickTarget].setStyle({ color: colors.path });
       //getting start and end markers their respective colors if they were changed
       if (righclickTarget == 0) {
@@ -656,10 +708,10 @@
         );
       }
     } else {
-      map.on("click", (e) => insertMarker(e, righclickTarget));
+      map.on("click", (e) => insertWaypoint(e, righclickTarget));
 
       map.getContainer().style.cursor = "crosshair";
-      insertingMarker = true;
+      insertingWaypoint = true;
       //coloring the trail and markers to indicate where the new marker will be placed
       trail[righclickTarget].setStyle({ color: colors.editing });
       trailMarkers[righclickTarget].setIcon(
@@ -671,7 +723,7 @@
     }
   }
 
-  async function insertMarker(
+  async function insertWaypoint(
     event: LeafletMouseEvent,
     righclickTarget: number,
   ) {
@@ -745,7 +797,40 @@
     }
   }
 
-  //function to feed the data into the function connecting to the database so it can be saved in case global variables a re changed
+  function newTrail() {
+    //turning off editing processes that might have been running from editing the previous trail
+    if (insertingWaypoint) {
+      insertSwitch();
+    }
+    //deleting old stuff
+    trail.forEach((t) => {
+      t.off("contextmenu");
+      t.remove();
+      t = null as any;
+    });
+    trail = [];
+    trailMarkers.forEach((m) => {
+      m.off("contextmenu");
+      m.off("dragend");
+      m.remove();
+      m = null as any;
+    });
+    trailMarkers = [];
+    trailTitle = "Namen Eintragen";
+    trailDescription = "";
+    trailId = "";
+
+    poiList.forEach((p) => {
+      p.destroy();
+      p = null as any;
+    });
+    poiList = [];
+    //switch on the trailMaker bacause user will want to buildthe new trail
+    if (!makingTrail) {
+      trailMakerSwitch();
+    }
+  }
+  //function to prepare data and save the
   function prepareTrailData() {
     let trailCoordinates: { lat: number; lng: number }[][] = [];
     let length = 0;
@@ -757,12 +842,6 @@
         for (let i = 0; i < latlngs.length - 2; i++) {
           length += latlngs[i].distanceTo(latlngs[i + 1]);
         }
-        //if the trail was changed the positions of the poi need to be updated
-        poiList.forEach((p) => {
-          p.getTrailPosition();
-        });
-        poiList.sort(compareMarkerPosition);
-        poiRelationtoDB(poiList);
       });
     }
     return {
@@ -770,7 +849,7 @@
       author: "firstCause",
       title: trailTitle,
       description: trailDescription,
-      id: trailID,
+      id: trailId,
       trailUpdate: trailUpdate,
       length: length,
     };
@@ -783,6 +862,15 @@
     waitToSave = null as any;
     loadingTrail++;
 
+    //if the trail was updated we need to ensure the position of the pois is still correct
+    if (trailData.trailUpdate) {
+      poiList.forEach((p) => {
+        p.getTrailPosition();
+      });
+      poiList.sort(compareMapPosition);
+      poiRelationtoDB(poiList);
+    }
+
     let response;
     try {
       response = await saveTrail(trailData);
@@ -791,13 +879,13 @@
     }
     //if the trail was new the database will respond by sending back the assigned uuid
     if (response) {
-      trailID = response[0].id;
+      trailId = response[0].id;
       let i = 0;
       //placing the trail into its location in the dropdown list according to the title
       while (i < listofTrails.length && listofTrails[i].title < trailTitle) {
         i++;
       }
-      listofTrails.splice(i, 0, { id: trailID, title: trailTitle });
+      listofTrails.splice(i, 0, { id: trailId, title: trailTitle });
     } else {
       //updating the position in the list if the title was changed
       let index = listofTrails.findIndex((t) => t.id == trailData.id);
@@ -823,7 +911,7 @@
     if (makingTrail) {
       trailMakerSwitch();
     }
-    if (insertingMarker) {
+    if (insertingWaypoint) {
       insertSwitch();
     }
     loadingTrail++;
@@ -836,7 +924,7 @@
       console.log(err);
     }
     if (result) {
-      trailID = result[0].id;
+      trailId = result[0].id;
       trailTitle = result[0].title;
       trailDescription = result[0].description;
       //deleting the previous trail and markers
@@ -913,8 +1001,7 @@
       console.log(err);
     }
 
-    heroPOI = null as any;
-    console.log(pois);
+    heroPOI = -1;
     poiList.forEach((p) => {
       p.destroy();
       p = null as any;
@@ -923,112 +1010,149 @@
 
     if (pois && pois.length > 0) {
       pois.forEach((p: any) => {
-        console.log(p);
-        let newPOI = new pointOfInterest(map, {
-          lat: p.poi.latitude,
-          lng: p.poi.longitude,
-        });
-        newPOI.caption = p.poi.caption;
-        newPOI.description = p.poi.description;
-        newPOI.imageURL = p.poi.imageURL;
-        newPOI.id = p.poi.id;
-        newPOI.imageAlt = p.poi.imageAlt;
-        newPOI.trailPosition = [
+        poiList.push(
+          new pointOfInterest(map, {
+            lat: p.poi.latitude,
+            lng: p.poi.longitude,
+          }),
+        );
+
+        poiList[poiList.length - 1].caption = p.poi.caption;
+        poiList[poiList.length - 1].description = p.poi.description;
+        poiList[poiList.length - 1].imageUrl = p.poi.imageUrl;
+        poiList[poiList.length - 1].id = p.poi.id;
+        if (p.poi.imageAlt) {
+          poiList[poiList.length - 1].imageAlt = p.poi.imageAlt;
+        }
+        poiList[poiList.length - 1].trailPosition = [
           p.trails_to_poi.position1,
           p.trails_to_poi.position2,
         ];
-        newPOI.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
-        newPOI.addToTrail();
+        poiList[poiList.length - 1].marker.setIcon(
+          iconmaker(colors.inactivePoi, sizes.inactivePoi),
+        );
+        poiList[poiList.length - 1].marker.dragging?.disable();
       });
+      poiList.sort(compareMapPosition);
     }
 
     loadingTrail--;
   }
-
-  function newTrail() {
-    //turning off editing processes that might have been running from editing the previous trail
-    if (insertingMarker) {
-      insertSwitch();
-    }
-    //deleting old stuff
-    trail.forEach((t) => {
-      t.off("contextmenu");
-      t.remove();
-      t = null as any;
-    });
-    trail = [];
-    trailMarkers.forEach((m) => {
-      m.off("contextmenu");
-      m.off("dragend");
-      m.remove();
-      m = null as any;
-    });
-    trailMarkers = [];
-    trailTitle = "Namen Eintragen";
-    trailDescription = "";
-    trailID = "";
-    //switch on the trailMaker bachause user will want to buildthe new trail
-    if (!makingTrail) {
-      trailMakerSwitch();
-    }
-  }
-  //function to make the map once the html is created
-
-  async function poiToDatabase(poi: pointOfInterest) {
-    let response;
-    waitToSave = null as any;
-    try {
-      response = await savePOI({
-        id: poi.id,
-        caption: poi.caption,
-        description: poi.description,
-        lat: poi.lat,
-        lng: poi.lng,
-        imageAlt: poi.imageAlt,
-        imageURL: poi.imageURL,
-        author: "firstCause",
-      });
-    } catch (err) {
-      console.log(err);
-    }
-    if (response) {
-      poi.id = response[0].id;
-    }
-    if (poiPositionUpdate) {
-      //if the position of the poi was updated we need to update the relation in the database so the poi is still connected to the trail
+  //function to save a single poi and its relation if nessecary
+  async function poiToDatabase(heroPoi: number) {
+    if (heroPoi >= 0) {
+      let response;
+      waitToSave = null as any;
       try {
-        await poiRelationtoDB([poi]);
+        //sending the relattion data with the poi to upsert the relation if positionupdate = true
+        response = await savePOI({
+          id: poiList[heroPoi].id,
+          caption: poiList[heroPoi].caption,
+          description: poiList[heroPoi].description,
+          lat: poiList[heroPoi].lat,
+          lng: poiList[heroPoi].lng,
+          imageAlt: poiList[heroPoi].imageAlt,
+          imageUrl: poiList[heroPoi].imageUrl,
+          author: "firstCause",
+          poiPositionUpdate: poiPositionUpdate,
+          trailId: trailId,
+          position1: poiList[heroPoi].trailPosition[0],
+          position2: poiList[heroPoi].trailPosition[1],
+        });
       } catch (err) {
         console.log(err);
       }
+      if (response) {
+        poiList[heroPoi].id = response;
+      }
       poiPositionUpdate = false;
+    } else {
+      console.log("heroPoi is not defined");
     }
   }
-
+  // function to upsert a whole lot of relations if the trail was changed
   async function poiRelationtoDB(poiInput: pointOfInterest[]) {
-    console.log("relation to db");
     let relationData: {
-      trailID: string;
-      poiID: string;
+      trailId: string;
+      poiId: string;
       position1: number;
       position2: number;
     }[] = [];
     poiInput.forEach((p) => {
       relationData.push({
-        trailID: trailID,
-        poiID: p.id,
+        trailId: trailId,
+        poiId: p.id,
         position1: p.trailPosition[0],
         position2: p.trailPosition[1],
       });
     });
-    console.log(relationData);
     try {
       await saveTrailPOIRelation(relationData);
     } catch (err) {
       console.log(err);
     }
   }
+  //function to delete the poi from the trail and the poi itself when no relations remain
+  async function deletePoiOrRelation(poi: pointOfInterest) {
+    try {
+      await deleteTrailPOIRelation({
+        trailId: trailId,
+        poiId: poi.id,
+      });
+    } catch (err) {
+      console.log(err);
+    }
+    const index = poiList.indexOf(poi);
+    heroPOI = -1;
+    if (index >= 0) {
+      poiList[index].destroy();
+      poiList[index] = null as any;
+      poiList.splice(index, 1);
+    }
+  }
 
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          resolve(result);
+        } else {
+          reject(new Error("Unsupported file reader result type"));
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function imageToBlobstorage(
+    content: string,
+    fileName: string,
+    heroPOI: number,
+  ) {
+    if (heroPOI >= 0) {
+      let imageUrl;
+      try {
+        imageUrl = await saveImage({
+          content: content,
+          fileName: fileName,
+          oldImageUrl: poiList[heroPOI].imageUrl as string,
+          contentType: "image",
+          poiId: poiList[heroPOI].id,
+        });
+      } catch (err) {
+        console.log(err);
+      }
+      if (imageUrl) {
+        poiList[heroPOI].imageUrl = imageUrl;
+      }
+    } else {
+      console.log("heroPOI is not defined");
+    }
+  }
+  //function to make the map once the html is created
   function createMap(html: any) {
     map = new Map(html).setView([52.54, 13.52], 13);
     const tiles = new TileLayer(
@@ -1083,8 +1207,11 @@
       if (makingTrail) {
         trailMakerSwitch();
       }
-      if (insertingMarker) {
+      if (insertingWaypoint) {
         insertSwitch();
+      }
+      if (creatingPoi) {
+        poiCreatorSwitch();
       }
     }}
   ></div>
@@ -1092,7 +1219,7 @@
   <div class="ui-panel">
     {#if loadingTrail != 0}
       <button disabled>Wanderweg wird geladen</button>
-    {:else if trailTitle == "Namen Eintragen"}
+    {:else if trailTitle == "Namen Eingeben" && editing === "trail"}
       <button disabled>Einen Namen Eintragen</button>
     {:else}
       <button
@@ -1102,7 +1229,7 @@
             clearTimeout(waitToSave);
             if (editing === "trail") {
               trailToDatabase();
-            } else if (editing === "poi" && heroPOI) {
+            } else if (editing === "poi" && heroPOI >= 0) {
               poiToDatabase(heroPOI);
             }
           }
@@ -1176,9 +1303,9 @@
                 clearInterval(waitToSave);
                 waitToSave = null as any;
               }
-              if (trailID != "") {
+              if (trailId != "") {
                 //check if the trail is in the database
-                deleteTrail(trailID); //database delete
+                deleteTrail(trailId); //database delete
               }
               newTrail(); //reset the editor
             }}>Löschen</button
@@ -1186,7 +1313,7 @@
           <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
         {:else}
           <button
-            disabled={trailID == "" || loadingTrail != 0}
+            disabled={trailId == "" || loadingTrail != 0}
             onclick={() => (deleteQuery = true)}>Wanderweg löschen</button
           >
         {/if}
@@ -1196,7 +1323,7 @@
           disabled={loadingTrail != 0}
           onclick={() => {
             if (
-              (trailID != "" || trail.length > 0 || trailDescription != "") &&
+              (trailId != "" || trail.length > 0 || trailDescription != "") &&
               waitToSave
             ) {
               //only need to save if there is a trail to save and there are pending changes
@@ -1211,17 +1338,18 @@
       <div>
         <p>Wanderweg laden</p>
         <select
+          autocomplete="off"
           disabled={loadingTrail != 0}
-          bind:value={loadID}
-          onchange={() => {
-            if (trailID != "" && waitToSave) {
+          onchange={(event) => {
+            if (trailId != "" && waitToSave) {
               //only need to save if there is a trail to save and there are pending changes
               clearInterval(waitToSave);
               trailToDatabase();
             }
-            trailFromDB(loadID);
+            trailFromDB((event.target as HTMLSelectElement).value);
           }}
         >
+          <option disabled selected value> -- select an option -- </option>
           {#each listofTrails as trail}
             <option value={trail.id}>{trail.title}</option>
           {/each}
@@ -1229,14 +1357,14 @@
       </div>
     {:else if editing === "poi"}
       <h3>POI bearbeiten</h3>
-      {#if heroPOI}
+      {#if heroPOI >= 0}
         <div>
           <label for="poiCaption">Titel:</label>
           <input
             id="poiCaption"
             class="block"
             type="text"
-            bind:value={heroPOI.caption}
+            bind:value={poiList[heroPOI].caption}
             onchange={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
@@ -1252,7 +1380,7 @@
           <textarea
             id="poiDescription"
             class="block"
-            bind:value={heroPOI.description}
+            bind:value={poiList[heroPOI].description}
             onchange={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
@@ -1270,18 +1398,16 @@
             class="block"
             type="file"
             accept="image/*"
-            onchange={(e) => {
+            disabled={poiList[heroPOI].id == ""}
+            onchange={async (e) => {
               const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) {
-                //filestuff is ai shit filler
-                heroPOI.imageURL = URL.createObjectURL(file);
+              const name = file?.name;
+              if (file && name) {
+                console.log(file);
+                const content = await fileToBase64(file);
+                console.log(content);
+                imageToBlobstorage(content, name, heroPOI);
               }
-              if (waitToSave) {
-                clearInterval(waitToSave);
-              }
-              waitToSave = setTimeout(() => {
-                poiToDatabase(heroPOI);
-              }, timeToSave);
             }}
           />
           <input
@@ -1289,7 +1415,7 @@
             class="block"
             type="text"
             placeholder="Alternativtext für das Bild"
-            bind:value={heroPOI.imageAlt}
+            bind:value={poiList[heroPOI].imageAlt}
             onchange={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
@@ -1299,9 +1425,9 @@
               }, timeToSave);
             }}
           />
-          {#if heroPOI.imageURL}
+          {#if poiList[heroPOI].imageUrl !== ""}
             <img
-              src={heroPOI.imageURL}
+              src={poiList[heroPOI].imageUrl}
               alt="POI Bild"
               style="max-width: 100%; margin-top: 10px;"
             />
@@ -1315,23 +1441,37 @@
             }}>speichern</button
           >
         </div>
-
-        <h4>Vorhandene POIs:</h4>
-        {#each poiList as poi}
+        {#if deleteQuery}
+          <p>Wirklich Löschen?</p>
           <button
-            style:color={heroPOI == poi ? colors.editing : ""}
-            class="block"
-            onclick={() => heromaker(poi)}>{poi.caption}</button
+            onclick={() => {
+              if (waitToSave) {
+                clearInterval(waitToSave);
+                waitToSave = null as any;
+              }
+              deletePoiOrRelation(poiList[heroPOI]);
+            }}>Löschen</button
           >
-        {/each}
+          <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
+        {:else}
+          <button onclick={() => (deleteQuery = true)}>POI löschen</button>
+        {/if}
       {/if}
+      <h4>Vorhandene POIs:</h4>
+      {#each poiList as poi}
+        <button
+          style:color={poiList[heroPOI] == poi ? colors.editing : ""}
+          class="block"
+          onclick={() => heromaker(poi)}>{poi.caption}</button
+        >
+      {/each}
       <button
         onclick={() => {
-          map.on("click", poiCreator);
-          map.getContainer().style.cursor = "crosshair";
+          poiCreatorSwitch();
         }}>Neuen POI setzen</button
       >
     {/if}
+    <button onclick={() => console.log(map.getBounds())}>map bounds</button>
   </div>
 </div>
 
@@ -1365,31 +1505,12 @@
   </div>
 {/if}
 <p bind:this={editorial}>Neu erstellter Wanderweg</p>
-{#each await allPOIs() as poi}
-  <div class="poi-item">
-    <h4>{poi.caption}</h4>
-    <p>{poi.description}</p>
-  </div>
-  <button onclick={() => deletePOI(poi.id)}>delete poi</button>
-{/each}
-{#each await allRelations() as relation}
-  <div class="relation-item">
-    <p>TrailID: {relation.trailID}</p>
-    <p>POIID: {relation.poiID}</p>
-    <p>Position1: {relation.position1}</p>
-    <p>Position2: {relation.position2}</p>
-  </div>
-  <button
-    onclick={() =>
-      deleteTrailPOIRelation({
-        trailID: relation.trailID,
-        poiID: relation.poiID,
-      })}
-  >
-    delete relation
-  </button>
-{/each}
 
+<!--
+{#each await allPOIs() as poi}
+  <button onclick={() => deletePOI(poi.id)}>delete {poi.caption}</button>
+{/each}
+-->
 <style>
   .alignment {
     display: flex;
