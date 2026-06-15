@@ -1,7 +1,7 @@
 import { getRequestEvent } from '$app/server';
 import type { UserWithRolesAndClaims } from './auth.d';
 
-export type Feature = 'synchronizations' | 'events' | 'campaigns' | 'locations' | 'resources' | 'users' | 'contacts' | 'kiosks' | 'announcements';
+export type Feature = 'trailMaking';
 
 /**
  * Get the authenticated user from the request event locals.
@@ -63,8 +63,6 @@ export function hasAccess(user: UserWithRolesAndClaims, feature: Feature): boole
     // Check for the current claim key
     if (claims?.[feature]) return true;
 
-    // Backward compatibility: check for old 'calendarSyncs' key if checking 'synchronizations'
-    if (feature === 'synchronizations' && claims?.['calendarSyncs']) return true;
 
     return false;
 }

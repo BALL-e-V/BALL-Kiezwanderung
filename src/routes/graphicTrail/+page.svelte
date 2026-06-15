@@ -15,6 +15,7 @@
   import {
     allTrails,
     deleteTrail,
+    getTrailPOIs,
     getTrail,
     saveTrail,
   } from "./trailDB.remote";
@@ -23,10 +24,7 @@
   import {
     savePOI,
     saveTrailPOIRelation,
-    getTrailPOIs,
     deleteTrailPOIRelation,
-    allPOIs,
-    deletePOI,
     saveImage,
   } from "./poiDB.remote";
 
@@ -73,10 +71,12 @@
   let waitToSave: ReturnType<typeof setTimeout> = null as any;
   //to get a confimation step before deleting trails/poi
   let deleteQuery = $state(false);
-  //<p> to display the editing data
+  //<p> to display autor,editor and the times it happened
   let editorial: HTMLElement;
-  //the currently selected point of interest whose data is displayed and can be edited
-  let heroPOI = $state(-1) as number;
+  //index of the currently selected point of interest whose data is displayed and can be edited
+  let heroPoi = $state(-1);
+  //fisrt option in the lst of trails to let the user know
+  let trailLoadingStatus = $state("Lade Liste der Wanderwege");
 
   //function to switch between editing pois and the trail
   function editorSwitch() {
@@ -110,22 +110,23 @@
       //turning on poi interactivity
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
-        p.marker.dragging?.enable();
+
         p.marker.on("click", () => heromaker(p));
-        p.marker.on("dragend", (e) => {
-          p.lat = Number(e.target.getLatLng.lat);
-          p.lng = Number(e.target.getLatLng.lng);
-          if (trail.length > 0) {
-            p.getTrailPosition();
-            p.placeInPoilist();
-          }
-        });
       });
       map.getContainer().style.cursor = "all-scroll";
-      if (heroPOI >= 0) {
-        poiList[heroPOI].marker.setIcon(
+      if (heroPoi >= 0) {
+        poiList[heroPoi].marker.setIcon(
           iconmaker(colors.editing, sizes.poiHero),
         );
+        poiList[heroPoi].marker.dragging?.enable();
+        poiList[heroPoi].marker.on("dragend", (e) => {
+          poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
+          poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
+          if (trail.length > 0) {
+            poiList[heroPoi].getTrailPosition();
+            poiList[heroPoi].placeInPoilist();
+          }
+        });
       }
       editing = "poi";
     } else {
@@ -208,7 +209,7 @@
     ) {
       this.lat = latlng.lat;
       this.lng = latlng.lng;
-      this.marker = new Marker(latlng, { draggable: true });
+      this.marker = new Marker(latlng, { draggable: false });
 
       this.marker.addTo(map);
       this.marker.setIcon(iconmaker(colors.poi, sizes.poi));
@@ -242,12 +243,13 @@
           poiList[i].trailPosition[0] > this.trailPosition[0]
         ) {
           poiList.splice(i, 0, this);
-
-          return;
+          //returning the position for setting the hero poi after resorting
+          return i;
         }
       }
       poiPositionUpdate = true;
       poiList.push(this);
+      return poiList.length - 1;
     }
 
     destroy() {
@@ -277,22 +279,30 @@
   //switch between editing trail and poi
 
   function poiCreator(e: LeafletMouseEvent) {
-    if (heroPOI >= 0) {
-      poiList[heroPOI].marker.setIcon(iconmaker(colors.poi, sizes.poi));
+    if (heroPoi >= 0) {
+      poiList[heroPoi].marker.setIcon(iconmaker(colors.poi, sizes.poi));
     }
 
     poiList.push(new pointOfInterest(map, e.latlng));
-    let newPOI = poiList[poiList.length - 1];
     if (trail.length > 0) {
       poiList[poiList.length - 1].getTrailPosition();
-      poiList[poiList.length - 1].placeInPoilist();
+      heroPoi = poiList[poiList.length - 1].placeInPoilist();
     } else {
       //position update needs to be true so the relation to the trail gets saved
       poiPositionUpdate = true;
+      heroPoi = poiList.length - 1;
     }
-    heroPOI = poiList.findIndex((p) => p === newPOI);
+    poiList[heroPoi].marker.dragging?.enable();
+    poiList[heroPoi].marker.on("dragend", (e) => {
+      poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
+      poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
+      if (trail.length > 0) {
+        poiList[heroPoi].getTrailPosition();
+        poiList[heroPoi].placeInPoilist();
+      }
+    });
     poiCreatorSwitch();
-    poiToDatabase(heroPOI);
+    poiToDatabase(heroPoi);
   }
   //function to switch the onclick for creating a new poi
   function poiCreatorSwitch() {
@@ -303,26 +313,26 @@
       creatingPoi = false;
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
-        p.marker.dragging?.enable();
-        p.marker.on("click", () => heromaker(p));
-        p.marker.on("dragend", (e) => {
-          p.lat = Number(e.target.getLatLng().lat);
-          p.lng = Number(e.target.getLatLng().lng);
-          if (trail.length > 0) {
-            p.getTrailPosition();
-            p.placeInPoilist();
-          }
-        });
       });
-      if (heroPOI >= 0) {
-        poiList[heroPOI].marker.setIcon(
+      if (heroPoi >= 0) {
+        poiList[heroPoi].marker.setIcon(
           iconmaker(colors.editing, sizes.poiHero),
         );
+        poiList[heroPoi].marker.dragging?.enable();
+        poiList[heroPoi].marker.on("dragend", (e) => {
+          poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
+          poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
+          if (trail.length > 0) {
+            poiList[heroPoi].getTrailPosition();
+            poiList[heroPoi].placeInPoilist();
+          }
+        });
       }
     } else {
       map.on("click", poiCreator);
       map.getContainer().style.cursor = "crosshair";
       creatingPoi = true;
+      heroPoi = -1;
       poiList.forEach((p) => {
         console.log(p.marker.getLatLng());
         p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
@@ -333,15 +343,26 @@
   }
 
   function heromaker(poi: pointOfInterest) {
-    if (heroPOI >= 0) {
-      poiList[heroPOI].marker.setIcon(iconmaker(colors.poi, sizes.poi));
+    if (heroPoi >= 0) {
+      //setting the old hero poi back to normal and saving if need be
+      poiList[heroPoi].marker.setIcon(iconmaker(colors.poi, sizes.poi));
+      poiList[heroPoi].marker.off("dragend").dragging?.disable;
       if (waitToSave) {
         clearTimeout(waitToSave);
-        poiToDatabase(heroPOI);
+        poiToDatabase(heroPoi);
       }
     }
-    heroPOI = poiList.findIndex((p) => p === poi);
+    heroPoi = poiList.findIndex((p) => p === poi);
     poi.marker.setIcon(iconmaker(colors.editing, sizes.poiHero));
+    poiList[heroPoi].marker.dragging?.enable();
+    poiList[heroPoi].marker.on("dragend", (e) => {
+      poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
+      poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
+      if (trail.length > 0) {
+        poiList[heroPoi].getTrailPosition();
+        poiList[heroPoi].placeInPoilist();
+      }
+    });
   }
 
   //onclick functions to add a new waypoint at the end of the trail and find the path to it
@@ -397,7 +418,9 @@
           ]),
         );
       } catch {
-        console.log(error);
+        console.log("trailMaker() failed to get a path:" + error);
+        loadingTrail--;
+        return;
       }
       //checking if the marker is still in the same place
       if (
@@ -506,7 +529,9 @@
       try {
         response = await getPath(latlngsToDataobject([curLatlng, nextLatlng]));
       } catch {
-        console.log(error);
+        console.log("moveTrail() failed to get a path" + error);
+        loadingTrail--;
+        return;
       }
       //check if markers have been moved while we waited
       if (
@@ -530,7 +555,9 @@
       try {
         response = await getPath(latlngsToDataobject([preLatlng, curLatlng]));
       } catch {
-        console.log(error);
+        console.log("moveTrail() failed to get a path" + error);
+        loadingTrail--;
+        return;
       }
       //checking if markers have been moved while loading
       if (
@@ -560,7 +587,9 @@
           getPath(latlngsToDataobject([curLatlng, nextLatlng])),
         ]);
       } catch (err) {
-        console.log(err);
+        console.log("moveTrail() failed to get a path" + err);
+        loadingTrail--;
+        return;
       }
 
       // checking if markers have been moved while loading
@@ -662,6 +691,8 @@
         response = await getPath(latlngsToDataobject([startLatlng, endLatlng]));
       } catch {
         console.log(error);
+        loadingTrail--;
+        return;
       }
 
       if (
@@ -772,6 +803,8 @@
       ]);
     } catch (err) {
       console.log(err);
+      loadingTrail--;
+      return;
     }
     //checking if markers are still in the same place
     if (
@@ -855,10 +888,12 @@
     };
   }
   //function to save the trail in the database and update the list of trails if the title was changed or a new trail was created
+  //aslo will update the position of the pois in the list if the trail was updated and saving updated relation data
   async function trailToDatabase(
     trailData: ReturnType<typeof prepareTrailData> = prepareTrailData(),
   ) {
     //setting wait to save to null allows to check if we have pending changes
+    clearInterval(waitToSave);
     waitToSave = null as any;
     loadingTrail++;
 
@@ -875,8 +910,11 @@
     try {
       response = await saveTrail(trailData);
     } catch (err) {
-      console.log(err);
+      console.log("trailToDatabase() failed to save the trail:" + err);
+      loadingTrail--;
+      return;
     }
+
     //if the trail was new the database will respond by sending back the assigned uuid
     if (response) {
       trailId = response[0].id;
@@ -1001,7 +1039,8 @@
       console.log(err);
     }
 
-    heroPOI = -1;
+    //removing the old pois so the new ones can get filled in
+    heroPoi = -1;
     poiList.forEach((p) => {
       p.destroy();
       p = null as any;
@@ -1042,6 +1081,7 @@
   async function poiToDatabase(heroPoi: number) {
     if (heroPoi >= 0) {
       let response;
+      clearInterval(waitToSave);
       waitToSave = null as any;
       try {
         //sending the relattion data with the poi to upsert the relation if positionupdate = true
@@ -1103,7 +1143,7 @@
       console.log(err);
     }
     const index = poiList.indexOf(poi);
-    heroPOI = -1;
+    heroPoi = -1;
     if (index >= 0) {
       poiList[index].destroy();
       poiList[index] = null as any;
@@ -1130,26 +1170,25 @@
   async function imageToBlobstorage(
     content: string,
     fileName: string,
-    heroPOI: number,
+    heroPoi: number,
   ) {
-    if (heroPOI >= 0) {
+    if (heroPoi >= 0) {
       let imageUrl;
       try {
         imageUrl = await saveImage({
           content: content,
           fileName: fileName,
-          oldImageUrl: poiList[heroPOI].imageUrl as string,
-          contentType: "image",
-          poiId: poiList[heroPOI].id,
+          oldImageUrl: poiList[heroPoi].imageUrl as string,
+          poiId: poiList[heroPoi].id,
         });
       } catch (err) {
         console.log(err);
       }
       if (imageUrl) {
-        poiList[heroPOI].imageUrl = imageUrl;
+        poiList[heroPoi].imageUrl = imageUrl;
       }
     } else {
-      console.log("heroPOI is not defined");
+      console.log("heroPoi is not defined");
     }
   }
   //function to make the map once the html is created
@@ -1178,9 +1217,17 @@
   }
   //function to load the list of trails for the dropdown menu
   async function loadTrailList() {
-    let result = await allTrails();
+    let result;
+    try {
+      result = await allTrails();
+    } catch (err) {
+      console.log(err);
+    }
     if (result) {
       listofTrails = result;
+      trailLoadingStatus = "Wanderweg auswählen";
+    } else {
+      trailLoadingStatus = "Laden gescheitert";
     }
   }
   //need to load a list of trails when we mount the page
@@ -1219,18 +1266,17 @@
   <div class="ui-panel">
     {#if loadingTrail != 0}
       <button disabled>Wanderweg wird geladen</button>
-    {:else if trailTitle == "Namen Eingeben" && editing === "trail"}
-      <button disabled>Einen Namen Eintragen</button>
+    {:else if (trailTitle == "Namen Eingeben" && editing === "trail") || trailId == ""}
+      <button disabled>Einen Namen Eintragen und Speichern</button>
     {:else}
       <button
         onclick={() => {
           if (waitToSave) {
             //only need to save if there is unsaved changes
-            clearTimeout(waitToSave);
             if (editing === "trail") {
               trailToDatabase();
-            } else if (editing === "poi" && heroPOI >= 0) {
-              poiToDatabase(heroPOI);
+            } else if (editing === "poi" && heroPoi >= 0) {
+              poiToDatabase(heroPoi);
             }
           }
           editorSwitch();
@@ -1287,7 +1333,6 @@
           onclick={() => {
             if (waitToSave) {
               //only need to save if there are pending changes
-              clearInterval(waitToSave);
               trailToDatabase();
             }
           }}>Speichern</button
@@ -1327,7 +1372,6 @@
               waitToSave
             ) {
               //only need to save if there is a trail to save and there are pending changes
-              clearInterval(waitToSave);
               trailToDatabase();
             }
             newTrail();
@@ -1343,13 +1387,12 @@
           onchange={(event) => {
             if (trailId != "" && waitToSave) {
               //only need to save if there is a trail to save and there are pending changes
-              clearInterval(waitToSave);
               trailToDatabase();
             }
             trailFromDB((event.target as HTMLSelectElement).value);
           }}
         >
-          <option disabled selected value> -- select an option -- </option>
+          <option disabled selected value>{trailLoadingStatus}</option>
           {#each listofTrails as trail}
             <option value={trail.id}>{trail.title}</option>
           {/each}
@@ -1357,20 +1400,20 @@
       </div>
     {:else if editing === "poi"}
       <h3>POI bearbeiten</h3>
-      {#if heroPOI >= 0}
+      {#if heroPoi >= 0}
         <div>
           <label for="poiCaption">Titel:</label>
           <input
             id="poiCaption"
             class="block"
             type="text"
-            bind:value={poiList[heroPOI].caption}
+            bind:value={poiList[heroPoi].caption}
             onchange={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
               }
               waitToSave = setTimeout(() => {
-                poiToDatabase(heroPOI);
+                poiToDatabase(heroPoi);
               }, timeToSave);
             }}
           />
@@ -1380,13 +1423,13 @@
           <textarea
             id="poiDescription"
             class="block"
-            bind:value={poiList[heroPOI].description}
+            bind:value={poiList[heroPoi].description}
             onchange={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
               }
               waitToSave = setTimeout(() => {
-                poiToDatabase(heroPOI);
+                poiToDatabase(heroPoi);
               }, timeToSave);
             }}
           ></textarea>
@@ -1398,15 +1441,13 @@
             class="block"
             type="file"
             accept="image/*"
-            disabled={poiList[heroPOI].id == ""}
+            disabled={poiList[heroPoi].id == ""}
             onchange={async (e) => {
               const file = (e.target as HTMLInputElement).files?.[0];
               const name = file?.name;
               if (file && name) {
-                console.log(file);
                 const content = await fileToBase64(file);
-                console.log(content);
-                imageToBlobstorage(content, name, heroPOI);
+                imageToBlobstorage(content, name, heroPoi);
               }
             }}
           />
@@ -1415,19 +1456,19 @@
             class="block"
             type="text"
             placeholder="Alternativtext für das Bild"
-            bind:value={poiList[heroPOI].imageAlt}
+            bind:value={poiList[heroPoi].imageAlt}
             onchange={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
               }
               waitToSave = setTimeout(() => {
-                poiToDatabase(heroPOI);
+                poiToDatabase(heroPoi);
               }, timeToSave);
             }}
           />
-          {#if poiList[heroPOI].imageUrl !== ""}
+          {#if poiList[heroPoi].imageUrl !== ""}
             <img
-              src={poiList[heroPOI].imageUrl}
+              src={poiList[heroPoi].imageUrl}
               alt="POI Bild"
               style="max-width: 100%; margin-top: 10px;"
             />
@@ -1435,8 +1476,7 @@
           <button
             onclick={() => {
               if (waitToSave) {
-                clearInterval(waitToSave);
-                poiToDatabase(heroPOI);
+                poiToDatabase(heroPoi);
               }
             }}>speichern</button
           >
@@ -1449,7 +1489,7 @@
                 clearInterval(waitToSave);
                 waitToSave = null as any;
               }
-              deletePoiOrRelation(poiList[heroPOI]);
+              deletePoiOrRelation(poiList[heroPoi]);
             }}>Löschen</button
           >
           <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
@@ -1460,7 +1500,7 @@
       <h4>Vorhandene POIs:</h4>
       {#each poiList as poi}
         <button
-          style:color={poiList[heroPOI] == poi ? colors.editing : ""}
+          style:color={poiList[heroPoi] == poi ? colors.editing : ""}
           class="block"
           onclick={() => heromaker(poi)}>{poi.caption}</button
         >

@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   boolean,
+  json,
   index,
 } from "drizzle-orm/mysql-core";
 
@@ -19,6 +20,8 @@ export const user = mysqlTable("user", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  roles: json("roles", { mode: "json" }),
+  claims: json("claims", { mode: "json" }),
 });
 
 export const session = mysqlTable(

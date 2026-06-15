@@ -9,7 +9,7 @@ export class LocalBlobStorageProvider implements BlobStorageProvider {
         this.baseDir = path.join(process.cwd(), 'static');
     }
 
-    async put(key: string, content: Buffer | string, contentType: string): Promise<string> {
+    async put(key: string, content: Buffer | string): Promise<string> {
         const fullPath = path.join(this.baseDir, key);
         const dir = path.dirname(fullPath);
 

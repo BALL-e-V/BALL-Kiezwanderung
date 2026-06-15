@@ -22,7 +22,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
   position1: v.number(),
   position2: v.number()
 }), async (data) => {
-    console.log(data.imageUrl)
+
     if(data.id === "") {
         //create new POI when it has no id and therefore isnt in the db
         const newpoi: createPOI ={
@@ -39,7 +39,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
             const result = await db.insert(poi).values(newpoi).$returningId();
             data.id = result[0].id;
         } catch (error) {
-            console.log(error)
+            throw error
         }
     } else {
         //update existing POI with the given id
@@ -53,7 +53,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
                 editor:data.author
         }).where(eq(poi.id, data.id))
         }catch (error) {
-            console.log(error)
+            throw error
         }
     }
     if (data.poiPositionUpdate) {
@@ -96,7 +96,7 @@ export const saveTrailPOIRelation = command(v.array(v.object({
             }
         })
     }catch (error) {
-        console.log(error)
+        throw error
         };
 })
 //delete the relation and if no relatiosn remain the poi
@@ -113,28 +113,17 @@ export const deleteTrailPOIRelation = command(v.object({
             deletePOI(data.poiId )            
         }
     } catch (error) {
-        console.log(error);
+        throw error;
     }
 });
 
 
-export const getTrailPOIs = command(v.string(), async (trailId) => {
-    try {
-        const pois = await db.select()
-            .from(trailsToPoi)
-            .leftJoin(poi, eq(trailsToPoi.poiId, poi.id))
-            .where(eq(trailsToPoi.trailId, trailId))
-        return pois
-    } catch (error) {
-        console.log(error)
-    }
-})
+
 
 export const saveImage = command( v.object({
     fileName: v.string(),
     poiId: v.string(),
     oldImageUrl: v.string(),
-    contentType: v.string(),
     content: v.string(), // Base64 string
 }), async (imageData) => {
 
@@ -150,22 +139,19 @@ export const saveImage = command( v.object({
             await provider.delete(imageData.oldImageUrl);
         }
 
-        const url = await provider.put(imagePath, buffer, imageData.contentType);
+        const url = await provider.put(imagePath, buffer);
         try{
         await db.update(poi).set({ imageUrl: url }).where(eq(poi.id, imageData.poiId));
         } catch (error) {
-            console.log(error)
+            throw error
         }
 
         return url
     } catch (error) {
-        console.log(error)
+        throw error
     }
 
 })
-
-
-
 
 
 export const deletePOI = command(v.string(), async (id) => {
@@ -178,7 +164,7 @@ export const deletePOI = command(v.string(), async (id) => {
 
             await db.delete(poi).where(eq(poi.id, id));
         } catch (error) {
-            console.log(error);
+            throw error;
         }
         
 });
@@ -188,7 +174,7 @@ export const allPOIs = query(async () => {
         const pois = await db.query.poi.findMany();
         return pois;
     } catch (error) {
-        console.log(error)
+        throw error
     }
 })
 
@@ -197,6 +183,6 @@ export const allRelations =query(async () => {
         const relations = await db.query.trailsToPoi.findMany();
         return relations;
     } catch (error) {
-        console.log(error)
+        throw error
     }
 })

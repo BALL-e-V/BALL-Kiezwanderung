@@ -1,6 +1,6 @@
 import { command, query } from "$app/server";
 import * as v from "valibot";
-import { hikingtrails, trailsToPoi } from '$lib/server/db/trails.schema';
+import { hikingtrails, trailsToPoi, poi } from '$lib/server/db/trails.schema';
 import { db } from "$lib/server/db";
 import { eq } from "drizzle-orm";
 import {deleteTrailPOIRelation} from "./poiDB.remote";
@@ -47,7 +47,7 @@ export const saveTrail = command(v.object({
                 const result = await db.insert(hikingtrails).values(Trail).$returningId();
                 return result;
             } catch (error) {
-                console.log(error)
+                 throw error
 
             }
         } else {
@@ -64,7 +64,7 @@ export const saveTrail = command(v.object({
                             trail:null
                         }).where(eq(hikingtrails.id, data.id))
                     } catch (error) {
-                        console.log(error)
+                         throw error
                     }
                 } else {
 
@@ -89,7 +89,7 @@ export const saveTrail = command(v.object({
                         editor: data.author//change the editor instead of the author
                     }).where(eq(hikingtrails.id, data.id))
                 } catch (error) {
-                    console.log(error)
+                     throw error
 
                 }
             }
@@ -102,7 +102,7 @@ export const allTrails = query(async () => {
         const Trails = await db.select({ id: hikingtrails.id, title: hikingtrails.title }).from(hikingtrails)
         return Trails;
     } catch (error) {
-        console.log(error)
+         throw error
     }
 })
 
@@ -114,7 +114,7 @@ export const deleteTrail = command(v.string(), async (trailId) => {
                 await deleteTrailPOIRelation({ trailId: trailId, poiId: relation.poiId })
             })
     } catch (error) {
-        console.log(error);
+         throw error
     }
 
 });
@@ -124,6 +124,17 @@ export const getTrail = command(v.string(), async (trailId) => {
         const trail = await db.select().from(hikingtrails).where(eq(hikingtrails.id, trailId))
         return trail
     } catch (error) {
-        console.log(error)
+         throw error
+    }
+})
+export const getTrailPOIs = command(v.string(), async (trailId) => {
+    try {
+        const pois = await db.select()
+            .from(trailsToPoi)
+            .leftJoin(poi, eq(trailsToPoi.poiId, poi.id))
+            .where(eq(trailsToPoi.trailId, trailId))
+        return pois
+    } catch (error) {
+         throw error
     }
 })
