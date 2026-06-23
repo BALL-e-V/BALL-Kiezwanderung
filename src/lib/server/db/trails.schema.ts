@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { mysqlTable, text, varchar, double, float, index, timestamp, json, smallint, primaryKey } from 'drizzle-orm/mysql-core';
 
-export const hikingtrails = mysqlTable("hikingtrails",
+export const hikingTrails = mysqlTable("hikingtrails",
     {
         id: varchar("id", { length: 191 }).primaryKey().$defaultFn(() => crypto.randomUUID()).notNull(),
         title: varchar({ length: 128 }).notNull(),
@@ -18,7 +18,7 @@ export const hikingtrails = mysqlTable("hikingtrails",
     ]
 );
 
-export const trailRelations = relations(hikingtrails, ({ many }) => ({
+export const trailRelations = relations(hikingTrails, ({ many }) => ({
     poiSchema: many(poi),
 }));
 
@@ -37,7 +37,7 @@ export const poi = mysqlTable("poi", {
 })
 
 export const poiRelations = relations(poi, ({ many }) => ({
-    hikingTrail: many(hikingtrails)
+    hikingTrail: many(hikingTrails)
 }))
 
 export const trailsToPoi = mysqlTable("trails_to_poi", {
@@ -52,9 +52,9 @@ export const trailsToPoi = mysqlTable("trails_to_poi", {
 )
 
 export const trailsToPoiRelations = relations(trailsToPoi, ({ one }) => ({
-    hikingTrails: one(hikingtrails, {
+    hikingTrails: one(hikingTrails, {
         fields: [trailsToPoi.trailId],
-        references: [hikingtrails.id]
+        references: [hikingTrails.id]
 
     }),
     poi: one(poi, {

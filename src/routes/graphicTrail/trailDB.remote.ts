@@ -1,11 +1,12 @@
 import { command, query } from "$app/server";
 import * as v from "valibot";
-import { hikingtrails, trailsToPoi, poi } from '$lib/server/db/trails.schema';
+import { hikingTrails, trailsToPoi, poi } from '$lib/server/db/trails.schema';
 import { db } from "$lib/server/db";
 import { eq } from "drizzle-orm";
 import {deleteTrailPOIRelation} from "./poiDB.remote";
+import { ensureAccess, getAuthenticatedUser } from "$lib/authorization";
 
-type createTrail = typeof hikingtrails.$inferInsert;
+type createTrail = typeof hikingTrails.$inferInsert;
 
 
 export const saveTrail = command(v.object({
@@ -23,6 +24,7 @@ export const saveTrail = command(v.object({
 
 }),
     async (data) => {
+        ensureAccess(getAuthenticatedUser(),"trailMaking")
         //if the id is empty we know that we are creating a new trail
         if (data.id === "") {
             let Trail: createTrail;
@@ -44,7 +46,7 @@ export const saveTrail = command(v.object({
                 }
             }
             try {
-                const result = await db.insert(hikingtrails).values(Trail).$returningId();
+                const result = await db.insert(hikingTrails).values(Trail).$returningId();
                 return result;
             } catch (error) {
                  throw error
@@ -56,26 +58,26 @@ export const saveTrail = command(v.object({
 
                 if (data.trail.length == 0) {
                     try {
-                        await db.update(hikingtrails).set({
+                        await db.update(hikingTrails).set({
                             title: data.title,
                             description: data.description,
                             editor: data.author,//change the editor instead of the author
                             length: data.length,
                             trail:null
-                        }).where(eq(hikingtrails.id, data.id))
+                        }).where(eq(hikingTrails.id, data.id))
                     } catch (error) {
                          throw error
                     }
                 } else {
 
                 try {
-                    await db.update(hikingtrails).set({
+                    await db.update(hikingTrails).set({
                         title: data.title,
                         description: data.description,
                         trail: data.trail,
                         editor: data.author,//change the editor instead of the author
                         length: data.length
-                    }).where(eq(hikingtrails.id, data.id))
+                    }).where(eq(hikingTrails.id, data.id))
                 } catch (error) {
                     console.log(error)
                 }
@@ -83,11 +85,11 @@ export const saveTrail = command(v.object({
             } else {
                 //if we didnt change the path we can just update the title and description without having to update the whole path
                 try {
-                    await db.update(hikingtrails).set({
+                    await db.update(hikingTrails).set({
                         title: data.title,
                         description: data.description,
                         editor: data.author//change the editor instead of the author
-                    }).where(eq(hikingtrails.id, data.id))
+                    }).where(eq(hikingTrails.id, data.id))
                 } catch (error) {
                      throw error
 
@@ -98,8 +100,9 @@ export const saveTrail = command(v.object({
 )
 //to display a list for loading we only need the title for the list and the id for loading
 export const allTrails = query(async () => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
-        const Trails = await db.select({ id: hikingtrails.id, title: hikingtrails.title }).from(hikingtrails)
+        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title }).from(hikingTrails)
         return Trails;
     } catch (error) {
          throw error
@@ -107,8 +110,9 @@ export const allTrails = query(async () => {
 })
 
 export const deleteTrail = command(v.string(), async (trailId) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
-        await db.delete(hikingtrails).where(eq(hikingtrails.id, trailId));
+        await db.delete(hikingTrails).where(eq(hikingTrails.id, trailId));
             const relatedPOIs = await db.select({poiId: trailsToPoi.poiId}).from(trailsToPoi).where(eq(trailsToPoi.trailId, trailId));
             relatedPOIs.forEach(async (relation) => {       
                 await deleteTrailPOIRelation({ trailId: trailId, poiId: relation.poiId })
@@ -120,14 +124,16 @@ export const deleteTrail = command(v.string(), async (trailId) => {
 });
 //get all the data form a single selected trail
 export const getTrail = command(v.string(), async (trailId) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
-        const trail = await db.select().from(hikingtrails).where(eq(hikingtrails.id, trailId))
+        const trail = await db.select().from(hikingTrails).where(eq(hikingTrails.id, trailId))
         return trail
     } catch (error) {
          throw error
     }
 })
 export const getTrailPOIs = command(v.string(), async (trailId) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
         const pois = await db.select()
             .from(trailsToPoi)

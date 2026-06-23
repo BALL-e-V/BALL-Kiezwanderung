@@ -1,6 +1,9 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
-  import { allUsers } from "./register.remote";
+  import { allUsers, makeAdmin } from "./register.remote";
+  import { page } from "$app/stores";
+  import { onMount } from "svelte";
+
   const session = authClient.useSession();
 
   async function register(userdata: {
@@ -10,7 +13,6 @@
     image: string;
     callbackUrl: string;
   }) {
-    console.log("hi");
     const { data, error } = await authClient.signUp.email(userdata, {
       onRequest: (ctx) => {
         console.log(ctx);
@@ -47,39 +49,44 @@
     image: "",
     callbackUrl: "http://localhost:5173/newUser",
   };
+
+  onMount(() => {
+    const redirect = $page.url.search;
+    if (redirect == "?addTrail" || "?graphicTrail") {
+      userdata.callbackUrl = "/" + redirect.slice(1);
+    }
+  });
 </script>
 
 <h1>Register</h1>
-<form
-  onsubmit={() => {
-    console.log(userdata);
-    register(userdata);
-  }}
->
-  <label>
-    Email
-    <input type="email" name="email" bind:value={userdata.email} required />
-  </label>
+<label>
+  Email
+  <input type="email" name="email" bind:value={userdata.email} required />
+</label>
 
-  <label>
-    Password
-    <input
-      type="password"
-      name="password"
-      bind:value={userdata.password}
-      required
-    />
-  </label>
+<label>
+  Password
+  <input
+    type="password"
+    name="password"
+    bind:value={userdata.password}
+    required
+  />
+</label>
 
-  <label>
-    Name
-    <input type="text" name="name" bind:value={userdata.name} required />
-  </label>
+<label>
+  Name
+  <input type="text" name="name" bind:value={userdata.name} required />
+</label>
 
-  <button type="submit">Register</button>
-</form>
+<button onclick={() => register(userdata)}>Register</button>
+
 {#each await allUsers() as user}
-  <p>{user.name}+" "+{user.email}</p>
+  <p>
+    {user.name}+" "+{user.email}<button onclick={() => makeAdmin(user.userID)}
+      >make admin</button
+    >
+  </p>
 {/each}
 <div
   style="display: flex; flex-direction: column; gap: 10px; border-radius: 10px; border: 1px solid #4B453F; padding: 20px; margin-top: 10px;"

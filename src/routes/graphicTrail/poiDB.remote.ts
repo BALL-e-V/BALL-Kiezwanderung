@@ -5,6 +5,7 @@ import { db } from "$lib/server/db";
 import { and, eq } from "drizzle-orm/sql/expressions/conditions";
 import { sql } from "drizzle-orm/sql/sql";
 import { getStorageProvider } from "$lib/server/blob-storage";
+import { ensureAccess, getAuthenticatedUser } from "$lib/authorization";
 
 type createPOI = typeof poi.$inferInsert;
 
@@ -22,6 +23,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
   position1: v.number(),
   position2: v.number()
 }), async (data) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
 
     if(data.id === "") {
         //create new POI when it has no id and therefore isnt in the db
@@ -78,6 +80,7 @@ export const saveTrailPOIRelation = command(v.array(v.object({
     position1: v.number(),
     position2: v.number()
 })), async (data) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
 
     const values = data.map((item) => {
         return {
@@ -104,6 +107,7 @@ export const deleteTrailPOIRelation = command(v.object({
     trailId: v.string(),
     poiId: v.string(),
 }), async (data) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
         await db.delete(trailsToPoi).where(and(eq(trailsToPoi.trailId, data.trailId), eq(trailsToPoi.poiId, data.poiId)));
         const remainingRelations = await db.query.trailsToPoi.findFirst({
@@ -126,6 +130,7 @@ export const saveImage = command( v.object({
     oldImageUrl: v.string(),
     content: v.string(), // Base64 string
 }), async (imageData) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
 
     try {
         const base64Data = imageData.content.includes('base64,') ? imageData.content.split('base64,')[1] : imageData.content;
@@ -155,6 +160,7 @@ export const saveImage = command( v.object({
 
 
 export const deletePOI = command(v.string(), async (id) => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
         const poiImage = await db.select({ imageUrl: poi.imageUrl }).from(poi).where(eq(poi.id, id))
         if (poiImage[0].imageUrl && poiImage[0].imageUrl !== "") {
@@ -170,6 +176,7 @@ export const deletePOI = command(v.string(), async (id) => {
 });
 
 export const allPOIs = query(async () => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
         const pois = await db.query.poi.findMany();
         return pois;
@@ -179,6 +186,7 @@ export const allPOIs = query(async () => {
 })
 
 export const allRelations =query(async () => {
+    ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
         const relations = await db.query.trailsToPoi.findMany();
         return relations;

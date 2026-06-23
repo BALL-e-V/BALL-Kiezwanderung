@@ -39,15 +39,15 @@ export function parseRoles(user: UserWithRolesAndClaims): string[] {
     return [];
 }
 
-export function parseClaims<T extends Record<string, unknown> = Record<string, unknown>>(
+export function parseClaims(
     user: UserWithRolesAndClaims
-): T | null {
+): Set<Feature>| null {
     const raw = user?.claims;
     if (!raw) return null;
-    if (typeof raw === 'object') return raw as T;
+    if (typeof raw === 'object') return raw as Set<Feature>;
     if (typeof raw === 'string') {
         try {
-            return JSON.parse(raw) as T;
+            return JSON.parse(raw) as Set<Feature>;
         } catch {
             return null;
         }
@@ -55,19 +55,20 @@ export function parseClaims<T extends Record<string, unknown> = Record<string, u
     return null;
 }
 
-export function hasAccess(user: UserWithRolesAndClaims, feature: Feature): boolean {
+export function hasAccess(user: UserWithRolesAndClaims, feature?: Feature): boolean {
     const roles = parseRoles(user);
     if (roles.includes('admin')) return true;
-    const claims = parseClaims<Record<string, boolean>>(user);
 
+    if(feature){
+        const claims = parseClaims(user);
     // Check for the current claim key
-    if (claims?.[feature]) return true;
-
+        if (claims?.has(feature)) return true;
+    }
 
     return false;
 }
 
-export function ensureAccess(user: UserWithRolesAndClaims, feature: Feature) {
+export function ensureAccess(user: UserWithRolesAndClaims, feature?: Feature) {
     if (hasAccess(user, feature)) return;
     throw new Error('Forbidden');
 }
