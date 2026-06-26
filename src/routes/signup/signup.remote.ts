@@ -32,7 +32,6 @@ export const saveImage = command(
 export const checkEmail = command(
   v.string(), async(email)=>{
     const response = await db.select({id:user.id}).from(user).where(eq(user.email,email));
-    console.log(response)
     return response.length > 0
   }
 )

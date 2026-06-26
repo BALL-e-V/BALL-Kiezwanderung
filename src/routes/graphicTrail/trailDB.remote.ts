@@ -102,7 +102,7 @@ export const saveTrail = command(v.object({
 export const allTrails = query(async () => {
     ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
-        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title }).from(hikingTrails)
+        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title,author:hikingTrails.author,created:hikingTrails.created,updated:hikingTrails.updated }).from(hikingTrails)
         return Trails;
     } catch (error) {
          throw error

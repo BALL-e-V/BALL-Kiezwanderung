@@ -1,0 +1,103 @@
+:root {
+  /* Global accent palette */
+  --accent-50: #eff6ff;
+  --accent-100: #e0e7ff;
+  --accent-200: #c7d2fe;
+  --accent-300: #a5b4fc;
+  --accent-400: #818cf8;
+  --accent-500: #6366f1;
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+  --accent-800: #3730a3;
+  --accent-900: #312e81;
+
+  --accent-muted: #f8fafc;
+  --accent-surface: #ffffff;
+  --accent-surface-alt: #f5f7ff;
+  --accent-border: #cbd5e1;
+  --accent-text: #334155;
+  --accent-muted-text: #64748b;
+  --accent-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+  --success: #2a7f4c;
+  --danger: #b91c1c;
+}
+
+html {
+  color: var(--accent-text);
+  background: var(--accent-muted);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Global UI components used across pages */
+.ui-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background: var(--accent-surface);
+  border: 1px solid var(--accent-border);
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: var(--accent-shadow);
+}
+
+.block {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.switch-btn {
+  background-color: var(--accent-muted);
+  padding: 10px;
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  text-align: left;
+}
+
+/* Shared button styles */
+.button {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  min-width: 120px;
+  background: var(--accent-surface);
+  color: var(--accent-text);
+}
+
+.button.primary {
+  background: var(--accent-600);
+  color: white;
+}
+
+.button.secondary {
+  background: var(--accent-surface);
+  color: var(--accent-900);
+  border-color: var(--accent-border);
+}
+
+input,
+textarea,
+select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-muted);
+  color: var(--accent-text);
+}
+
+textarea {
+  min-height: 100px;
+}
+

@@ -321,8 +321,10 @@
     padding: 10px;
     margin-bottom: 20px;
     font-size: 14px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--accent-border);
     border-radius: 4px;
+    background: var(--accent-surface);
+    color: var(--accent-text);
   }
 
   .content-wrapper {
@@ -346,31 +348,31 @@
   .users-table td {
     padding: 12px;
     text-align: left;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--accent-border);
   }
 
   .users-table th {
-    background-color: #f5f5f5;
+    background-color: var(--accent-surface-alt);
     font-weight: bold;
   }
 
   .users-table tbody tr:hover,
   .users-table tbody tr.clickable-row:hover {
-    background-color: #f1f7ff;
+    background-color: var(--accent-100);
     cursor: pointer;
   }
 
   .users-table tbody tr.selected-row {
-    background-color: #e7f0ff;
+    background-color: var(--accent-200);
   }
 
   .user-details {
     flex: 1;
     min-width: 0;
     padding: 20px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--accent-border);
     border-radius: 8px;
-    background: #fbfbfb;
+    background: var(--accent-surface-alt);
     max-height: fit-content;
   }
 
@@ -397,19 +399,22 @@
     flex-direction: column;
     gap: 8px;
     font-weight: 500;
+    color: var(--accent-text);
   }
 
   .user-form input[type="text"],
   .user-form input[type="email"] {
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--accent-border);
     border-radius: 4px;
+    background: var(--accent-surface);
   }
 
   fieldset {
-    border: 1px solid #ccc;
+    border: 1px solid var(--accent-border);
     border-radius: 6px;
     padding: 14px;
+    background: var(--accent-surface);
   }
 
   legend {
@@ -427,9 +432,9 @@
   .form-button {
     margin-top: 16px;
     padding: 12px 16px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--accent-border);
     border-radius: 4px;
-    background: #fff;
+    background: var(--accent-surface);
     cursor: pointer;
     font-size: 14px;
     transition:
@@ -438,8 +443,8 @@
   }
 
   .form-button:hover:not(:disabled) {
-    background: #f5f5f5;
-    border-color: #b3b3b3;
+    background: var(--accent-muted);
+    border-color: var(--accent-border);
   }
 
   .form-button:disabled {
@@ -453,15 +458,17 @@
     gap: 8px;
     margin-top: 16px;
     font-weight: 500;
+    color: var(--accent-text);
   }
 
   .password-label input {
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--accent-border);
     border-radius: 4px;
+    background: var(--accent-surface);
   }
 
   .error {
-    color: #d32f2f;
+    color: var(--danger);
   }
 </style>

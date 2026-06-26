@@ -89,7 +89,7 @@
   </p>
 {/each}
 <div
-  style="display: flex; flex-direction: column; gap: 10px; border-radius: 10px; border: 1px solid #4B453F; padding: 20px; margin-top: 10px;"
+  style="display: flex; flex-direction: column; gap: 10px; border-radius: 10px; border: 1px solid var(--accent-border); padding: 20px; margin-top: 10px; background: var(--accent-surface);"
 >
   <div>
     {#if $session.data}

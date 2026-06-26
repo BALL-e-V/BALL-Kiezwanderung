@@ -129,8 +129,8 @@
   .profile-form {
     display: grid;
     gap: 18px;
-    background: #fafafa;
-    border: 1px solid #ddd;
+    background: var(--accent-muted);
+    border: 1px solid var(--accent-border);
     border-radius: 12px;
     padding: 24px;
   }
@@ -140,14 +140,16 @@
     flex-direction: column;
     gap: 8px;
     font-weight: 600;
+    color: var(--accent-text);
   }
 
   .profile-form input[type="text"],
   .profile-form input[type="email"],
   .profile-form input[type="file"] {
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--accent-border);
     border-radius: 6px;
+    background: var(--accent-surface);
   }
 
   .profile-image {
@@ -162,17 +164,17 @@
     padding: 12px 18px;
     border: none;
     border-radius: 8px;
-    background: #1e88e5;
+    background: var(--accent-600);
     color: white;
     font-weight: 700;
     cursor: pointer;
   }
 
   .success {
-    color: #2a7f4c;
+    color: var(--success);
   }
 
   .error {
-    color: #b00020;
+    color: var(--danger);
   }
 </style>

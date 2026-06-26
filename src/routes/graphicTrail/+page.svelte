@@ -21,6 +21,7 @@
   } from "./trailDB.remote";
   import { colors, sizes, timeToSave, trailResolution } from "./config";
   import { onMount } from "svelte";
+  import { authClient } from "$lib/auth-client";
   import {
     savePOI,
     saveTrailPOIRelation,
@@ -66,8 +67,17 @@
   let trailId = $state("");
   //hase the path of the trail been updated since the last save?
   let trailUpdate = false;
+
+  type TrailListItem = {
+    id: string;
+    title: string;
+    author: string;
+    created: string;
+    updated?: string;
+  };
+
   //list of all trails in the database for display in the load menu
-  let listofTrails: { title: string; id: string }[] = $state([]);
+  let listofTrails: TrailListItem[] = $state([] as TrailListItem[]);
   // variable to save the according timeout
   let waitToSave: ReturnType<typeof setTimeout> = null as any;
   //to get a confimation step before deleting trails/poi
@@ -78,6 +88,23 @@
   let heroPoi = $state(-1);
   //fisrt option in the lst of trails to let the user know
   let trailLoadingStatus = $state("Lade Liste der Wanderwege");
+
+  let loadTrailQuery = $state(false);
+
+  //session state loaded on mount
+  let session = $state(null as any);
+
+  //trail list filter and sort state
+  let trailSearchFilter = $state("");
+  let trailFilterField = $state("title" as "title" | "author" | "date");
+  let trailSortCriteria = $state(
+    "title" as "title" | "author" | "created" | "updated",
+  );
+  let trailSortAscending = $state(true);
+
+  //poi list sort state
+  let poiSortCriteria = $state("trailPosition" as "trailPosition" | "name");
+  let poiSortAscending = $state(true);
 
   //function to switch between editing pois and the trail
   function editorSwitch() {
@@ -260,7 +287,7 @@
     }
   }
   //for sorting the poi list according to the position on the trail
-  function compareMapPosition(a: pointOfInterest, b: pointOfInterest) {
+  function compareTrailPosition(a: pointOfInterest, b: pointOfInterest) {
     if (
       a.trailPosition[0] < b.trailPosition[0] ||
       (a.trailPosition[0] == b.trailPosition[0] &&
@@ -335,7 +362,6 @@
       creatingPoi = true;
       heroPoi = -1;
       poiList.forEach((p) => {
-        console.log(p.marker.getLatLng());
         p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
         p.marker.off("click").off("dragend");
         p.marker.dragging?.disable();
@@ -899,11 +925,11 @@
     loadingTrail++;
 
     //if the trail was updated we need to ensure the position of the pois is still correct
-    if (trailData.trailUpdate) {
+    if (trailData.trailUpdate && poiList.length > 0) {
       poiList.forEach((p) => {
         p.getTrailPosition();
       });
-      poiList.sort(compareMapPosition);
+      poiList.sort(compareTrailPosition);
       poiRelationtoDB(poiList);
     }
 
@@ -924,7 +950,13 @@
       while (i < listofTrails.length && listofTrails[i].title < trailTitle) {
         i++;
       }
-      listofTrails.splice(i, 0, { id: trailId, title: trailTitle });
+      listofTrails.splice(i, 0, {
+        id: trailId,
+        title: trailTitle,
+        author: "firstCause",
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
+      });
     } else {
       //updating the position in the list if the title was changed
       let index = listofTrails.findIndex((t) => t.id == trailData.id);
@@ -937,7 +969,11 @@
         ) {
           i++;
         }
-        listofTrails.splice(i, 0, { id: trailData.id, title: trailData.title });
+        const existingTrail = {
+          ...listofTrails[index],
+          title: trailData.title,
+        };
+        listofTrails.splice(i, 0, existingTrail);
       }
     }
 
@@ -953,6 +989,7 @@
     if (insertingWaypoint) {
       insertSwitch();
     }
+    loadTrailQuery = false;
     loadingTrail++;
 
     let result;
@@ -1073,7 +1110,7 @@
         );
         poiList[poiList.length - 1].marker.dragging?.disable();
       });
-      poiList.sort(compareMapPosition);
+      poiList.sort(compareTrailPosition);
     }
 
     loadingTrail--;
@@ -1209,15 +1246,123 @@
       console.log(err);
     }
     if (result) {
-      listofTrails = result;
+      listofTrails = (result as any).map((trail: any) => ({
+        ...trail,
+        updated: trail.updated !== undefined ? trail.updated : trail.updated,
+      }));
       trailLoadingStatus = "Wanderweg auswählen";
     } else {
       trailLoadingStatus = "Laden gescheitert";
     }
   }
-  //need to load a list of trails when we mount the page
-  onMount(() => {
-    loadTrailList();
+
+  function formatDate(value: unknown) {
+    if (!value) {
+      return "-";
+    }
+    const date = new Date(value as string | number | Date);
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+    return date.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+
+  let filteredTrails = $derived.by(() => {
+    const search = trailSearchFilter.trim();
+    const regex = search ? new RegExp(search, "i") : null;
+    const items = [...listofTrails].filter((trail) => {
+      if (!regex) return true;
+      if (trailFilterField === "title") {
+        return regex.test(trail.title);
+      }
+      if (trailFilterField === "author") {
+        return regex.test(trail.author);
+      }
+      return (
+        regex.test(formatDate(trail.created)) ||
+        regex.test(formatDate(trail.updated))
+      );
+    });
+
+    return items.sort((a, b) => {
+      const direction = trailSortAscending ? 1 : -1;
+      if (trailSortCriteria === "title") {
+        return a.title.localeCompare(b.title) * direction;
+      }
+
+      if (trailSortCriteria === "author") {
+        return a.author.localeCompare(b.author) * direction;
+      }
+
+      const aDate = new Date(
+        trailSortCriteria === "created" ? a.created : (a.updated ?? a.created),
+      ).getTime();
+      const bDate = new Date(
+        trailSortCriteria === "created" ? b.created : (b.updated ?? b.created),
+      ).getTime();
+      return (aDate - bDate) * direction;
+    });
+  });
+
+  let sortedPoiList = $derived.by(() => {
+    const items = [...poiList];
+    if (poiSortCriteria === "name") {
+      return items.sort((a, b) =>
+        poiSortAscending
+          ? a.caption.localeCompare(b.caption)
+          : b.caption.localeCompare(a.caption),
+      );
+    }
+
+    return items.sort((a, b) =>
+      poiSortAscending
+        ? compareTrailPosition(a, b)
+        : compareTrailPosition(b, a),
+    );
+  });
+
+  function trailSortBy(column: "title" | "author" | "created" | "updated") {
+    if (trailSortCriteria === column) {
+      trailSortAscending = !trailSortAscending;
+    } else {
+      trailSortCriteria = column;
+      trailSortAscending = true;
+    }
+  }
+
+  function poiSortBy(column: "trailPosition" | "name") {
+    if (poiSortCriteria === column) {
+      poiSortAscending = !poiSortAscending;
+    } else {
+      poiSortCriteria = column;
+      poiSortAscending = true;
+    }
+  }
+
+  function sortIndicator(column: "title" | "author" | "created" | "updated") {
+    if (trailSortCriteria !== column) return "";
+    return trailSortAscending ? "▴" : "▾";
+  }
+
+  function poiSortIndicator(column: "trailPosition" | "name") {
+    if (poiSortCriteria !== column) return "";
+    return poiSortAscending ? "▴" : "▾";
+  }
+
+  //need to load a list of trails and session when we mount the page
+  onMount(async () => {
+    try {
+      const response = await authClient.getSession();
+      session = response?.data ?? null;
+    } catch (err) {
+      console.log(err);
+    }
+
+    await loadTrailList();
   });
 </script>
 
@@ -1273,116 +1418,217 @@
     {/if}
 
     {#if editing === "trail"}
-      <h3>Wanderweg bearbeiten</h3>
-      <div>
-        <label for="trailTitle">Name:</label>
-        <input
-          autocomplete="off"
-          id="trailTitle"
-          class="block"
-          type="text"
-          bind:value={trailTitle}
-          onchange={() => {
-            //only need to start the timeout to save if there is no loading process running, otherwise the saving will be initiated by the loading function when it finishes
-            if (loadingTrail == 0) {
-              clearTimeout(waitToSave);
-              waitToSave = setTimeout(trailToDatabase, timeToSave);
-            }
-          }}
-        />
-      </div>
-      <div>
-        <label for="trailDescription">Beschreibung:</label>
-        <textarea
-          autocomplete="off"
-          id="trailDescription"
-          class="block"
-          bind:value={trailDescription}
-          onchange={() => {
-            if (loadingTrail == 0) {
-              //only need to start the timeout to save if there is no loading process running, otherwise the saving will be initiated by the loading function when it finishes
-              clearTimeout(waitToSave);
-              waitToSave = setTimeout(trailToDatabase, timeToSave);
-            }
-          }}
-        ></textarea>
-      </div>
-      <div>
-        <button onclick={trailMakerSwitch} disabled={loadingTrail > 0}>
-          {makingTrail ? "Wegaufzeichnung stoppen" : "Wanderweg aufzeichnen"}
-        </button>
-      </div>
-      <div>
-        <button
-          disabled={trail.length == 0 || loadingTrail != 0}
-          onclick={() => {
-            if (waitToSave) {
-              //only need to save if there are pending changes
-              trailToDatabase();
-            }
-          }}>Speichern</button
-        >
-      </div>
-      <div>
-        {#if deleteQuery}
-          <p>Wirklich Löschen?</p>
+      {#if !loadTrailQuery}
+        <h3>Wanderweg bearbeiten</h3>
+        <div class="field-group">
+          <div>
+            <label for="trailTitle">Name:</label>
+            <input
+              autocomplete="off"
+              id="trailTitle"
+              class="block"
+              type="text"
+              bind:value={trailTitle}
+              onchange={() => {
+                if (loadingTrail == 0) {
+                  clearTimeout(waitToSave);
+                  waitToSave = setTimeout(trailToDatabase, timeToSave);
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label for="trailDescription">Beschreibung:</label>
+            <textarea
+              autocomplete="off"
+              id="trailDescription"
+              class="block"
+              bind:value={trailDescription}
+              onchange={() => {
+                if (loadingTrail == 0) {
+                  clearTimeout(waitToSave);
+                  waitToSave = setTimeout(trailToDatabase, timeToSave);
+                }
+              }}
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="action-group">
           <button
+            type="button"
+            onclick={trailMakerSwitch}
+            disabled={loadingTrail > 0}
+            class="button secondary"
+          >
+            {makingTrail ? "Wegaufzeichnung stoppen" : "Wanderweg aufzeichnen"}
+          </button>
+          <button
+            type="button"
+            disabled={trail.length == 0 || loadingTrail != 0}
             onclick={() => {
               if (waitToSave) {
-                //stop waiting for save and null the intervall so we can check for pending changes by checking if waitToSave is null
-                clearInterval(waitToSave);
-                waitToSave = null as any;
+                trailToDatabase();
               }
-              if (trailId != "") {
-                //check if the trail is in the database
-                deleteTrail(trailId); //database delete
-              }
-              newTrail(); //reset the editor
-            }}>Löschen</button
+            }}
+            class="button primary"
           >
-          <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
-        {:else}
-          <button
-            disabled={trailId == "" || loadingTrail != 0}
-            onclick={() => (deleteQuery = true)}>Wanderweg löschen</button
-          >
-        {/if}
-      </div>
-      <div>
-        <button
-          disabled={loadingTrail != 0}
-          onclick={() => {
-            if (
-              (trailId != "" || trail.length > 0 || trailDescription != "") &&
-              waitToSave
-            ) {
-              //only need to save if there is a trail to save and there are pending changes
-              trailToDatabase();
-            }
-            newTrail();
-          }}>Neuer Wanderweg</button
-        >
-      </div>
+            Speichern
+          </button>
+        </div>
 
-      <div>
-        <p>Wanderweg laden</p>
-        <select
-          autocomplete="off"
-          disabled={loadingTrail != 0}
-          onchange={(event) => {
-            if (trailId != "" && waitToSave) {
-              //only need to save if there is a trail to save and there are pending changes
-              trailToDatabase();
-            }
-            trailFromDB((event.target as HTMLSelectElement).value);
-          }}
-        >
-          <option disabled selected value>{trailLoadingStatus}</option>
-          {#each listofTrails as trail}
-            <option value={trail.id}>{trail.title}</option>
-          {/each}
-        </select>
-      </div>
+        <div class="button-row">
+          {#if deleteQuery}
+            <p>Wirklich Löschen?</p>
+            <button
+              type="button"
+              onclick={() => {
+                if (waitToSave) {
+                  clearInterval(waitToSave);
+                  waitToSave = null as any;
+                }
+                if (trailId != "") {
+                  deleteTrail(trailId);
+                }
+                newTrail();
+              }}
+              class="button danger"
+            >
+              Löschen
+            </button>
+            <button
+              type="button"
+              onclick={() => (deleteQuery = false)}
+              class="button secondary">Abbrechen</button
+            >
+          {:else}
+            <button
+              type="button"
+              disabled={trailId == "" || loadingTrail != 0}
+              onclick={() => (deleteQuery = true)}
+              class="button secondary"
+            >
+              Wanderweg löschen
+            </button>
+          {/if}
+          <button
+            type="button"
+            disabled={loadingTrail != 0}
+            onclick={() => {
+              loadTrailQuery = true;
+            }}
+            class="button secondary"
+          >
+            Wanderweg laden
+          </button>
+
+          <button
+            type="button"
+            disabled={loadingTrail != 0}
+            onclick={() => {
+              if (
+                (trailId != "" || trail.length > 0 || trailDescription != "") &&
+                waitToSave
+              ) {
+                trailToDatabase();
+              }
+              newTrail();
+            }}
+            class="button secondary"
+          >
+            Neuer Wanderweg
+          </button>
+        </div>
+      {:else if loadTrailQuery}
+        <div class="trail-list-panel">
+          <div class="trail-list-control">
+            <input
+              type="search"
+              class="block search-input"
+              placeholder={trailFilterField === "title"
+                ? "Regex für Titel"
+                : trailFilterField === "author"
+                  ? "Regex für Autor"
+                  : "Regex für Erstellungs- oder Aktualisierungsdatum"}
+              bind:value={trailSearchFilter}
+            />
+            <div class="sort-pill-group">
+              <button
+                type="button"
+                class="button secondary sort-pill"
+                class:selected={trailFilterField === "title"}
+                onclick={() => (trailFilterField = "title")}
+              >
+                Titel
+              </button>
+              <button
+                type="button"
+                class="button secondary sort-pill"
+                class:selected={trailFilterField === "author"}
+                onclick={() => (trailFilterField = "author")}
+              >
+                Autor
+              </button>
+              <button
+                type="button"
+                class="button secondary sort-pill"
+                class:selected={trailFilterField === "date"}
+                onclick={() => (trailFilterField = "date")}
+              >
+                Datum
+              </button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="trail-table">
+              <thead>
+                <tr>
+                  <th onclick={() => trailSortBy("title")}
+                    >Titel {sortIndicator("title")}</th
+                  >
+                  <th onclick={() => trailSortBy("author")}
+                    >Autor {sortIndicator("author")}</th
+                  >
+                  <th onclick={() => trailSortBy("created")}
+                    >Erstellt {sortIndicator("created")}</th
+                  >
+                  <th onclick={() => trailSortBy("updated")}
+                    >Aktualisiert {sortIndicator("updated")}</th
+                  >
+                </tr>
+              </thead>
+              <tbody>
+                {#each filteredTrails as trail}
+                  <tr
+                    class="clickable-row"
+                    onclick={() => {
+                      if (waitToSave) {
+                        trailToDatabase();
+                      }
+                      trailFromDB(trail.id);
+                    }}
+                  >
+                    <td>{trail.title}</td>
+                    <td>{trail.author}</td>
+                    <td>{formatDate(trail.created)}</td>
+                    <td>{formatDate(trail.updated)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+            {#if filteredTrails.length === 0}
+              <p class="empty-state">Keine Wanderwege gefunden.</p>
+            {/if}
+          </div>
+          <button
+            type="button"
+            onclick={() => (loadTrailQuery = false)}
+            class="button secondary"
+          >
+            abbrechen
+          </button>
+        </div>
+      {/if}
     {:else if editing === "poi"}
       <h3>POI bearbeiten</h3>
       {#if heroPoi >= 0}
@@ -1459,41 +1705,90 @@
             />
           {/if}
           <button
+            type="button"
+            class="button primary"
             onclick={() => {
               if (waitToSave) {
                 poiToDatabase(heroPoi);
               }
-            }}>speichern</button
+            }}
           >
+            Speichern
+          </button>
         </div>
         {#if deleteQuery}
           <p>Wirklich Löschen?</p>
           <button
+            type="button"
+            class="button danger"
             onclick={() => {
               if (waitToSave) {
                 clearInterval(waitToSave);
                 waitToSave = null as any;
               }
               deletePoiOrRelation(poiList[heroPoi]);
-            }}>Löschen</button
+            }}
           >
-          <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
+            Löschen
+          </button>
+          <button
+            type="button"
+            class="button secondary"
+            onclick={() => (deleteQuery = false)}
+          >
+            Abbrechen
+          </button>
         {:else}
-          <button onclick={() => (deleteQuery = true)}>POI löschen</button>
+          <button
+            type="button"
+            class="button secondary"
+            onclick={() => (deleteQuery = true)}
+          >
+            POI löschen
+          </button>
         {/if}
       {/if}
-      <h4>Vorhandene POIs:</h4>
-      {#each poiList as poi}
-        <button
-          style:color={poiList[heroPoi] == poi ? colors.editing : ""}
-          class="block"
-          onclick={() => heromaker(poi)}>{poi.caption}</button
-        >
-      {/each}
+      <div class="poi-list-panel">
+        <div class="poi-list-header">
+          <h4>Vorhandene POIs</h4>
+          <div class="sort-pill-group">
+            <button
+              type="button"
+              class="button secondary sort-pill"
+              onclick={() => poiSortBy("name")}
+            >
+              Alphabetisch {poiSortIndicator("name")}
+            </button>
+            <button
+              type="button"
+              class="button secondary sort-pill"
+              onclick={() => poiSortBy("trailPosition")}
+            >
+              Reihenfolge {poiSortIndicator("trailPosition")}
+            </button>
+          </div>
+        </div>
+
+        <div class="poi-scroll">
+          {#if sortedPoiList.length === 0}
+            <p class="empty-state">Noch keine POIs.</p>
+          {/if}
+          {#each sortedPoiList as poi}
+            <button
+              type="button"
+              class="button secondary poi-row"
+              class:selected={poiList[heroPoi] == poi}
+              onclick={() => heromaker(poi)}
+            >
+              <span>{poi.caption || "Unbenannter POI"}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
       <button
-        onclick={() => {
-          poiCreatorSwitch();
-        }}>Neuen POI setzen</button
+        type="button"
+        onclick={() => poiCreatorSwitch()}
+        class="button primary">Neuen POI setzen</button
       >
     {/if}
   </div>
@@ -1501,30 +1796,48 @@
 
 <!--right-click menu for editing the trail -->
 {#if showClickMenu}
-  <div
-    style="position: absolute; top:{menuPos.y}px; left:{menuPos.x}px; z-index: 2000; background: white; border: 1px solid #ccc; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);"
-  >
+  <div class="context-menu" style="top:{menuPos.y}px; left:{menuPos.x}px;">
     {#if loadingTrail > 0}
-      <p>loading trail</p>
+      <p class="context-menu-message">Lade Wanderweg</p>
     {:else if clickMenuTarget == "polyline"}
-      <button onclick={() => insertSwitch()}>add waypoint</button>
-    {:else if clickMenuTarget == "marker"}
-      <button onclick={() => deleteWaypoint(righclickTarget)}
-        >remove marker</button
+      <button
+        type="button"
+        class="context-menu-button"
+        onclick={() => insertSwitch()}>Wegpunkt hinzufügen</button
       >
+    {:else if clickMenuTarget == "marker"}
+      <button
+        type="button"
+        class="context-menu-button"
+        onclick={() => deleteWaypoint(righclickTarget)}
+      >
+        Wegpunkt entfernen
+      </button>
       {#if righclickTarget != 0}
         <button
+          type="button"
+          class="context-menu-button"
           onclick={() => {
             righclickTarget--;
             insertSwitch();
-          }}>Wegpunkt vorher</button
+          }}
         >
+          Wegpunkt vor diesem einfügen
+        </button>
       {/if}
       {#if righclickTarget == trailMarkers.length - 1}
-        <button onclick={() => trailMakerSwitch()}>trail</button>
+        <button
+          type="button"
+          class="context-menu-button"
+          onclick={() => trailMakerSwitch()}>Wanderweg fortsetzen</button
+        >
       {:else}
-        <button onclick={() => insertSwitch()}>wegpunkt danach</button>
-      {/if}
+        <button
+          type="button"
+          class="context-menu-button"
+          onclick={() => insertSwitch()}>Wegpunkt nach diesem einfügen</button
+        >
+      {/if}q
     {/if}
   </div>
 {/if}
@@ -1539,28 +1852,212 @@
   .alignment {
     display: flex;
     gap: 20px;
+    align-items: flex-start;
   }
-  .block {
-    display: block;
-    margin-bottom: 10px;
+
+  /* rely on global UI styles in src/styles.css for .ui-panel, .block, .button, .switch-btn */
+
+  .field-group {
+    display: grid;
+    gap: 12px;
   }
-  .ui-panel {
-    width: 300px;
+
+  .action-group,
+  .button-row {
+    display: grid;
+    gap: 10px;
+  }
+
+  .trail-list-panel {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
   }
-  .switch-btn {
-    background-color: #f0f0f0;
-    padding: 10px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-    font-weight: bold;
+
+  .trail-list-control {
+    display: grid;
+    gap: 10px;
+  }
+
+  .search-input {
     width: 100%;
+  }
+
+  .sort-pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sort-pill {
+    flex: 1;
+    min-width: 90px;
+    white-space: nowrap;
+    border-color: transparent;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .sort-pill.selected,
+  .sort-pill:focus-visible {
+    background: var(--accent-100);
+    border-color: var(--accent-400);
+    color: var(--accent-900);
+  }
+
+  .table-wrapper {
+    overflow: auto;
+    max-height: 260px;
+    border: 1px solid var(--accent-border);
+    border-radius: 12px;
+    background: var(--accent-surface-alt);
+  }
+
+  .trail-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .trail-table th,
+  .trail-table td {
+    padding: 10px 8px;
     text-align: left;
+    border-bottom: 1px solid var(--accent-border);
   }
-  textarea {
+
+  .trail-table th {
+    cursor: pointer;
+    user-select: none;
+    background: var(--accent-surface);
+  }
+
+  .clickable-row {
+    cursor: pointer;
+  }
+
+  .clickable-row:hover {
+    background: var(--accent-100);
+  }
+
+  .empty-state {
+    padding: 20px;
+    text-align: center;
+    color: var(--accent-muted-text);
+  }
+
+  .poi-list-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .poi-list-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .poi-scroll {
+    max-height: 240px;
+    overflow: auto;
+    display: grid;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid var(--accent-border);
+    border-radius: 12px;
+    background: var(--accent-surface-alt);
+  }
+
+  .poi-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
     width: 100%;
-    min-height: 100px;
+  }
+
+  .poi-row.selected {
+    border-color: var(--accent-600);
+    background: var(--accent-50);
+  }
+
+  .context-menu {
+    position: fixed;
+    z-index: 3000;
+    min-width: 180px;
+    background: var(--accent-surface);
+    border: 1px solid var(--accent-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 32px rgba(15, 23, 42, 0.18);
+    padding: 8px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .context-menu-button {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--accent-surface-alt);
+    color: var(--accent-text);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .context-menu-button:hover,
+  .context-menu-button:focus {
+    background: var(--accent-100);
+  }
+
+  .context-menu-message {
+    margin: 0;
+    padding: 8px 10px;
+    color: var(--accent-muted-text);
+    font-size: 0.95rem;
+  }
+
+  .button.danger {
+    background: var(--danger);
+    color: white;
+  }
+
+  .button:disabled,
+  .button[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: var(--accent-border);
+    color: var(--accent-muted-text);
+    border-color: var(--accent-border);
+  }
+
+  .button.primary:disabled,
+  .button.primary[disabled] {
+    background: var(--accent-400);
+  }
+
+  .button.secondary:disabled,
+  .button.secondary[disabled] {
+    background: var(--accent-surface);
+  }
+
+  #map {
+    flex: 1 1 auto;
+    max-width: 100%;
+    height: 800px;
+  }
+
+  @media (max-width: 900px) {
+    .alignment {
+      flex-direction: column;
+    }
+    #map {
+      height: 400px;
+      width: 100%;
+    }
   }
 </style>
