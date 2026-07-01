@@ -84,13 +84,29 @@
     user = null as any;
     goto("/");
   }
+
+  let topbar: HTMLElement;
+  function registerColor(html: HTMLElement) {
+    html.style.background =
+      "rgb(" +
+      Math.round(Math.random() * 256) +
+      "," +
+      Math.round(Math.random() * 256) +
+      "," +
+      Math.round(Math.random() * 256) +
+      ")";
+  }
 </script>
 
 <div class="app-shell">
-  <header class="topbar">
+  <header
+    class="topbar"
+    bind:this={topbar}
+    onclick={() => registerColor(topbar)}
+  >
     <div class="brand-row">
       <div>
-        <h1>Kiezwanderung</h1>
+        <h1 style="background:white">Kiezwanderung</h1>
       </div>
 
       {#if user}

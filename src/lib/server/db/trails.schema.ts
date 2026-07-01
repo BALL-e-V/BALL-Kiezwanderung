@@ -10,7 +10,7 @@ export const hikingTrails = mysqlTable("hikingtrails",
         author: varchar({ length: 128 }).notNull(),
         created: timestamp().defaultNow().notNull(),
         editor: varchar({ length: 128 }).notNull(),
-        updated: timestamp().onUpdateNow(),
+        updated: timestamp().defaultNow().onUpdateNow(),
         length: float(),
     },
     (table) => [
@@ -33,7 +33,7 @@ export const poi = mysqlTable("poi", {
     author: varchar({ length: 128 }).notNull(),
     created: timestamp().defaultNow().notNull(),
     editor: varchar({ length: 128 }),
-    updated: timestamp().onUpdateNow()
+    updated: timestamp().defaultNow().onUpdateNow()
 })
 
 export const poiRelations = relations(poi, ({ many }) => ({

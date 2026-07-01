@@ -16,14 +16,14 @@ export const savePOI = command(v.object({
 lat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
 lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
   id: v.string(),
-  author:v.string(),
   imageAlt: v.string(),
   poiPositionUpdate: v.boolean(),
   trailId: v.string(),
   position1: v.number(),
   position2: v.number()
 }), async (data) => {
-    ensureAccess(getAuthenticatedUser(),"trailMaking")
+    const user = getAuthenticatedUser()
+    ensureAccess(user,"trailMaking")
 
     if(data.id === "") {
         //create new POI when it has no id and therefore isnt in the db
@@ -33,8 +33,8 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
             description:data.description,
             latitude:data.lat,
             longitude:data.lng,
-            author:data.author,
-            editor:data.author,
+            author:user.id,
+            editor:user.id,
             imageAlt:data.imageAlt
         }
         try {
@@ -52,7 +52,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
                 description:data.description,
                 latitude:data.lat,
                 longitude:data.lng,
-                editor:data.author
+                editor:user.id
         }).where(eq(poi.id, data.id))
         }catch (error) {
             throw error

@@ -3,6 +3,7 @@
   import { allUsers, makeAdmin } from "./register.remote";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
+  import Asdf from "./asdf.svelte";
 
   const session = authClient.useSession();
 
@@ -56,9 +57,23 @@
       userdata.callbackUrl = "/" + redirect.slice(1);
     }
   });
+
+  let reg: HTMLElement;
+
+  function registerColor(reg: HTMLElement) {
+    reg.style.color =
+      "rgb(" +
+      Math.round(Math.random() * 256) +
+      "," +
+      Math.round(Math.random() * 256) +
+      "," +
+      Math.round(Math.random() * 256) +
+      ")";
+  }
 </script>
 
-<h1>Register</h1>
+<h1 bind:this={reg}>Register</h1>
+<Asdf {registerColor} {reg}></Asdf>
 <label>
   Email
   <input type="email" name="email" bind:value={userdata.email} required />

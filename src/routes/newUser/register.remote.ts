@@ -4,7 +4,7 @@ import {db}from "$lib/server/db";
 import * as v from "valibot";
 import { success } from "better-auth";
 import{eq}from "drizzle-orm"
-
+import {hikingTrails, poi} from "$lib/server/db/trails.schema"
 export const allUsers = query (async()=>{
     try{ 
         const users = await db.select({name:user.name,email:user.email,userID:user.id}).from(user)
