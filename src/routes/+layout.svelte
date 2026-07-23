@@ -89,11 +89,11 @@
   function registerColor(html: HTMLElement) {
     html.style.background =
       "rgb(" +
-      Math.round(Math.random() * 256) +
+      Math.floor(Math.random() * 256) +
       "," +
-      Math.round(Math.random() * 256) +
+      Math.floor(Math.random() * 256) +
       "," +
-      Math.round(Math.random() * 256) +
+      Math.floor(Math.random() * 256) +
       ")";
   }
 </script>
@@ -106,16 +106,18 @@
   >
     <div class="brand-row">
       <div>
-        <h1 style="background:white">Kiezwanderung</h1>
+        <h1>Kiezwanderung</h1>
       </div>
 
       {#if user}
-        <div class="user-row">
+        <div class="user-row" onclick={(e) => e.stopPropagation()}>
           {#if user && (canAccessTrail || isAdmin)}
             <button
               type="button"
               class="button secondary"
-              onclick={() => goto("/graphicTrail")}
+              onclick={() => {
+                goto("/graphicTrail");
+              }}
             >
               Graphic Trail
             </button>
@@ -125,13 +127,15 @@
             <button
               type="button"
               class="button primary"
-              onclick={() => goto("/admin")}
+              onclick={() => {
+                goto("/user/admin");
+              }}
             >
               Admin
             </button>
           {/if}
 
-          <div class="user-box">
+          <a class="user-box" href="/user/editUser">
             {#if user && user.image != ""}
               <img src={user.image} alt="Profilbild" class="profile-picture" />
             {/if}
@@ -139,13 +143,17 @@
               <p class="caption">Angemeldet als</p>
               <strong>{user ? user.name : ""}</strong>
             </div>
-          </div>
-          <button type="button" class="button secondary" onclick={signOut}
-            >Logout</button
+          </a>
+          <button
+            type="button"
+            class="button secondary"
+            onclick={() => {
+              signOut();
+            }}>Logout</button
           >
         </div>
       {:else}
-        <div class="header-actions">
+        <div class="header-actions" onclick={(e) => e.stopPropagation()}>
           {#if showLoginForm}
             <form class="login-form-inline" onsubmit={(e) => signIn(e)}>
               <div class="login-row">
@@ -171,7 +179,9 @@
                   <button
                     type="button"
                     class="button secondary"
-                    onclick={() => (showLoginForm = false)}
+                    onclick={() => {
+                      showLoginForm = false;
+                    }}
                   >
                     Abbrechen
                   </button>
@@ -188,7 +198,6 @@
               class="button primary"
               onclick={() => {
                 showLoginForm = true;
-                console.log(showLoginForm);
               }}
             >
               Einloggen
@@ -204,7 +213,9 @@
 
 <style>
   .app-shell {
-    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     background: var(--accent-muted);
     color: var(--accent-text);
   }
@@ -212,6 +223,7 @@
   .topbar {
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
     gap: 20px;
     padding: 28px 24px;
     background: var(--accent-surface);
@@ -334,6 +346,7 @@
   }
 
   .content-area {
+    flex: 1;
     padding: 28px 24px 40px;
   }
 

@@ -2,13 +2,26 @@
   import { authClient } from "$lib/auth-client";
   import { fileToBase64 } from "$lib/util";
   import { saveImage, checkEmail } from "./signup.remote";
+  import { goto } from "$app/navigation";
 
   let headline = $state("Registrieren");
   let imageInput: HTMLInputElement;
   let emailInput: HTMLInputElement;
   let passwordCheck = $state("");
   let img = $state("");
-  let emailExists = $state(false);
+  let emailExists = $state("");
+
+  async function handleEmailBlur() {
+    if (emailInput.checkValidity()) {
+      if (await checkEmail(userdata.email)) {
+        emailExists = "Account mit dieser Email existiert bereits";
+      } else {
+        emailExists = "Email ist verfügbar";
+      }
+    } else {
+      emailExists = "Emailadresse ist ungültig";
+    }
+  }
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -33,6 +46,9 @@
         });
       }
       headline = "Registrieren erflogreich";
+      setTimeout(() => {
+        goto("/");
+      }, 2000);
     }
   }
   let userdata = $state({
@@ -52,17 +68,26 @@
       <input type="text" name="name" bind:value={userdata.name} required />
     </label>
 
-    {#if emailExists}
-      <p class="feedback">Account mit dieser Email existiert bereits</p>
-    {/if}
-
     <label>
-      Email
+      <div class="label-row">
+        <span>Email</span>
+        <p
+          class="feedback"
+          style="color: {emailExists == 'Email ist verfügbar'
+            ? 'green'
+            : 'red'}"
+        >
+          {emailExists}
+        </p>
+      </div>
       <input
         type="email"
         name="email"
         bind:value={userdata.email}
-        onblur={async () => (emailExists = await checkEmail(userdata.email))}
+        onblur={handleEmailBlur}
+        onfocus={() => {
+          emailExists = "";
+        }}
         bind:this={emailInput}
         required
       />
@@ -125,7 +150,8 @@
     <button
       type="submit"
       class="submit-button"
-      disabled={userdata.password != passwordCheck || emailExists}
+      disabled={userdata.password != passwordCheck ||
+        emailExists != "Account mit dieser Email existiert nicht"}
     >
       Signup
     </button>
@@ -162,6 +188,13 @@
     gap: 10px;
     font-weight: 600;
     color: var(--accent-text);
+  }
+
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
   }
 
   .signup-form input[type="text"],

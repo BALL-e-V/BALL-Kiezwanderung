@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({request}) =>{
 
     const user = getOptionalUser();
      if(!user){
-        redirect(307, '/login?graphicTrail');
+        redirect(307, '/user/login?graphicTrail');
     }
 ensureAccess(user,'trailMaking')
 

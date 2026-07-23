@@ -1,5 +1,5 @@
   import {Marker,LatLng,Map, Polyline}from "leaflet"
-  import { iconmaker } from "../routes/graphicTrail/utils";
+  import { iconmaker } from "./util";
   import{colors,sizes}from "../routes/graphicTrail/config"
   
  export class pointOfInterest {
@@ -35,7 +35,7 @@
       this.marker.setIcon(iconmaker(colors.poi, sizes.poi));
     }
     //position of the closest coordinate in the array of latlngs of the polylines in the trail, saved as the position of the poi in the trail for sorting and display purposes
-    getTrailPosition(trail:Polyline[]) {
+    positionInTrail(trail:Polyline[]) {
       let latlngs: LatLng[];
       let distance = 1000;
       let d:number;

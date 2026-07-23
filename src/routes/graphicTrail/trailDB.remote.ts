@@ -20,7 +20,15 @@ export const saveTrail = command(v.object({
     description: v.string(),
     id: v.string(),
     trailUpdate: v.boolean(),
-    length: v.number()
+    length: v.number(),
+    swBoundLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
+    swBoundLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
+    neBoundLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
+    neBoundLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
+    startLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
+    startLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
+    endLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
+    endLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180))
 
 }),
     async (data) => {
@@ -31,12 +39,12 @@ export const saveTrail = command(v.object({
         if (data.id === "") {
             let Trail: createTrail;
             if (!data.trailUpdate && data.trail.length == 0) {
-            Trail = {
-                title: data.title,
-                description: data.description,
-                author: user.id,
-                editor: user.id,
-                length: data.length
+                Trail = {
+                    title: data.title,
+                    description: data.description,
+                    author: user.id,
+                    editor: user.id,
+                    length: data.length
             }} else {
                 Trail = {
                     title: data.title,
@@ -44,7 +52,15 @@ export const saveTrail = command(v.object({
                     trail: data.trail,
                     author: user.id,
                     editor: user.id,
-                    length: data.length
+                    length: data.length,
+                    startLat: data.startLat,
+                    startLng: data.startLng,
+                    endLat: data.endLat,
+                    endLng: data.endLng,
+                    swBoundLat: data.swBoundLat,
+                    swBoundLng: data.swBoundLng,
+                    neBoundLat: data.neBoundLat,
+                    neBoundLng: data.neBoundLng
                 }
             }
             try {
@@ -78,7 +94,15 @@ export const saveTrail = command(v.object({
                         description: data.description,
                         trail: data.trail,
                         editor: user.id,//change the editor instead of the author
-                        length: data.length
+                        length: data.length,
+                        startLat: data.startLat,
+                        startLng: data.startLng,
+                        endLat: data.endLat,
+                        endLng: data.endLng,
+                        swBoundLat: data.swBoundLat,
+                        swBoundLng: data.swBoundLng,
+                        neBoundLat: data.neBoundLat,
+                        neBoundLng: data.neBoundLng
                     }).where(eq(hikingTrails.id, data.id))
                 } catch (error) {
                     console.log(error)
@@ -128,7 +152,18 @@ export const deleteTrail = command(v.string(), async (trailId) => {
 export const getTrail = command(v.string(), async (trailId) => {
     ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
-        const trail = await db.select({ id: hikingTrails.id, title: hikingTrails.title,created:hikingTrails.created,updated:hikingTrails.updated,author:user.name,editor:editor.name,trail:hikingTrails.trail,description:hikingTrails.description,length:hikingTrails.length }).from(hikingTrails).where(eq(hikingTrails.id, trailId)).leftJoin(user,eq(user.id,hikingTrails.author)).leftJoin(editor,eq(editor.id,hikingTrails.editor))
+        const trail = await db.select({
+            id: hikingTrails.id, 
+            title: hikingTrails.title,
+            created:hikingTrails.created,
+            updated:hikingTrails.updated,
+            trail:hikingTrails.trail,
+            description:hikingTrails.description,
+            length:hikingTrails.length, 
+            primaryPoi:hikingTrails.primaryPoi,
+            author:user.name,
+            editor:editor.name, 
+        }).from(hikingTrails).where(eq(hikingTrails.id, trailId)).leftJoin(user,eq(user.id,hikingTrails.author)).leftJoin(editor,eq(editor.id,hikingTrails.editor))
         return trail
     } catch (error) {
          throw error
@@ -137,19 +172,20 @@ export const getTrail = command(v.string(), async (trailId) => {
 export const getTrailPOIs = command(v.string(), async (trailId) => {
     ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
-        const pois = await db.select({caption:poi.caption,
+        const pois = await db.select({
+            caption:poi.caption,
             imageUrl:poi.imageUrl,
             description:poi.description,
-            latitude:poi.latitude,
-            longitude:poi.longitude,
-            author:user.name,
-            editor:editor.name,
+            lat:poi.latitude,
+            lng:poi.longitude,
             imageAlt:poi.imageAlt,
-            position1:trailsToPoi.position1,
-            position2:trailsToPoi.position2,
             id:poi.id,
             created:poi.created,
-            edited:poi.updated
+            edited:poi.updated,
+            author:user.name,
+            editor:editor.name,
+            position1:trailsToPoi.position1,
+            position2:trailsToPoi.position2,
         })
             .from(trailsToPoi)
             .leftJoin(poi, eq(trailsToPoi.poiId, poi.id))

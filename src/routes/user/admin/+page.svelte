@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { allUsers, loadUser, updateUser, saveImage } from "./admin.remote";
+  import {
+    allUsers,
+    loadUser,
+    updateUser,
+    saveImage,
+    deleteUser,
+  } from "./admin.remote";
   import type { Feature } from "$lib/authorization";
   import { onMount } from "svelte";
   import { fileToBase64 } from "$lib/util";
@@ -13,6 +19,7 @@
   let saveResponse = $state<string | null>(null);
   let displayTimer: ReturnType<typeof setTimeout> = $state(null as any);
   let featureList: Feature[] = ["trailMaking"];
+  let deleteQuery = $state(false);
 
   let selectedUserId = $state<string | null>(null);
   let selectedUserDetails = $state<{
@@ -163,6 +170,29 @@
       console.log("heroPoi is not defined");
     }
   }
+  async function handleDeleteUser() {
+    if (selectedUserId) {
+      try {
+        saveResponse = await deleteUser(selectedUserId);
+        displayTimer = setTimeout(() => {
+          clearInterval(displayTimer);
+          displayTimer = null as any;
+        }, 5000);
+        users = users.filter((user) => user.id !== selectedUserId);
+        selectedUserId = null;
+        selectedUserDetails = {
+          name: "",
+          email: "",
+          image: "",
+          roles: new Set<string>(),
+          claims: new Set<string>(),
+        };
+        deleteQuery = false;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  }
 
   onMount(async () => {
     try {
@@ -298,6 +328,18 @@
             disabled={(changedRoles && password.length < 8) || !selectedUserId}
             onclick={userChangesToDb}>Änderungen speichern</button
           >
+          {#if !deleteQuery}
+            <button onclick={() => (deleteQuery = true)}>User Löschen</button>
+          {:else}
+            <button
+              onclick={() => {
+                if (selectedUserId) {
+                  handleDeleteUser();
+                }
+              }}>Bestätigen</button
+            >
+            <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
+          {/if}
           {#if changedRoles}
             <label class="password-label">
               Rollen geändert, Passwort eingeben:

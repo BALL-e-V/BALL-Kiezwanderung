@@ -8,9 +8,9 @@
   };
 
   interface Props {
-    trails?: TrailListItem[];
-    onSelect?: (trail: TrailListItem) => void;
-    onClose?: () => void;
+    trails: TrailListItem[];
+    onSelect: (trail: TrailListItem) => void;
+    onClose: () => void;
   }
 
   let { trails = [], onSelect, onClose }: Props = $props();
@@ -151,7 +151,7 @@
           <tr
             class="clickable-row"
             onclick={() => {
-              onSelect?.(trail);
+              onSelect(trail);
             }}
           >
             <td>{trail.title}</td>

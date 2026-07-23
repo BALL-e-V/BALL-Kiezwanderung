@@ -12,6 +12,15 @@ export const hikingTrails = mysqlTable("hikingtrails",
         editor: varchar({ length: 128 }).notNull(),
         updated: timestamp().defaultNow().onUpdateNow(),
         length: float(),
+        primaryPoi: varchar({ length: 191 }),
+        neBoundLat: double(),
+        neBoundLng: double(),
+        swBoundLat: double(),
+        swBoundLng: double(),
+        startLat: double(),
+        startLng: double(),
+        endLat:double(),
+        endLng:double()
     },
     (table) => [
         index('titleIdx').on(table.title)
@@ -33,7 +42,7 @@ export const poi = mysqlTable("poi", {
     author: varchar({ length: 128 }).notNull(),
     created: timestamp().defaultNow().notNull(),
     editor: varchar({ length: 128 }),
-    updated: timestamp().defaultNow().onUpdateNow()
+    updated: timestamp().defaultNow().onUpdateNow(),
 })
 
 export const poiRelations = relations(poi, ({ many }) => ({

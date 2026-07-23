@@ -121,3 +121,13 @@ ensureAccess(getAuthenticatedUser());
     }
 
 })
+
+export const deleteUser = command(v.string(), async (userId) => {
+    ensureAccess(getAuthenticatedUser());
+    try {
+        await db.delete(user).where(eq(user.id, userId));
+    } catch (error) {
+        throw error
+    }
+    return "User gelöscht";
+})

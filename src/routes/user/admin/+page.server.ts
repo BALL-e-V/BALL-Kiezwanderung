@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({request}) =>{
 
     const user = getOptionalUser();
      if(!user){
-        redirect(307, '/login?admin');
+        redirect(307, '/user/login?admin');
     }
     ensureAccess(user)
 

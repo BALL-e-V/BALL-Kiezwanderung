@@ -3,21 +3,25 @@
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
 
   interface Props {
-    poiList?: pointOfInterest[];
-    heroPoi?: number;
-    deleteQuery?: boolean;
-    onSave?: (index: number) => void;
-    onSaveNow?: (index: number) => void;
-    onDelete?: (poi: pointOfInterest) => void;
-    onSelect?: (poi: pointOfInterest) => void;
-    onCreate?: () => void;
+    poiList: pointOfInterest[];
+    heroPoi: number;
+    primaryPoi: string;
+    deleteQuery: boolean;
+    onSave: (index: number) => void;
+    onSaveNow: (index: number) => void;
+    onDelete: (poi: pointOfInterest) => void;
+    onSelect: (poi: pointOfInterest) => void;
+    onCreate: () => void;
     showPoiEditor: boolean;
-    onUpload?: (content: string, name: string, index: number) => void;
+    onUpload: (content: string, name: string, index: number) => void;
+    loadingTrail: number;
+    onSetPrimaryPoi: (poiId: string) => void;
   }
 
   let {
     poiList = $bindable([] as pointOfInterest[]),
     heroPoi = $bindable(-1),
+    primaryPoi = "",
     deleteQuery = $bindable(false),
     onSave,
     onSaveNow,
@@ -25,6 +29,8 @@
     onSelect,
     onCreate,
     onUpload,
+    onSetPrimaryPoi,
+    loadingTrail,
     showPoiEditor = $bindable(),
   }: Props = $props();
 
@@ -61,10 +67,10 @@
       default: {
         return items.sort((a, b) => {
           const aPos = (
-            a as pointOfInterest & { trailPosition?: [number, number] }
+            a as pointOfInterest & { trailPosition: [number, number] }
           ).trailPosition;
           const bPos = (
-            b as pointOfInterest & { trailPosition?: [number, number] }
+            b as pointOfInterest & { trailPosition: [number, number] }
           ).trailPosition;
           if (!aPos || !bPos) {
             return 0;
@@ -105,7 +111,7 @@
     const name = file?.name;
     if (file && name) {
       const content = await fileToBase64(file);
-      onUpload?.(content, name, heroPoi);
+      onUpload(content, name, heroPoi);
     }
   }
 </script>
@@ -126,7 +132,7 @@
       class="block"
       type="text"
       bind:value={poiList[heroPoi].caption}
-      onchange={() => onSave?.(heroPoi)}
+      onchange={() => onSave(heroPoi)}
     />
   </div>
   <div>
@@ -135,7 +141,7 @@
       id="poiDescription"
       class="block"
       bind:value={poiList[heroPoi].description}
-      onchange={() => onSave?.(heroPoi)}
+      onchange={() => onSave(heroPoi)}
     ></textarea>
   </div>
   <div>
@@ -154,7 +160,7 @@
       type="text"
       placeholder="Alternativtext für das Bild"
       bind:value={poiList[heroPoi].imageAlt}
-      onchange={() => onSave?.(heroPoi)}
+      onchange={() => onSave(heroPoi)}
     />
     {#if poiList[heroPoi].imageUrl !== ""}
       <img
@@ -165,8 +171,19 @@
     {/if}
     <button
       type="button"
+      class="button primary-action"
+      disabled={(heroPoi >= 0 && poiList[heroPoi]?.id === primaryPoi) ||
+        loadingTrail > 0}
+      onclick={() => onSetPrimaryPoi(poiList[heroPoi].id)}
+    >
+      {heroPoi >= 0 && poiList[heroPoi]?.id === primaryPoi
+        ? "Primärer POI"
+        : "Als primären POI setzen"}
+    </button>
+    <button
+      type="button"
       class="button primary"
-      onclick={() => onSaveNow?.(heroPoi)}
+      onclick={() => onSaveNow(heroPoi)}
     >
       Speichern
     </button>
@@ -176,7 +193,7 @@
     <button
       type="button"
       class="button danger"
-      onclick={() => onDelete?.(poiList[heroPoi])}
+      onclick={() => onDelete(poiList[heroPoi])}
     >
       Löschen
     </button>
@@ -236,7 +253,7 @@
               <tr
                 class="poi-row"
                 onclick={() => {
-                  onSelect?.(poi);
+                  onSelect(poi);
                   showPoiEditor = true;
                 }}
               >
@@ -348,5 +365,22 @@
   .button.danger {
     background: var(--danger);
     color: white;
+  }
+
+  .button.primary-action {
+    margin: 10px 0 12px;
+    font-weight: 700;
+    border: 1px solid var(--accent-600);
+    background: var(--accent-600);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    width: 100%;
+  }
+
+  .button.primary-action:disabled {
+    background: lightgreen;
+    color: var(--accent-600);
+    cursor: not-allowed;
+    box-shadow: none;
   }
 </style>

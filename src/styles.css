@@ -23,8 +23,14 @@
 }
 
 html {
+  height: 100%;
   color: var(--accent-text);
   background: var(--accent-muted);
+}
+
+body {
+  height: 100%;
+  margin: 0;
 }
 
 button,

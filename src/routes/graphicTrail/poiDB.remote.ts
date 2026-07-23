@@ -1,6 +1,6 @@
 import { command, query } from "$app/server";
 import * as v from "valibot";
-import { poi, trailsToPoi } from '$lib/server/db/trails.schema';
+import { poi, trailsToPoi, hikingTrails } from '$lib/server/db/trails.schema';
 import { db } from "$lib/server/db";
 import { and, eq } from "drizzle-orm/sql/expressions/conditions";
 import { sql } from "drizzle-orm/sql/sql";
@@ -190,6 +190,17 @@ export const allRelations =query(async () => {
     try {
         const relations = await db.query.trailsToPoi.findMany();
         return relations;
+    } catch (error) {
+        throw error
+    }
+})
+
+export const setPrimaryPOI = command(v.object({
+    trailId: v.string(),
+    primaryPoiId: v.string()
+}), async (data) => {
+    try {
+        await db.update(hikingTrails).set({ primaryPoi: data.primaryPoiId }).where(eq(hikingTrails.id, data.trailId));
     } catch (error) {
         throw error
     }
