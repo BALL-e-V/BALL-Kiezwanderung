@@ -1,5 +1,6 @@
  
  import { DivIcon, LatLng } from "leaflet";
+ import { pointOfInterest } from "./pointOfInterest.svelte";
 
 
 export function iconmaker(color: string, size: number) {
@@ -90,3 +91,22 @@ export function latlngsToDataobject(latlngs: LatLng[]) {
     );
     return coordinates;
 }
+
+  //for sorting the poi list according to the position on the trail
+  export function compareTrailPosition(a: pointOfInterest, b: pointOfInterest) {
+    if (
+      a.trailPosition[0] < b.trailPosition[0] ||
+      (a.trailPosition[0] == b.trailPosition[0] &&
+        a.trailPosition[1] < b.trailPosition[1])
+    ) {
+      return -1;
+    } else if (
+      a.trailPosition[0] > b.trailPosition[0] ||
+      (a.trailPosition[0] == b.trailPosition[0] &&
+        a.trailPosition[1] > b.trailPosition[1])
+    ) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }

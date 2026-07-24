@@ -21,7 +21,12 @@
     saveImage,
     setPrimaryPOI,
   } from "./poiDB.remote";
-  import { iconmaker, latlngsToDataobject, responseToLatlngs } from "$lib/util";
+  import {
+    iconmaker,
+    latlngsToDataobject,
+    responseToLatlngs,
+    compareTrailPosition,
+  } from "$lib/util";
   import {
     allTrails,
     deleteTrail,
@@ -97,6 +102,9 @@
 
   let showPoiEditor: boolean = $state(false);
 
+  let poiCreatorMarker = new Marker({ lat: 0, lng: 0 });
+  poiCreatorMarker.setIcon(iconmaker(colors.editing, sizes.poiHero));
+  let insertTrail = new Polyline([{ lat: 0, lng: 0 }]);
   //trail list filter and sort state
   //poi list sort state
   //function to switch between editing pois and the trail
@@ -176,10 +184,11 @@
         map.off("click", poiCreator);
         creatingPoi = false;
       } else {
+        poiList[heroPoi].marker.dragging?.disable();
+        poiList[heroPoi].marker.off("dragend");
         poiList.forEach((p) => {
-          p.marker.dragging?.disable();
           p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
-          p.marker.off("click").off("dragend");
+          p.marker.off("click");
         });
       }
     }
@@ -214,31 +223,9 @@
     };
   }
 
-  //for sorting the poi list according to the position on the trail
-  function compareTrailPosition(a: pointOfInterest, b: pointOfInterest) {
-    if (
-      a.trailPosition[0] < b.trailPosition[0] ||
-      (a.trailPosition[0] == b.trailPosition[0] &&
-        a.trailPosition[1] < b.trailPosition[1])
-    ) {
-      return -1;
-    } else if (
-      a.trailPosition[0] > b.trailPosition[0] ||
-      (a.trailPosition[0] == b.trailPosition[0] &&
-        a.trailPosition[1] > b.trailPosition[1])
-    ) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }
   //switch between editing trail and poi
 
   function poiCreator(e: LeafletMouseEvent) {
-    if (heroPoi >= 0) {
-      poiList[heroPoi].marker.setIcon(iconmaker(colors.poi, sizes.poi));
-    }
-
     poiList.push(new pointOfInterest(map, e.latlng));
     if (trail.length > 0) {
       poiList[poiList.length - 1].positionInTrail(trail);
@@ -259,41 +246,46 @@
     //i turn of poi interactivity while creating a new poi because its not needet and to have a visual indicator
     if (creatingPoi) {
       map.off("click", poiCreator);
+      map.off("pointermove");
+      poiCreatorMarker.removeFrom(map);
       map.getContainer().style.cursor = "all-scroll";
       creatingPoi = false;
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+        p.marker.on("click", () => heromaker(p));
       });
       if (heroPoi >= 0) {
         poiList[heroPoi].marker.setIcon(
           iconmaker(colors.editing, sizes.poiHero),
         );
-        poiList.forEach((p) => {
-          p.marker.dragging?.enable;
-          p.marker.on("click", () => heromaker(p));
-          p.marker.on("dragend", (e) => {
-            poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
-            poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
-            if (trail.length > 0) {
-              const id = poiList[heroPoi].id;
-              poiList[heroPoi].positionInTrail(trail);
-              poiList.sort(compareTrailPosition);
-              heroPoi = poiList.findIndex((p) => p.id == id);
-            }
-          });
+        poiList[heroPoi].marker.dragging?.enable;
+        poiList[heroPoi].marker.on("dragend", (e) => {
+          poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
+          poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
+          if (trail.length > 0) {
+            const id = poiList[heroPoi].id;
+            poiList[heroPoi].positionInTrail(trail);
+            poiList.sort(compareTrailPosition);
+            heroPoi = poiList.findIndex((p) => p.id == id);
+          }
         });
       }
     } else {
       map.on("click", poiCreator);
+      poiCreatorMarker.setLatLng({ lat: 0, lng: 0 }).addTo(map);
+      map.on("pointermove", (e) => moveCreatorMarker(e));
       map.getContainer().style.cursor = "crosshair";
       creatingPoi = true;
-      heroPoi = -1;
+      poiList[heroPoi].marker.off("dragend").dragging?.disable;
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
-        p.marker.off("click").off("dragend");
-        p.marker.dragging?.disable();
+        p.marker.off("click");
       });
     }
+  }
+
+  function moveCreatorMarker(e: any) {
+    poiCreatorMarker.setLatLng(e.latlng);
   }
   function heromaker(poi: pointOfInterest) {
     showPoiEditor = true;
@@ -323,53 +315,35 @@
 
   //onclick functions to add a new waypoint at the end of the trail and find the path to it
   async function trailMaker(e: LeafletMouseEvent) {
-    trailUpdate = true;
-    let response;
-    loadingTrail++;
-    if (waitToSave) {
-      clearTimeout(waitToSave);
+    trail.push(
+      new Polyline(
+        [trailMarkers[trailMarkers.length - 1].getLatLng(), e.latlng],
+        { color: colors.buildTrail },
+      ).addTo(map),
+    );
+    trailMarkers.push(new Marker(e.latlng).addTo(map));
+    trailMarkers[trailMarkers.length - 1].setIcon(
+      iconmaker(colors.editing, sizes.poiHero),
+    );
+    if (trailMarkers.length > 2) {
+      trailMarkers[trailMarkers.length - 2]
+        .setLatLng(e.latlng)
+        .setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
     }
-    if (trailMarkers.length == 0) {
-      // creating a first waypoint marker for the trail if none exist
 
-      trailMarkers = [new Marker(e.latlng, { draggable: true })];
-
-      trailMarkers[0]
-        .setIcon(iconmaker(colors.trailStart, sizes.trailMarker))
-        .addTo(map);
-    } else {
-      // Creating a straight line as filler while loading and to save the position in the array
-      trail.push(
-        new Polyline(
-          [trailMarkers[trailMarkers.length - 1].getLatLng(), e.latlng],
-          { color: colors.buildTrail },
-        ).addTo(map),
-      );
-      const trailPosition = trail.length - 1;
-      // turning the last marker black and unmovable so users dont missclick
-      trailMarkers[trailMarkers.length - 1].dragging?.disable();
-      //the first marker stays green and didn't have a dragend trigger, so we only need to change that for later ones
-      if (trailMarkers.length > 1) {
-        trailMarkers[trailMarkers.length - 1]
-          .setIcon(iconmaker(colors.buildTrail, 1))
-          .off("dragend");
+    if (trail.length > 1) {
+      trailUpdate = true;
+      let response;
+      loadingTrail++;
+      if (waitToSave) {
+        clearTimeout(waitToSave);
       }
-      //making the new marker
-      trailMarkers.push(new Marker(e.latlng, { draggable: true }));
-      //saving the position in the array in case the user places more before loading is done
-      const markerPosition = trailMarkers.length - 1;
-      // making the end of the path draggable
-      trailMarkers[markerPosition]
-        .addTo(map)
-        .on("dragend", (e) => {
-          moveTrail(e);
-        })
-        .setIcon(iconmaker(colors.editing, sizes.activeTrailend));
+      const trailPosition = trail.length - 2;
       //api call for pathfinding the route
       try {
         response = await getPath(
           latlngsToDataobject([
-            trailMarkers[markerPosition - 1].getLatLng(),
+            trailMarkers[trailPosition].getLatLng(),
             e.latlng,
           ]),
         );
@@ -380,30 +354,31 @@
       }
       //checking if the marker is still in the same place
       if (
-        trailMarkers.length > markerPosition &&
-        e.latlng == trailMarkers[markerPosition].getLatLng()
+        trailMarkers.length > trailPosition + 1 &&
+        e.latlng == trailMarkers[trailPosition + 1].getLatLng()
       ) {
         //making the new piece of trail
         trail[trailPosition].setLatLngs(
           responseToLatlngs(response, trailResolution),
         );
       } // else discarding the response
-    }
-    loadingTrail--;
-    // we only need to initiate saving when all the loading is done, so only the last function to finish loading the trail starts the timeout
-    if (loadingTrail == 0) {
-      waitToSave = setTimeout(trailToDatabase, timeToSave);
+      loadingTrail--;
+      // we only need to initiate saving when all the loading is done, so only the last function to finish loading the trail starts the timeout
+      if (loadingTrail == 0) {
+        waitToSave = setTimeout(trailToDatabase, timeToSave);
+      }
     }
   }
 
   //function to enable/disable the onclick for the previous trailmaker
   function trailMakerSwitch() {
     if (makingTrail) {
+      map.off("pointermove");
       map.getContainer().style.cursor = "all-scroll";
       map.off("click", trailMaker);
       makingTrail = false;
       // allow editing the trail while its not being made
-      if (trailMarkers.length > 1) {
+      if (trailMarkers.length > 2) {
         //allow moving the trail by dragging markers and recoloring to indicate that
         trailMarkers.forEach((m) => {
           m.on("dragend", (e) => {
@@ -412,7 +387,7 @@
             .setIcon(iconmaker(colors.movableMarker, sizes.trailMarker))
             .dragging?.enable();
         });
-        trailMarkers[trailMarkers.length - 1].setIcon(
+        trailMarkers[trailMarkers.length - 2].setIcon(
           iconmaker(colors.trailEnd, sizes.trailMarker),
         );
         trailMarkers[0].setIcon(
@@ -432,9 +407,16 @@
             weight: sizes.clickableTrail,
           }),
       );
+      trail[trail.length - 1].removeFrom(map).remove();
+      trail[trail.length - 1] = null as any;
+      trail.pop();
+      trailMarkers[trailMarkers.length - 1].removeFrom(map).remove();
+      trailMarkers[trailMarkers.length - 1] = null as any;
+      trailMarkers.pop();
     } else {
       map.getContainer().style.cursor = "crosshair";
       map.on("click", trailMaker);
+
       makingTrail = true;
       //disallow editing the trail while it's being made.
       if (trailMarkers.length > 1) {
@@ -459,6 +441,42 @@
         }),
       );
       trailMarkers.forEach((m) => m.off("contextmenu"));
+      if (trailMarkers.length > 0) {
+        trail.push(
+          new Polyline(
+            [
+              trailMarkers[trailMarkers.length - 1].getLatLng(),
+              { lat: 0, lng: 0 },
+            ],
+            { color: colors.buildTrail },
+          ).addTo(map),
+        );
+      }
+      // creating a first waypoint marker for the trail if none exist
+
+      trailMarkers.push(new Marker({ lat: 0, lng: 0 }).addTo(map));
+
+      if (trailMarkers.length == 1) {
+        trailMarkers[0].setIcon(iconmaker(colors.trailStart, sizes.poiHero));
+      } else {
+        trailMarkers[trailMarkers.length - 1].setIcon(
+          iconmaker(colors.editing, sizes.poiHero),
+        );
+      }
+      // Creating a straight line as filler while loading and to save the position in the array
+
+      map.on("pointermove", (e) => trailMakingMover(e));
+    }
+  }
+
+  function trailMakingMover(e: any) {
+    console.log(trailMarkers.length);
+    trailMarkers[trailMarkers.length - 1].setLatLng(e.latlng);
+    if (trail.length > 0) {
+      trail[trail.length - 1].setLatLngs([
+        trailMarkers[trailMarkers.length - 2].getLatLng(),
+        e.latlng,
+      ]);
     }
   }
 
@@ -677,7 +695,8 @@
   function insertSwitch() {
     if (insertingWaypoint) {
       map.off("click");
-
+      insertTrail.removeFrom(map);
+      map.off("pointermove");
       map.getContainer().style.cursor = "all-scroll";
       insertingWaypoint = false;
       trail[rightClickTargetIndex].setStyle({ color: colors.path });
@@ -702,7 +721,10 @@
       }
     } else {
       map.on("click", (e) => insertWaypoint(e, rightClickTargetIndex));
-
+      const startLatlng = trailMarkers[rightClickTargetIndex].getLatLng();
+      const endLatlng = trailMarkers[rightClickTargetIndex + 1].getLatLng();
+      insertTrail.addTo(map).setLatLngs([startLatlng, endLatlng]);
+      map.on("pointermove", (e) => moveInsertTrail(e, startLatlng, endLatlng));
       map.getContainer().style.cursor = "crosshair";
       insertingWaypoint = true;
       //coloring the trail and markers to indicate where the new marker will be placed
@@ -714,6 +736,9 @@
         iconmaker(colors.editing, sizes.trailMarker),
       );
     }
+  }
+  function moveInsertTrail(e: any, start: LatLng, end: LatLng) {
+    insertTrail.setLatLngs([start, e.latlng, end]);
   }
 
   async function insertWaypoint(
@@ -1011,7 +1036,6 @@
         //caluclating the map bounds and placing the map
         let mapBounds = trail[0].getBounds();
         trail.forEach((t) => mapBounds.extend(t.getBounds()));
-        console.log(mapBounds);
         map.fitBounds(mapBounds);
       }
       const author = result[0].author ? result[0].author : "gelöschter User";
@@ -1246,7 +1270,6 @@
   <div
     id="map"
     role="presentation"
-    style="height:800px;width:1200px"
     use:createMap
     oncontextmenu={(e) => {
       //having right-click switch off all the waypoint adding
@@ -1366,6 +1389,10 @@
   </div>
 </div>
 
+<div class="map-footer">
+  <p>{editorial}</p>
+</div>
+
 <!--right-click menu for editing the trail -->
 <ContextMenu
   open={showClickMenu}
@@ -1378,7 +1405,6 @@
   {insertSwitch}
   onContinueTrail={trailMakerSwitch}
 />
-<p>{editorial}</p>
 
 <!--
 {#each await allPOIs() as poi}
@@ -1389,12 +1415,18 @@
   .alignment {
     display: flex;
     gap: 20px;
-    align-items: flex-start;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .ui-panel {
     width: min(420px, 32vw);
     flex: 0 0 min(420px, 32vw);
+    max-height: 100%;
+    overflow: auto;
   }
 
   .ui-panel :is(.block) {
@@ -1406,16 +1438,32 @@
 
   #map {
     flex: 1 1 auto;
-    max-width: 100%;
-    height: 800px;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+  }
+
+  .map-footer {
+    margin-top: 12px;
   }
 
   @media (max-width: 900px) {
     .alignment {
       flex-direction: column;
+      height: auto;
+      min-height: min(70vh, 720px);
+      overflow: visible;
     }
+
+    .ui-panel {
+      width: 100%;
+      flex-basis: auto;
+      max-height: none;
+    }
+
     #map {
-      height: 400px;
+      height: min(60vh, 560px);
       width: 100%;
     }
   }

@@ -16,6 +16,7 @@
   } from "leaflet";
   import TrailTooltip from "$lib/components/trails/TrailTooltip.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
+  import { compareTrailPosition } from "$lib/util";
 
   let map: LeafletMap;
 
@@ -151,7 +152,7 @@
 
         pois.push(poiInstance);
       }
-
+      pois.sort(compareTrailPosition);
       poisByTrailId.set(trailId, pois);
     } catch (error) {
       console.error(`Failed to load POIs for trail ${trailId}:`, error);
