@@ -34,7 +34,7 @@ export const trailRelations = relations(hikingTrails, ({ many }) => ({
 export const poi = mysqlTable("poi", {
     id: varchar("id", { length: 191 }).primaryKey().$defaultFn(() => crypto.randomUUID()).notNull(),
     imageUrl: varchar({ length: 128 }),
-    caption: varchar({ length: 128 }),
+    title: varchar({ length: 128 }),
     latitude: double(),
     longitude: double(),
     description: text(),

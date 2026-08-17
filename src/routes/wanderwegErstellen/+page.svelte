@@ -39,7 +39,6 @@
   import ContextMenu from "$lib/components/trailMaking/ContextMenu.svelte";
   import TrailEditorPanel from "$lib/components/trailMaking/TrailEditorPanel.svelte";
   import PoiEditorPanel from "$lib/components/trailMaking/PoiEditorPanel.svelte";
-
   //leaflet map and the dom element
   let map: LeafletMap;
   //the set of polylines that make up the hiking trail
@@ -227,6 +226,7 @@
 
   function poiCreator(e: LeafletMouseEvent) {
     poiList.push(new pointOfInterest(map, e.latlng));
+    poiPositionUpdate = true;
     if (trail.length > 0) {
       poiList[poiList.length - 1].positionInTrail(trail);
       const newPoi = poiList[poiList.length - 1];
@@ -234,15 +234,19 @@
       heroPoi = poiList.findIndex((p) => p === newPoi);
     } else {
       //position update needs to be true so the relation to the trail gets saved
-      poiPositionUpdate = true;
       heroPoi = poiList.length - 1;
     }
-
+    showPoiEditor = true;
     poiCreatorSwitch();
     poiToDatabase(heroPoi);
   }
   //function to switch the onclick for creating a new poi
   function poiCreatorSwitch() {
+    if (waitToSave) {
+      clearTimeout(waitToSave);
+      waitToSave = null as any;
+      poiToDatabase(heroPoi);
+    }
     //i turn of poi interactivity while creating a new poi because its not needet and to have a visual indicator
     if (creatingPoi) {
       map.off("click", poiCreator);
@@ -276,7 +280,10 @@
       map.on("pointermove", (e) => moveCreatorMarker(e));
       map.getContainer().style.cursor = "crosshair";
       creatingPoi = true;
-      poiList[heroPoi].marker.off("dragend").dragging?.disable;
+      if (heroPoi > -1) {
+        poiList[heroPoi].marker.off("dragend").dragging?.disable;
+      }
+
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
         p.marker.off("click");
@@ -288,6 +295,11 @@
     poiCreatorMarker.setLatLng(e.latlng);
   }
   function heromaker(poi: pointOfInterest) {
+    if (waitToSave) {
+      clearTimeout(waitToSave);
+      waitToSave = null as any;
+      poiToDatabase(heroPoi);
+    }
     showPoiEditor = true;
     if (heroPoi >= 0) {
       //setting the old hero poi back to normal and saving if need be
@@ -378,7 +390,7 @@
       map.off("click", trailMaker);
       makingTrail = false;
       // allow editing the trail while its not being made
-      if (trailMarkers.length > 2) {
+      if (trailMarkers.length > 1) {
         //allow moving the trail by dragging markers and recoloring to indicate that
         trailMarkers.forEach((m) => {
           m.on("dragend", (e) => {
@@ -393,6 +405,9 @@
         trailMarkers[0].setIcon(
           iconmaker(colors.trailStart, sizes.trailMarker),
         );
+        trail[trail.length - 1].removeFrom(map).remove();
+        trail[trail.length - 1] = null as any;
+        trail.pop();
       }
       //menus for adding and deleting markers
       trailMarkers.forEach((m) =>
@@ -407,9 +422,7 @@
             weight: sizes.clickableTrail,
           }),
       );
-      trail[trail.length - 1].removeFrom(map).remove();
-      trail[trail.length - 1] = null as any;
-      trail.pop();
+
       trailMarkers[trailMarkers.length - 1].removeFrom(map).remove();
       trailMarkers[trailMarkers.length - 1] = null as any;
       trailMarkers.pop();
@@ -470,7 +483,6 @@
   }
 
   function trailMakingMover(e: any) {
-    console.log(trailMarkers.length);
     trailMarkers[trailMarkers.length - 1].setLatLng(e.latlng);
     if (trail.length > 0) {
       trail[trail.length - 1].setLatLngs([
@@ -1079,7 +1091,7 @@
         poiList[poiList.length - 1].edited = p.edited;
         poiList[poiList.length - 1].lng = p.lng;
         poiList[poiList.length - 1].lat = p.lat;
-        poiList[poiList.length - 1].caption = p.caption;
+        poiList[poiList.length - 1].title = p.title;
         poiList[poiList.length - 1].description = p.description;
         poiList[poiList.length - 1].imageUrl = p.imageUrl;
         poiList[poiList.length - 1].id = p.id;
@@ -1108,14 +1120,15 @@
   async function poiToDatabase(heroPoi: number) {
     if (heroPoi >= 0) {
       loadingTrail++;
-      let response;
       clearInterval(waitToSave);
       waitToSave = null as any;
+
+      let response;
       try {
         //sending the relattion data with the poi to upsert the relation if positionupdate = true
         response = await savePOI({
           id: poiList[heroPoi].id,
-          caption: poiList[heroPoi].caption,
+          title: poiList[heroPoi].title,
           description: poiList[heroPoi].description,
           lat: poiList[heroPoi].lat,
           lng: poiList[heroPoi].lng,
@@ -1267,24 +1280,30 @@
   }}
 />
 <div class="alignment">
-  <div
-    id="map"
-    role="presentation"
-    use:createMap
-    oncontextmenu={(e) => {
-      //having right-click switch off all the waypoint adding
-      e.preventDefault();
-      if (makingTrail) {
-        trailMakerSwitch();
-      }
-      if (insertingWaypoint) {
-        insertSwitch();
-      }
-      if (creatingPoi) {
-        poiCreatorSwitch();
-      }
-    }}
-  ></div>
+  <div class="map-column">
+    <div
+      id="map"
+      role="presentation"
+      use:createMap
+      oncontextmenu={(e) => {
+        //having right-click switch off all the waypoint adding
+        e.preventDefault();
+        if (makingTrail) {
+          trailMakerSwitch();
+        }
+        if (insertingWaypoint) {
+          insertSwitch();
+        }
+        if (creatingPoi) {
+          poiCreatorSwitch();
+        }
+      }}
+    ></div>
+
+    <div class="map-footer">
+      <p>{editorial}</p>
+    </div>
+  </div>
 
   <div class="ui-panel">
     {#if loadingTrail != 0}
@@ -1324,7 +1343,6 @@
         {trailMakerSwitch}
         {newTrail}
         {trailFromDB}
-        {editorSwitch}
         scheduleTrailSave={() => {
           if (loadingTrail > 0) return;
           clearTimeout(waitToSave);
@@ -1389,10 +1407,6 @@
   </div>
 </div>
 
-<div class="map-footer">
-  <p>{editorial}</p>
-</div>
-
 <!--right-click menu for editing the trail -->
 <ContextMenu
   open={showClickMenu}
@@ -1406,11 +1420,6 @@
   onContinueTrail={trailMakerSwitch}
 />
 
-<!--
-{#each await allPOIs() as poi}
-  <button onclick={() => deletePOI(poi.id)}>delete {poi.caption}</button>
-{/each}
--->
 <style>
   .alignment {
     display: flex;
@@ -1435,6 +1444,14 @@
   }
 
   /* rely on global UI styles in src/styles.css for .ui-panel, .block, .button, .switch-btn */
+
+  .map-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+  }
 
   #map {
     flex: 1 1 auto;

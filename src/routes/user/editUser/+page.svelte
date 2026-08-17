@@ -158,7 +158,7 @@
         onclick={() => {
           passwordQuery = true;
         }}
-        class="form-button">Passowrt ändern</button
+        class="form-button">Passwort ändern</button
       >
       <button onclick={saveUser} class="form-button">Speichern</button>
       {#if deleteQuery}

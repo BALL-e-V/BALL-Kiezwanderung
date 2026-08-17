@@ -207,49 +207,8 @@
   });
 </script>
 
-<div>
-  <input
-    type="text"
-    placeholder="Search users by name or email (regex supported)..."
-    bind:value={searchTerm}
-    class="search-input"
-  />
-
+<div class="admin-page">
   <div class="content-wrapper">
-    <div class="users-section">
-      {#if loadingUsers}
-        <p>Loading users...</p>
-      {:else if error}
-        <p class="error">Error loading users: {error}</p>
-      {:else if filteredUsers.length === 0}
-        <p>No users found</p>
-      {:else}
-        <table class="users-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each filteredUsers as user (user.email)}
-              <tr
-                class:selected-row={selectedUserId === user.id}
-                class="clickable-row"
-                onclick={() => {
-                  selectUser(user);
-                  changedRoles = false;
-                }}
-              >
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      {/if}
-    </div>
-
     <section class="user-details">
       {#if selectedUserId}
         <h2>User details</h2>
@@ -323,23 +282,32 @@
               {/each}
             </fieldset>
           </form>
-          <button
-            class="form-button"
-            disabled={(changedRoles && password.length < 8) || !selectedUserId}
-            onclick={userChangesToDb}>Änderungen speichern</button
-          >
-          {#if !deleteQuery}
-            <button onclick={() => (deleteQuery = true)}>User Löschen</button>
-          {:else}
+          <div class="action-buttons">
             <button
-              onclick={() => {
-                if (selectedUserId) {
-                  handleDeleteUser();
-                }
-              }}>Bestätigen</button
+              class="button primary form-button"
+              disabled={(changedRoles && password.length < 8) ||
+                !selectedUserId}
+              onclick={userChangesToDb}>Änderungen speichern</button
             >
-            <button onclick={() => (deleteQuery = false)}>Abbrechen</button>
-          {/if}
+            {#if !deleteQuery}
+              <button class="button danger" onclick={() => (deleteQuery = true)}
+                >User Löschen</button
+              >
+            {:else}
+              <button
+                class="button secondary"
+                onclick={() => (deleteQuery = false)}>Abbrechen</button
+              >
+              <button
+                class="button danger"
+                onclick={() => {
+                  if (selectedUserId) {
+                    handleDeleteUser();
+                  }
+                }}>Löschen</button
+              >
+            {/if}
+          </div>
           {#if changedRoles}
             <label class="password-label">
               Rollen geändert, Passwort eingeben:
@@ -354,10 +322,55 @@
         <h2>user auswählen</h2>
       {/if}
     </section>
+    <div class="users-section">
+      <input
+        type="text"
+        placeholder="Search users by name or email (regex supported)..."
+        bind:value={searchTerm}
+        class="search-input"
+      />
+      {#if loadingUsers}
+        <p>Loading users...</p>
+      {:else if error}
+        <p class="error">Error loading users: {error}</p>
+      {:else if filteredUsers.length === 0}
+        <p>No users found</p>
+      {:else}
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each filteredUsers as user (user.email)}
+              <tr
+                class:selected-row={selectedUserId === user.id}
+                class="clickable-row"
+                onclick={() => {
+                  selectUser(user);
+                  changedRoles = false;
+                }}
+              >
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
+    </div>
   </div>
 </div>
 
 <style>
+  .admin-page {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
   .search-input {
     width: 100%;
     padding: 10px;
@@ -370,9 +383,11 @@
   }
 
   .content-wrapper {
+    width: 100%;
     display: flex;
     gap: 30px;
     align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .users-section {
@@ -471,27 +486,15 @@
     margin-bottom: 10px;
   }
 
-  .form-button {
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-top: 16px;
-    padding: 12px 16px;
-    border: 1px solid var(--accent-border);
-    border-radius: 4px;
-    background: var(--accent-surface);
-    cursor: pointer;
-    font-size: 14px;
-    transition:
-      background 0.2s ease,
-      border-color 0.2s ease;
   }
 
-  .form-button:hover:not(:disabled) {
-    background: var(--accent-muted);
-    border-color: var(--accent-border);
-  }
-
-  .form-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .form-button {
+    margin: 0;
   }
 
   .password-label {
@@ -512,5 +515,20 @@
 
   .error {
     color: var(--danger);
+  }
+
+  /* Responsive: stack details and users vertically on narrow viewports */
+  @media (max-width: 920px) {
+    .content-wrapper {
+      flex-direction: column;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .user-details,
+    .users-section {
+      width: 100%;
+      max-width: none;
+    }
   }
 </style>

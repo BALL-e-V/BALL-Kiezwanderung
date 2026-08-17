@@ -10,7 +10,7 @@ import { ensureAccess, getAuthenticatedUser } from "$lib/authorization";
 type createPOI = typeof poi.$inferInsert;
 
 export const savePOI = command(v.object({
-  caption: v.string(),
+  title: v.string(),
   imageUrl: v.string(),
   description: v.string(),
 lat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
@@ -28,7 +28,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     if(data.id === "") {
         //create new POI when it has no id and therefore isnt in the db
         const newpoi: createPOI ={
-            caption:data.caption,
+            title:data.title,
             imageUrl:data.imageUrl,
             description:data.description,
             latitude:data.lat,
@@ -47,7 +47,7 @@ lng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
         //update existing POI with the given id
         try { 
             await db.update(poi).set({     
-                caption:data.caption,
+                title:data.title,
                 imageUrl:data.imageUrl,
                 description:data.description,
                 latitude:data.lat,

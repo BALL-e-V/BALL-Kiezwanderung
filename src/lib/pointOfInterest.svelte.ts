@@ -1,10 +1,10 @@
   import {Marker,LatLng,Map, Polyline}from "leaflet"
   import { iconmaker } from "./util";
-  import{colors,sizes}from "../routes/graphicTrail/config"
+  import{colors,sizes}from "../routes/wanderwegErstellen/config"
   
  export class pointOfInterest {
     //caption
-    caption = $state("Foto");
+    title = $state("Foto");
     imageUrl = $state("");
     description = $state("");
     imageAlt =$state("");
@@ -26,13 +26,19 @@
       //the poi needs at least a position on the map, the map element and a caption to be displayed in the list
       map: Map,
       latlng: { lat: number; lng: number },
+      id?: string,
     ) {
       this.lat = latlng.lat;
       this.lng = latlng.lng;
       this.marker = new Marker(latlng, { draggable: false });
 
       this.marker.addTo(map);
+      if(id){
+        this.id=id;
+        this.marker.setIcon(iconmaker(colors.poi, sizes.poi, id));
+      }else{
       this.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+    }
     }
     //position of the closest coordinate in the array of latlngs of the polylines in the trail, saved as the position of the poi in the trail for sorting and display purposes
     positionInTrail(trail:Polyline[]) {

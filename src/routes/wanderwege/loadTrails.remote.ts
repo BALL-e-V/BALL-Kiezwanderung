@@ -13,10 +13,12 @@ export const initialLoadTrails = command(v.object({
         swLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     }),
     async (coordinates) => {
+        //fully load trails that are within the bounds of the map
         const fullTrails = await db.select({
             title:hikingTrails.title,
             id:hikingTrails.id,
             imageUrl:poi.imageUrl,
+            imageAlt:poi.imageAlt,
             description:hikingTrails.description,
             trail:hikingTrails.trail,
             length:hikingTrails.length,
@@ -28,17 +30,17 @@ export const initialLoadTrails = command(v.object({
             startLng:hikingTrails.startLng,
             endLat:hikingTrails.endLat,
             endLng:hikingTrails.endLng
+
         }).from(hikingTrails).where(and(
             lt(hikingTrails.neBoundLat,coordinates.neLat),
             lt(hikingTrails.neBoundLng,coordinates.neLng),
             gt(hikingTrails.swBoundLat,coordinates.swLat),
             gt(hikingTrails.swBoundLng,coordinates.swLng)
         )).leftJoin(poi, eq(poi.id, hikingTrails.primaryPoi));
-
+        //partially load trails that are not fully inside the map bounds
         const partialTrails = await db.select({
             title:hikingTrails.title,
             id:hikingTrails.id,
-            imageUrl:poi.imageUrl,
             neLat:hikingTrails.neBoundLat,
             neLng:hikingTrails.neBoundLng,
             swLat:hikingTrails.swBoundLat,
@@ -52,20 +54,27 @@ export const initialLoadTrails = command(v.object({
             gte(hikingTrails.neBoundLng,coordinates.neLng),
             lte(hikingTrails.swBoundLat,coordinates.swLat),
             lte(hikingTrails.swBoundLng,coordinates.swLng)
-        )).leftJoin(poi, eq(poi.id, hikingTrails.primaryPoi))
+        ))
         return {fullTrails:fullTrails,partialTrails:partialTrails}
     }
 )
-
+//fetch the missing data from trails fully that came into view
 export const fetchTrails = command(v.array(v.string()),async (trails)=>{
-    const data = await db.select({id:hikingTrails.id,description:hikingTrails.description,trail:hikingTrails.trail,length:hikingTrails.length}).from(hikingTrails).where(inArray(hikingTrails.id,trails))
+    const data = await db.select({
+        id:hikingTrails.id,
+        description:hikingTrails.description,
+        trail:hikingTrails.trail,
+        length:hikingTrails.length,
+        imageUrl:poi.imageUrl,
+        imageAlt:poi.imageAlt
+    }).from(hikingTrails).where(inArray(hikingTrails.id,trails)).leftJoin(poi, eq(poi.id, hikingTrails.primaryPoi))
     return data;
 })
-
+//load the pois for a trail that got zoomed in on
 export const getTrailPOIs = command(v.string(), async (trailId) => {
     try {
         const pois = await db.select({
-            caption:poi.caption,
+            title:poi.title,
             imageUrl:poi.imageUrl,
             description:poi.description,
             lat:poi.latitude,

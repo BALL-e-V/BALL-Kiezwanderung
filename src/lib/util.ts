@@ -3,7 +3,7 @@
  import { pointOfInterest } from "./pointOfInterest.svelte";
 
 
-export function iconmaker(color: string, size: number) {
+export function iconmaker(color: string, size: number, id?: string) {
     const markerHtmlStyles = `
   background-color: ${color};
   width: ${size}rem;
@@ -15,19 +15,61 @@ export function iconmaker(color: string, size: number) {
   border-radius: 2rem 2rem 0;
   transform: rotate(45deg);
   border: 1px solid #000000`;
+  let html
+  if(id){
+    html = `<span id=${id} style="${markerHtmlStyles}"/>`;
+  }else{
+    html = `<span style="${markerHtmlStyles}"/>`;
+  }
 
     return new DivIcon({
         className: "my-custom-pin",
         iconAnchor: [0, 12 * size],
         popupAnchor: [0, -36],
-        html: `<span style="${markerHtmlStyles}"/>`,
+        html,
     });
 }
 
+export function iconmaker2(color: string, size: number, number: number, id?: string) {
+    const markerHtmlStyles = `
+  background-color: ${color};
+  width: ${size}rem;
+  height: ${size}rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  left: ${-0.5 * size}rem;
+  top: ${-0.5 * size}rem;
+  position: relative;
+  border-radius: 2rem 2rem 0;
+  transform: rotate(45deg);
+  border: 1px solid #000000`;
+  
+  const numberStyles = `
+  transform: rotate(-45deg);
+  font-weight: bold;
+  font-size: ${0.6 * size}rem;
+  color: black;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3)`;
+  
+  let html;
+  const spanContent = `<span style="${numberStyles}">${number}</span>`;
+  
+  if(id){
+    html = `<span id=${id} style="${markerHtmlStyles}">${spanContent}</span>`;
+  }else{
+    html = `<span style="${markerHtmlStyles}">${spanContent}</span>`;
+  }
 
- 
- 
- 
+    return new DivIcon({
+        className: "my-custom-pin",
+        iconAnchor: [0, 12 * size],
+        popupAnchor: [0, -36],
+        html,
+    });
+}
+
  export function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -44,7 +86,6 @@ export function iconmaker(color: string, size: number) {
     });
   }
 
-  
 export function responseToLatlngs(response: any, trailResolution: number) {
     //need to swap coordinates and turn them into latlngs
     let coords = response.routes[0].geometry.coordinates;

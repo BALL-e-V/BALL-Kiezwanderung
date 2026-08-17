@@ -26,7 +26,6 @@
     confirmDeleteTrail: () => void;
     newTrail: () => void;
     trailFromDB: (id: string) => void;
-    editorSwitch: () => void;
   }
 
   let {
@@ -44,7 +43,6 @@
     confirmDeleteTrail,
     newTrail,
     trailFromDB,
-    editorSwitch,
     scheduleTrailSave,
   }: Props = $props();
 </script>
@@ -82,7 +80,11 @@
       disabled={loadingTrail > 0}
       class="button secondary"
     >
-      {makingTrail ? "Wegaufzeichnung stoppen" : "Wanderweg aufzeichnen"}
+      {makingTrail
+        ? "Wegaufzeichnung stoppen"
+        : trail.length == 0
+          ? "Wanderweg aufzeichnen"
+          : "Wanderweg fortsetzen"}
     </button>
     <button
       type="button"
@@ -101,7 +103,6 @@
         type="button"
         onclick={() => {
           confirmDeleteTrail();
-          newTrail();
           deleteQuery = false;
         }}
         class="button danger"

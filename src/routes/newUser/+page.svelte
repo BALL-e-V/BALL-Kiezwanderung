@@ -1,11 +1,42 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
-  import { allUsers, makeAdmin } from "./register.remote";
+  import {
+    allUsers,
+    makeAdmin,
+    allTrailPoiRealations,
+    allPoi,
+    deletePoi,
+  } from "./register.remote";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import Asdf from "./asdf.svelte";
 
   const session = authClient.useSession();
+
+  async function deleteDeprecatedPoi() {
+    const relationships = await allTrailPoiRealations();
+    const pois = await allPoi();
+
+    if (
+      relationships &&
+      pois &&
+      Array.isArray(relationships) &&
+      Array.isArray(pois)
+    ) {
+      let deleting = true;
+      pois.forEach((p) => {
+        deleting = true;
+        relationships.forEach((r) => {
+          if (p.id == r.poiId) {
+            deleting = false;
+          }
+        });
+        if (deleting) {
+          deletePoi(p.id);
+        }
+      });
+    }
+  }
 
   async function register(userdata: {
     name: string;
@@ -128,3 +159,15 @@
     {/if}
   </div>
 </div>
+<button onclick={deleteDeprecatedPoi}>Delete deprecated POI</button>
+{#each await allTrailPoiRealations() as relation}
+  <p>
+    {relation.trailId}+" "+{relation.poiId}+" "+{relation.poiTitle}
+  </p>
+{/each}
+
+{#each await allPoi() as poi}
+  <p>
+    {poi.id}+" "+{poi.title}
+  </p>
+{/each}

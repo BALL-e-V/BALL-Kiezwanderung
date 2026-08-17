@@ -173,7 +173,7 @@ export const getTrailPOIs = command(v.string(), async (trailId) => {
     ensureAccess(getAuthenticatedUser(),"trailMaking")
     try {
         const pois = await db.select({
-            caption:poi.caption,
+            title:poi.title,
             imageUrl:poi.imageUrl,
             description:poi.description,
             lat:poi.latitude,

@@ -27,7 +27,11 @@
 
   onMount(() => {
     const redirect = $page.url.search;
-    if (redirect == "?graphicTrail" || "?user/admin" || "?user/editUser") {
+    if (
+      redirect == "?wanderwegErstellen" ||
+      "?user/admin" ||
+      "?user/editUser"
+    ) {
       userData.callbackUrl = "/" + redirect.slice(1);
     }
   });

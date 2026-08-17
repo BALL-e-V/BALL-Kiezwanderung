@@ -4,7 +4,7 @@ import {db}from "$lib/server/db";
 import * as v from "valibot";
 import { success } from "better-auth";
 import{eq}from "drizzle-orm"
-import {hikingTrails, poi} from "$lib/server/db/trails.schema"
+import {hikingTrails, poi,trailsToPoi} from "$lib/server/db/trails.schema"
 export const allUsers = query (async()=>{
     try{ 
         const users = await db.select({name:user.name,email:user.email,userID:user.id}).from(user)
@@ -54,3 +54,23 @@ export const makeAdmin = command(v.string(), async (userId) => {
 
     return success;
  });
+
+ export const allTrailPoiRealations = query (async()=>{
+    const response = await db.select({trailId:trailsToPoi.trailId,poiId:trailsToPoi.poiId,poiTitle:poi.title}).from(trailsToPoi).leftJoin(poi,eq(trailsToPoi.poiId,poi.id))
+    return response;
+ })
+
+ export const allPoi = query (async()=>{
+    const response = await db.select({id:poi.id,title:poi.title}).from(poi)
+    return response;
+ })
+
+ export const deletePoi = command(v.string(), async (poiId) => {
+    try {
+        await db.delete(poi).where(eq(poi.id, poiId));
+    } catch (error) {
+        throw error;
+    }
+
+    return success;
+ })

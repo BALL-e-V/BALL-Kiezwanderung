@@ -55,7 +55,7 @@
 
     switch (sortCriteria) {
       case "name":
-        return items.sort((a, b) => compareString(a.caption, b.caption));
+        return items.sort((a, b) => compareString(a.title, b.title));
       case "author":
         return items.sort((a, b) =>
           compareString(a.author || "", b.author || ""),
@@ -131,7 +131,7 @@
       id="poiCaption"
       class="block"
       type="text"
-      bind:value={poiList[heroPoi].caption}
+      bind:value={poiList[heroPoi].title}
       onchange={() => onSave(heroPoi)}
     />
   </div>
@@ -193,7 +193,10 @@
     <button
       type="button"
       class="button danger"
-      onclick={() => onDelete(poiList[heroPoi])}
+      onclick={() => {
+        onDelete(poiList[heroPoi]);
+        deleteQuery = false;
+      }}
     >
       Löschen
     </button>
@@ -257,7 +260,7 @@
                   showPoiEditor = true;
                 }}
               >
-                <td>{poi.caption || "Unbenannter POI"}</td>
+                <td>{poi.title || "Unbenannter POI"}</td>
                 <td>{poi.author || "—"}</td>
                 <td>{formatDate(poi.created)}</td>
                 <td>{formatDate(poi.edited)}</td>
