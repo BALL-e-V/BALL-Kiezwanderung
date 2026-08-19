@@ -8,12 +8,14 @@
     author: string;
     created: string;
     updated?: string;
+    published: boolean;
   };
 
   interface Props {
     loadingTrail: number;
     trailTitle: string;
     trailDescription: string;
+    published: boolean;
     trailId: string;
     trail: Polyline[];
     makingTrail: boolean;
@@ -32,6 +34,7 @@
     loadingTrail,
     trailTitle = $bindable("") as string,
     trailDescription = $bindable("") as string,
+    published = $bindable(false) as boolean,
     trailId,
     trail = [] as Polyline[],
     makingTrail,
@@ -71,6 +74,10 @@
         onchange={scheduleTrailSave}
       ></textarea>
     </div>
+    <label class="published-field">
+      <input type="checkbox" bind:checked={published} onchange={scheduleTrailSave} />
+      Wanderweg veröffentlicht
+    </label>
   </div>
 
   <div class="action-group">
@@ -179,6 +186,32 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .published-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-muted);
+    color: var(--accent-900);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .published-field input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent-600);
+  }
+
+  .published-field:focus-within {
+    border-color: var(--accent-400);
+    outline: 2px solid var(--accent-400);
+    outline-offset: 1px;
   }
 
   .action-group,

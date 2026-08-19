@@ -28,7 +28,8 @@ export const saveTrail = command(v.object({
     startLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
     startLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     endLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
-    endLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180))
+    endLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
+    published: v.boolean()
 
 }),
     async (data) => {
@@ -44,7 +45,8 @@ export const saveTrail = command(v.object({
                     description: data.description,
                     author: user.id,
                     editor: user.id,
-                    length: data.length
+                    length: data.length,
+                    published: data.published
             }} else {
                 Trail = {
                     title: data.title,
@@ -60,7 +62,8 @@ export const saveTrail = command(v.object({
                     swBoundLat: data.swBoundLat,
                     swBoundLng: data.swBoundLng,
                     neBoundLat: data.neBoundLat,
-                    neBoundLng: data.neBoundLng
+                    neBoundLng: data.neBoundLng,
+                    published: data.published
                 }
             }
             try {
@@ -81,7 +84,8 @@ export const saveTrail = command(v.object({
                             description: data.description,
                             editor: user.id,//change the editor instead of the author
                             length: data.length,
-                            trail:null
+                            trail:null,
+                            published: data.published
                         }).where(eq(hikingTrails.id, data.id))
                     } catch (error) {
                          throw error
@@ -102,7 +106,8 @@ export const saveTrail = command(v.object({
                         swBoundLat: data.swBoundLat,
                         swBoundLng: data.swBoundLng,
                         neBoundLat: data.neBoundLat,
-                        neBoundLng: data.neBoundLng
+                        neBoundLng: data.neBoundLng,
+                        published: data.published
                     }).where(eq(hikingTrails.id, data.id))
                 } catch (error) {
                     console.log(error)
@@ -114,7 +119,8 @@ export const saveTrail = command(v.object({
                     await db.update(hikingTrails).set({
                         title: data.title,
                         description: data.description,
-                        editor: user.id//change the editor instead of the author
+                        editor: user.id,//change the editor instead of the author
+                        published: data.published
                     }).where(eq(hikingTrails.id, data.id))
                 } catch (error) {
                      throw error
@@ -127,7 +133,7 @@ export const saveTrail = command(v.object({
 //to display a list for loading we only need the title for the list and the id for loading
 export const allTrails = query(async () => {
     try {
-        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title,created:hikingTrails.created,updated:hikingTrails.updated,author:user.name,editor:editor.name })
+        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title,created:hikingTrails.created,updated:hikingTrails.updated,published:hikingTrails.published,author:user.name,editor:editor.name })
         .from(hikingTrails).leftJoin(user,eq(user.id,hikingTrails.author)).leftJoin(editor,eq(editor.id,hikingTrails.editor))
         return Trails;
     } catch (error) {
@@ -161,6 +167,7 @@ export const getTrail = command(v.string(), async (trailId) => {
             description:hikingTrails.description,
             length:hikingTrails.length, 
             primaryPoi:hikingTrails.primaryPoi,
+            published:hikingTrails.published,
             author:user.name,
             editor:editor.name, 
         }).from(hikingTrails).where(eq(hikingTrails.id, trailId)).leftJoin(user,eq(user.id,hikingTrails.author)).leftJoin(editor,eq(editor.id,hikingTrails.editor))

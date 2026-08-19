@@ -71,6 +71,7 @@
   let creatingPoi = $state(false);
 
   let trailDescription = $state("");
+  let published = $state(false);
   let trailTitle = $state("Namen Eingeben");
   //uuid from database
   let trailId = $state("");
@@ -84,6 +85,7 @@
     author: string;
     created: string;
     updated?: string;
+    published:boolean;
   };
 
   //list of all trails in the database for display in the load menu
@@ -885,6 +887,7 @@
     trailMarkers = [];
     trailTitle = "Namen Eintragen";
     trailDescription = "";
+    published = false;
     trailId = "";
 
     poiList.forEach((p) => {
@@ -939,6 +942,7 @@
       id: trailId,
       trailUpdate: trailUpdate,
       length: length,
+      published: published,
     };
   }
   //function to save the trail in the database and update the list of trails if the title was changed or a new trail was created
@@ -983,10 +987,12 @@
         author: "firstCause",
         created: new Date().toISOString(),
         updated: new Date().toISOString(),
+        published: published,
       });
     } else {
       //updating the position in the list if the title was changed
       let index = listofTrails.findIndex((t) => t.id == trailData.id);
+      listofTrails[index].published = trailData.published;
       if (listofTrails[index].title != trailData.title) {
         listofTrails.splice(index, 1);
         let i = 0;
@@ -1030,6 +1036,7 @@
       trailId = result[0].id;
       trailTitle = result[0].title;
       trailDescription = result[0].description;
+      published = result[0].published;
       primaryPoi = result[0].primaryPoi ? result[0].primaryPoi : "";
       //deleting the previous trail and markers
       trail.forEach((t) => {
@@ -1377,6 +1384,7 @@
       <TrailEditorPanel
         bind:trailTitle
         bind:trailDescription
+        bind:published
         bind:deleteQuery
         bind:listofTrails
         bind:loadTrailQuery

@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { mysqlTable, text, varchar, double, float, index, timestamp, json, smallint, primaryKey } from 'drizzle-orm/mysql-core';
+import { mysqlTable,boolean, text, varchar, double, float, index, timestamp, json, smallint, primaryKey } from 'drizzle-orm/mysql-core';
 
 export const hikingTrails = mysqlTable("hikingtrails",
     {
@@ -20,7 +20,8 @@ export const hikingTrails = mysqlTable("hikingtrails",
         startLat: double(),
         startLng: double(),
         endLat:double(),
-        endLng:double()
+        endLng:double(),
+        published:boolean().default(false).notNull(),
     },
     (table) => [
         index('titleIdx').on(table.title)

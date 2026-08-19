@@ -35,7 +35,9 @@ export const initialLoadTrails = command(v.object({
             lt(hikingTrails.neBoundLat,coordinates.neLat),
             lt(hikingTrails.neBoundLng,coordinates.neLng),
             gt(hikingTrails.swBoundLat,coordinates.swLat),
-            gt(hikingTrails.swBoundLng,coordinates.swLng)
+            gt(hikingTrails.swBoundLng,coordinates.swLng),
+            hikingTrails.published
+
         )).leftJoin(poi, eq(poi.id, hikingTrails.primaryPoi));
         //partially load trails that are not fully inside the map bounds
         const partialTrails = await db.select({
@@ -49,12 +51,12 @@ export const initialLoadTrails = command(v.object({
             startLng:hikingTrails.startLng,
             endLat:hikingTrails.endLat,
             endLng:hikingTrails.endLng
-        }).from(hikingTrails).where(or(
+        }).from(hikingTrails).where(and(or(
             gte(hikingTrails.neBoundLat,coordinates.neLat),
             gte(hikingTrails.neBoundLng,coordinates.neLng),
             lte(hikingTrails.swBoundLat,coordinates.swLat),
             lte(hikingTrails.swBoundLng,coordinates.swLng)
-        ))
+        ), hikingTrails.published));
         return {fullTrails:fullTrails,partialTrails:partialTrails}
     }
 )
@@ -67,7 +69,7 @@ export const fetchTrails = command(v.array(v.string()),async (trails)=>{
         length:hikingTrails.length,
         imageUrl:poi.imageUrl,
         imageAlt:poi.imageAlt
-    }).from(hikingTrails).where(inArray(hikingTrails.id,trails)).leftJoin(poi, eq(poi.id, hikingTrails.primaryPoi))
+    }).from(hikingTrails).where(and(inArray(hikingTrails.id,trails),hikingTrails.published)).leftJoin(poi, eq(poi.id, hikingTrails.primaryPoi))
     return data;
 })
 //load the pois for a trail that got zoomed in on

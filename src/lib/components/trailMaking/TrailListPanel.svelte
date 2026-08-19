@@ -5,6 +5,7 @@
     author: string;
     created: string;
     updated?: string;
+    published: boolean;
   };
 
   interface Props {
@@ -21,6 +22,7 @@
     "title" as "title" | "author" | "created" | "updated",
   );
   let sortAscending = $state(true);
+  let publishedFilter = $state("all" as "all" | "published" | "unpublished");
 
   function formatDate(value: unknown) {
     if (!value) {
@@ -42,6 +44,14 @@
     const regex = search ? new RegExp(search, "i") : null;
 
     const items = [...trails].filter((trail) => {
+      if (
+        publishedFilter === "published" &&
+        !trail.published
+      ) return false;
+      if (
+        publishedFilter === "unpublished" &&
+        trail.published
+      ) return false;
       if (!regex) return true;
       if (filterField === "title") {
         return regex.test(trail.title);
@@ -127,6 +137,35 @@
         Datum
       </button>
     </div>
+    <div class="published-filter" role="group" aria-label="Veröffentlichungsstatus">
+      <span class="published-filter-label">Status</span>
+      <div class="published-switch">
+        <button
+          type="button"
+          class:active={publishedFilter === "all"}
+          aria-pressed={publishedFilter === "all"}
+          onclick={() => (publishedFilter = "all")}
+        >
+          Alle
+        </button>
+        <button
+          type="button"
+          class:active={publishedFilter === "published"}
+          aria-pressed={publishedFilter === "published"}
+          onclick={() => (publishedFilter = "published")}
+        >
+          Veröffentlicht
+        </button>
+        <button
+          type="button"
+          class:active={publishedFilter === "unpublished"}
+          aria-pressed={publishedFilter === "unpublished"}
+          onclick={() => (publishedFilter = "unpublished")}
+        >
+          Unveröffentlicht
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="table-wrapper">
@@ -144,6 +183,7 @@
           <th onclick={() => sortBy("updated")}
             >Aktualisiert {sortIndicator("updated")}</th
           >
+          <th>Veröffentlicht</th>
         </tr>
       </thead>
       <tbody>
@@ -158,6 +198,15 @@
             <td>{trail.author}</td>
             <td>{formatDate(trail.created)}</td>
             <td>{formatDate(trail.updated)}</td>
+            <td>
+              <input
+                type="checkbox"
+                checked={trail.published}
+                aria-label={`${trail.title} veröffentlicht`}
+                tabindex="-1"
+                readonly
+              />
+            </td>
           </tr>
         {/each}
       </tbody>
@@ -209,6 +258,52 @@
     background: var(--accent-100);
     border-color: var(--accent-400);
     color: var(--accent-900);
+  }
+
+  .published-filter {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-muted);
+  }
+
+  .published-filter-label {
+    color: var(--accent-900);
+    font-weight: 700;
+  }
+
+  .published-switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .published-switch button {
+    flex: 1 1 100px;
+    padding: 8px 10px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-surface);
+    color: var(--accent-text);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .published-switch button.active,
+  .published-switch button:focus-visible {
+    background: var(--accent-100);
+    border-color: var(--accent-400);
+    color: var(--accent-900);
+  }
+
+  .published-switch button:focus-visible {
+    outline: 2px solid var(--accent-400);
+    outline-offset: 1px;
   }
 
   .table-wrapper {
