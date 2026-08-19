@@ -57,7 +57,7 @@
       {#if poiTitles.length > 0}
         {#each poiTitles as title, index}
           <div class="legend-item">
-            <div class="legend-title">{Number(index) + 1} {title}</div>
+            <div class="legend-title">{index + 1} {title}</div>
           </div>
         {/each}
       {/if}

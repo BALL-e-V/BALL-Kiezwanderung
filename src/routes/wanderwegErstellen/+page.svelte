@@ -26,6 +26,7 @@
     latlngsToDataobject,
     responseToLatlngs,
     compareTrailPosition,
+    iconmaker2,
   } from "$lib/util";
   import {
     allTrails,
@@ -39,6 +40,7 @@
   import ContextMenu from "$lib/components/trailMaking/ContextMenu.svelte";
   import TrailEditorPanel from "$lib/components/trailMaking/TrailEditorPanel.svelte";
   import PoiEditorPanel from "$lib/components/trailMaking/PoiEditorPanel.svelte";
+  import Legend from "$lib/components/trailMaking/Legend.svelte";
   //leaflet map and the dom element
   let map: LeafletMap;
   //the set of polylines that make up the hiking trail
@@ -60,7 +62,7 @@
   //position of the right-click menu
   let menuPos = $state({ x: 0, y: 0 });
   //is the onclick function to insert a marker active?
-  let insertingWaypoint = false;
+  let insertingWaypoint = $state(false);
   //list of points of interest
   let poiList = $state([]) as pointOfInterest[];
   //keeping track of the poi being moved to update trailposition when saved
@@ -101,6 +103,15 @@
 
   let showPoiEditor: boolean = $state(false);
 
+  // Legend marker definitions
+
+  const trailMarkup = [
+    { label: "Anfang", color: colors.trailStart },
+    { label: "Ende", color: colors.trailEnd },
+    { label: "bewegbarer Wegpunkt", color: colors.movableMarker },
+    { label: "Sehenswürdigkeit", color: colors.inactivePoi },
+  ];
+
   let poiCreatorMarker = new Marker({ lat: 0, lng: 0 });
   poiCreatorMarker.setIcon(iconmaker(colors.editing, sizes.poiHero));
   let insertTrail = new Polyline([{ lat: 0, lng: 0 }]);
@@ -136,15 +147,15 @@
         }),
       );
       //turning on poi interactivity
-      poiList.forEach((p) => {
-        p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+      poiList.forEach((p, i) => {
+        p.marker.setIcon(iconmaker2(colors.poi, sizes.poi, i + 1));
 
         p.marker.on("click", () => heromaker(p));
       });
       map.getContainer().style.cursor = "all-scroll";
       if (heroPoi >= 0) {
         poiList[heroPoi].marker.setIcon(
-          iconmaker(colors.editing, sizes.poiHero),
+          iconmaker2(colors.editing, sizes.poiHero, heroPoi + 1),
         );
         poiList[heroPoi].marker.dragging?.enable();
         poiList[heroPoi].marker.on("dragend", (e) => {
@@ -183,8 +194,11 @@
         map.off("click", poiCreator);
         creatingPoi = false;
       } else {
-        poiList[heroPoi].marker.dragging?.disable();
-        poiList[heroPoi].marker.off("dragend");
+        if (heroPoi >= 0) {
+          poiList[heroPoi].marker.dragging?.disable();
+          poiList[heroPoi].marker.off("dragend");
+        }
+
         poiList.forEach((p) => {
           p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
           p.marker.off("click");
@@ -254,13 +268,13 @@
       poiCreatorMarker.removeFrom(map);
       map.getContainer().style.cursor = "all-scroll";
       creatingPoi = false;
-      poiList.forEach((p) => {
-        p.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+      poiList.forEach((p, i) => {
+        p.marker.setIcon(iconmaker2(colors.poi, sizes.poi, i + 1));
         p.marker.on("click", () => heromaker(p));
       });
       if (heroPoi >= 0) {
         poiList[heroPoi].marker.setIcon(
-          iconmaker(colors.editing, sizes.poiHero),
+          iconmaker2(colors.editing, sizes.poiHero, heroPoi + 1),
         );
         poiList[heroPoi].marker.dragging?.enable;
         poiList[heroPoi].marker.on("dragend", (e) => {
@@ -303,15 +317,20 @@
     showPoiEditor = true;
     if (heroPoi >= 0) {
       //setting the old hero poi back to normal and saving if need be
-      poiList[heroPoi].marker.setIcon(iconmaker(colors.poi, sizes.poi));
+      poiList[heroPoi].marker.setIcon(
+        iconmaker2(colors.poi, sizes.poi, heroPoi + 1),
+      );
       poiList[heroPoi].marker.off("dragend").dragging?.disable;
       if (waitToSave) {
         poiToDatabase(heroPoi);
       }
     }
     heroPoi = poiList.findIndex((p) => p === poi);
-    poi.marker.setIcon(iconmaker(colors.editing, sizes.poiHero));
-    poiList[heroPoi].marker.dragging?.enable();
+    poi.marker.setIcon(iconmaker2(colors.editing, sizes.poiHero, heroPoi + 1));
+    const time = setTimeout(() => {
+      poiList[heroPoi].marker.dragging?.enable();
+      clearTimeout(time);
+    }, 200);
     poiList[heroPoi].marker.on("dragend", (e) => {
       poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
       poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
@@ -712,6 +731,7 @@
       map.getContainer().style.cursor = "all-scroll";
       insertingWaypoint = false;
       trail[rightClickTargetIndex].setStyle({ color: colors.path });
+      trail[rightClickTargetIndex - 1].setStyle({ color: colors.path });
       //getting start and end markers their respective colors if they were changed
       if (rightClickTargetIndex == 0) {
         trailMarkers[rightClickTargetIndex].setIcon(
@@ -731,6 +751,14 @@
           iconmaker(colors.movableMarker, sizes.trailMarker),
         );
       }
+      trailMarkers.forEach((m) => {
+        m.dragging?.enable;
+        m.on("dragend", (e) => moveTrail(e));
+        m.on("contextmenu", (e) => rightClickContextMenu(e));
+      });
+      trail.forEach((t) =>
+        t.on("contextmenu", (e) => rightClickContextMenu(e)),
+      );
     } else {
       map.on("click", (e) => insertWaypoint(e, rightClickTargetIndex));
       const startLatlng = trailMarkers[rightClickTargetIndex].getLatLng();
@@ -747,8 +775,15 @@
       trailMarkers[rightClickTargetIndex + 1].setIcon(
         iconmaker(colors.editing, sizes.trailMarker),
       );
+      trailMarkers.forEach((m) => {
+        m.dragging?.disable;
+        m.off("dragend");
+        m.off("contextmenu");
+      });
+      trail.forEach((t) => t.off("contextmenu"));
     }
   }
+
   function moveInsertTrail(e: any, start: LatLng, end: LatLng) {
     insertTrail.setLatLngs([start, e.latlng, end]);
   }
@@ -1298,7 +1333,16 @@
           poiCreatorSwitch();
         }
       }}
-    ></div>
+    >
+      <Legend
+        editorMode={editing}
+        {trailMarkup}
+        {makingTrail}
+        {poiList}
+        {creatingPoi}
+        {insertingWaypoint}
+      />
+    </div>
 
     <div class="map-footer">
       <p>{editorial}</p>
@@ -1371,6 +1415,7 @@
         bind:heroPoi
         bind:deleteQuery
         bind:showPoiEditor
+        {creatingPoi}
         {loadingTrail}
         {primaryPoi}
         onSetPrimaryPoi={(poiId: string) => {
@@ -1451,6 +1496,7 @@
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
+    position: relative;
   }
 
   #map {

@@ -16,6 +16,7 @@
     onUpload: (content: string, name: string, index: number) => void;
     loadingTrail: number;
     onSetPrimaryPoi: (poiId: string) => void;
+    creatingPoi: boolean;
   }
 
   let {
@@ -31,6 +32,7 @@
     onUpload,
     onSetPrimaryPoi,
     loadingTrail,
+    creatingPoi,
     showPoiEditor = $bindable(),
   }: Props = $props();
 
@@ -43,6 +45,14 @@
 
   let sortCriteria = $state("trailPosition" as SortCriteria);
   let sortAscending = $state(true);
+
+  const currentImageUrl = $derived(poiList[heroPoi]?.imageUrl ?? "");
+  const currentImageAlt = $derived(poiList[heroPoi]?.imageAlt ?? "POI Bild");
+  let loadedImageUrl = $state<string | null>(null);
+
+  const isImageLoading = $derived.by(() => {
+    return !!currentImageUrl && currentImageUrl !== loadedImageUrl;
+  });
 
   let sortedPoiList = $derived.by(() => {
     const items = [...poiList];
@@ -122,7 +132,7 @@
       type="button"
       class="button secondary"
       onclick={() => (showPoiEditor = false)}
-      >"Sehenswürdigkeiten Liste Anzeigen"
+      >Sehenswürdigkeiten Liste Anzeigen
     </button>
   </div>
   <div>
@@ -162,12 +172,20 @@
       bind:value={poiList[heroPoi].imageAlt}
       onchange={() => onSave(heroPoi)}
     />
-    {#if poiList[heroPoi].imageUrl !== ""}
-      <img
-        src={poiList[heroPoi].imageUrl}
-        alt="POI Bild"
-        style="max-width: 100%; margin-top: 10px;"
-      />
+    {#if currentImageUrl !== ""}
+      <div class="poi-image-container">
+        {#if isImageLoading}
+          <div class="poi-image-loading" aria-live="polite">Bild lädt...</div>
+        {/if}
+        <img
+          class="poi-image"
+          class:poi-image--loaded={!isImageLoading}
+          src={currentImageUrl}
+          alt={currentImageAlt}
+          onload={() => (loadedImageUrl = currentImageUrl)}
+          onerror={() => (loadedImageUrl = currentImageUrl)}
+        />
+      </div>
     {/if}
     <button
       type="button"
@@ -213,7 +231,7 @@
       class="button secondary"
       onclick={() => (deleteQuery = true)}
     >
-      POI löschen
+      Sehenswürdigkeit löschen
     </button>
   {/if}
 {:else}
@@ -272,8 +290,14 @@
     </div>
   </div>
 {/if}
-<button type="button" onclick={onCreate} class="button primary"
-  >Neuen POI setzen</button
+<button
+  type="button"
+  onclick={() => {
+    onCreate();
+    console.log(creatingPoi);
+  }}
+  class="button primary"
+  >{creatingPoi ? "Abbrechen(rechtclick)" : "Neue Sehenswürdikeit"}</button
 >
 
 <style>
@@ -385,5 +409,42 @@
     color: var(--accent-600);
     cursor: not-allowed;
     box-shadow: none;
+  }
+
+  .poi-image-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    margin-top: 10px;
+    border: 1px solid var(--accent-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .poi-image-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(13, 18, 24, 0.45);
+    z-index: 1;
+  }
+
+  .poi-image {
+    display: block;
+    max-width: 100%;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .poi-image--loaded {
+    opacity: 1;
   }
 </style>

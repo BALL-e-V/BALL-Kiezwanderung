@@ -58,8 +58,8 @@
           type="button"
           class="context-menu-button"
           onclick={() => {
-            insertSwitch();
             targetIndex--;
+            insertSwitch();
           }}
         >
           Wegpunkt vor diesem einfügen

@@ -81,7 +81,7 @@
       class="button secondary"
     >
       {makingTrail
-        ? "Wegaufzeichnung stoppen"
+        ? "Wegaufzeichnung stoppen(Rechtsclick)"
         : trail.length == 0
           ? "Wanderweg aufzeichnen"
           : "Wanderweg fortsetzen"}

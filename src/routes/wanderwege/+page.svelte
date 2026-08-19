@@ -113,8 +113,10 @@
         event.originalEvent.target.style.border = "2px solid " + highlightColor;
       });
       poi.marker.on("pointerout", (event: any) => {
-        event.originalEvent.target.style.border = "1px solid black";
-        tooltipVisible = false;
+        if (event.originalEvent.pointerType == "mouse") {
+          event.originalEvent.target.style.border = "1px solid black";
+          tooltipVisible = false;
+        }
       });
     } else {
       poi.marker.off("pointerover");
@@ -183,6 +185,7 @@
         } else {
           doubleTapTargetId = poi.id;
           showtooltip({ event: e, poi });
+          e.originalEvent.target.style.border = "2px solid " + highlightColor;
           longTapTimer = setTimeout(() => {
             popupSwitch({ poi });
             clearTimeout(longTapTimer);
