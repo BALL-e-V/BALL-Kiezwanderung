@@ -12,7 +12,6 @@
     type LeafletMouseEvent,
   } from "leaflet";
   import { getPath } from "./getPath.remote";
-  import { error } from "@sveltejs/kit";
   import { onMount } from "svelte";
   import {
     savePOI,
@@ -100,10 +99,21 @@
   let heroPoi = $state(-1);
   //fisrt option in the lst of trails to let the user know
   let trailLoadingStatus = $state("Lade Liste der Wanderwege");
+  let pathFailureVisible = $state(false);
+  let pathFailureTimer: ReturnType<typeof setTimeout> | undefined = $state();
 
   let loadTrailQuery = $state(false);
 
   let showPoiEditor: boolean = $state(false);
+
+  function showPathFailure() {
+    pathFailureVisible = true;
+    clearTimeout(pathFailureTimer);
+    pathFailureTimer = setTimeout(() => {
+      pathFailureVisible = false;
+      pathFailureTimer = undefined;
+    }, 3000);
+  }
 
   // Legend marker definitions
 
@@ -380,8 +390,9 @@
             e.latlng,
           ]),
         );
-      } catch {
-        console.log("trailMaker() failed to get a path:" + error);
+      } catch (err) {
+        console.log("trailMaker() failed to get a path:", err);
+        showPathFailure();
         loadingTrail--;
         return;
       }
@@ -537,8 +548,9 @@
       let response;
       try {
         response = await getPath(latlngsToDataobject([curLatlng, nextLatlng]));
-      } catch {
-        console.log("moveTrail() failed to get a path" + error);
+      } catch (err) {
+        console.log("moveTrail() failed to get a path", err);
+        showPathFailure();
         trail[current].setLatLngs(previousTrailLatlngs);
         trailMarkers[current].setLatLng(previousTrailLatlngs[0]);
         loadingTrail--;
@@ -566,8 +578,9 @@
 
       try {
         response = await getPath(latlngsToDataobject([preLatlng, curLatlng]));
-      } catch {
-        console.log("moveTrail() failed to get a path" + error);
+      } catch (err) {
+        console.log("moveTrail() failed to get a path", err);
+        showPathFailure();
         trail[previous].setLatLngs(previousTrailLatlngs);
         trailMarkers[current].setLatLng(
           previousTrailLatlngs[previousTrailLatlngs.length - 1],
@@ -606,6 +619,7 @@
         ]);
       } catch (err) {
         console.log("moveTrail() failed to get a path" + err);
+        showPathFailure();
         trail[previous].setLatLngs(previousTrailLatlngs);
         trail[current].setLatLngs(currentTrailLatlngs);
         trailMarkers[current].setLatLng(
@@ -705,7 +719,7 @@
 
       // filling in the trail between the 2 markers around the removed one, which are now connected
       const startLatlng = trailMarkers[rightClickTargetIndex - 1].getLatLng();
-      const endLatlng = trailMarkers[rightClickTargetIndex].getLatLng();
+      const endLatlng = trailMarkers[rightClickTargetIndex+1].getLatLng();
       //building a straight line until the trail is loaded
       trail[rightClickTargetIndex - 1].setLatLngs([startLatlng, endLatlng]);
 
@@ -713,11 +727,12 @@
 
       try {
         response = await getPath(latlngsToDataobject([startLatlng, endLatlng]));
-      } catch {
-        console.log(error);
-        trail[rightClickTargetIndex - 1].setLatLngs(changedTrailLatlngs).addTo(map);
-        trailMarkers[rightClickTargetIndex - 1].addTo(map);
+      } catch (err) {
+        console.log("deleteWaypoint() failed to get a path", err);
+        showPathFailure();
+        trail[rightClickTargetIndex - 1].setLatLngs(changedTrailLatlngs);
         trailMarkers[rightClickTargetIndex].addTo(map);
+        trail[rightClickTargetIndex].addTo(map);
         loadingTrail--;
         return;
       }
@@ -858,7 +873,8 @@
 
       ]);
     } catch (err) {
-      console.log(err);
+      console.log("insertWaypoint() failed to get a path", err);
+      showPathFailure();
       trail[rightClickTargetIndex].setLatLngs(oldLatlngs);
       trail[rightClickTargetIndex + 1].off("contextmenu").remove();
       trail[rightClickTargetIndex + 1] = null as any;
@@ -1376,6 +1392,9 @@
         {creatingPoi}
         {insertingWaypoint}
       />
+      {#if pathFailureVisible}
+        <div class="path-failure-tooltip" role="status">wegfindung fehlgeschlagen</div>
+      {/if}
     </div>
 
     <div class="map-footer">
@@ -1540,6 +1559,35 @@
     min-height: 0;
     height: 100%;
     width: 100%;
+  }
+
+  .path-failure-tooltip {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    z-index: 2000;
+    transform: translateX(-50%);
+    padding: 0.65rem 0.9rem;
+    border-radius: 0.4rem;
+    background: rgba(75, 24, 24, 0.94);
+    color: #fff;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+    pointer-events: none;
+    white-space: nowrap;
+    animation: path-failure-in 160ms ease-out;
+  }
+
+  @keyframes path-failure-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -0.35rem);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
   }
 
   .map-footer {
