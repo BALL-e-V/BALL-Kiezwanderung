@@ -513,6 +513,7 @@
     }
   }
 
+
   //function to move the trail by dragging markers, input is the number of the marker and the surrounding markers in the array
   async function moveTrail(e: LeafletEvent) {
     trailUpdate = true;
@@ -529,6 +530,7 @@
       //getting the latlngs for comparison and sending
       const curLatlng = trailMarkers[current].getLatLng();
       const nextLatlng = trailMarkers[next].getLatLng();
+      const previousTrailLatlngs = trail[current].getLatLngs() as LatLng[];
       //building a straight line until the trail is loaded
       trail[current].setLatLngs([curLatlng, nextLatlng]);
       //turn markers black and make them unmovable while processing
@@ -537,6 +539,8 @@
         response = await getPath(latlngsToDataobject([curLatlng, nextLatlng]));
       } catch {
         console.log("moveTrail() failed to get a path" + error);
+        trail[current].setLatLngs(previousTrailLatlngs);
+        trailMarkers[current].setLatLng(previousTrailLatlngs[0]);
         loadingTrail--;
         return;
       }
@@ -554,6 +558,7 @@
       //save the location now in case the trail is built further
       const preLatlng = trailMarkers[previous].getLatLng();
       const curLatlng = trailMarkers[current].getLatLng();
+      const previousTrailLatlngs = trail[previous].getLatLngs() as LatLng[];
 
       trail[previous].setLatLngs([preLatlng, curLatlng]);
 
@@ -563,6 +568,10 @@
         response = await getPath(latlngsToDataobject([preLatlng, curLatlng]));
       } catch {
         console.log("moveTrail() failed to get a path" + error);
+        trail[previous].setLatLngs(previousTrailLatlngs);
+        trailMarkers[current].setLatLng(
+          previousTrailLatlngs[previousTrailLatlngs.length - 1],
+        );
         loadingTrail--;
         return;
       }
@@ -582,6 +591,8 @@
       const preLatlng = trailMarkers[previous].getLatLng();
       const curLatlng = trailMarkers[current].getLatLng();
       const nextLatlng = trailMarkers[next].getLatLng();
+      const previousTrailLatlngs = trail[previous].getLatLngs() as LatLng[];
+      const currentTrailLatlngs = trail[current].getLatLngs() as LatLng[];
       //get 2 paths around the marker when a marker in the middle is moved
       trail[previous].setLatLngs([preLatlng, curLatlng]);
       trail[current].setLatLngs([curLatlng, nextLatlng]);
@@ -595,6 +606,11 @@
         ]);
       } catch (err) {
         console.log("moveTrail() failed to get a path" + err);
+        trail[previous].setLatLngs(previousTrailLatlngs);
+        trail[current].setLatLngs(currentTrailLatlngs);
+        trailMarkers[current].setLatLng(
+          previousTrailLatlngs[previousTrailLatlngs.length - 1],
+        );
         loadingTrail--;
         return;
       }
@@ -682,15 +698,10 @@
       trail.shift();
       trailMarkers[0].setIcon(iconmaker(colors.trailStart, sizes.trailMarker));
     } else {
-      trailMarkers[rightClickTargetIndex]
-        .off("dragend")
-        .off("contextmenu")
-        .remove();
-      trail[rightClickTargetIndex].off("contextmenu").remove();
-      trailMarkers[rightClickTargetIndex] = null as any;
-      trail[rightClickTargetIndex] = null as any;
-      trailMarkers.splice(rightClickTargetIndex, 1);
-      trail.splice(rightClickTargetIndex, 1);
+      const changedTrailLatlngs =trail[rightClickTargetIndex - 1].getLatLngs() as LatLng[];
+      trailMarkers[rightClickTargetIndex].remove();
+      trail[rightClickTargetIndex].remove();
+
 
       // filling in the trail between the 2 markers around the removed one, which are now connected
       const startLatlng = trailMarkers[rightClickTargetIndex - 1].getLatLng();
@@ -704,10 +715,18 @@
         response = await getPath(latlngsToDataobject([startLatlng, endLatlng]));
       } catch {
         console.log(error);
+        trail[rightClickTargetIndex - 1].setLatLngs(changedTrailLatlngs).addTo(map);
+        trailMarkers[rightClickTargetIndex - 1].addTo(map);
+        trailMarkers[rightClickTargetIndex].addTo(map);
         loadingTrail--;
         return;
       }
-
+      trailMarkers[rightClickTargetIndex].off("dragend").off("contextmenu");
+      trail[rightClickTargetIndex].off("contextmenu");
+      trailMarkers[rightClickTargetIndex] = null as any;
+      trail[rightClickTargetIndex] = null as any;
+      trailMarkers.splice(rightClickTargetIndex, 1);
+      trail.splice(rightClickTargetIndex, 1);
       if (
         //checking if a marker was moved while loading
         startLatlng == trailMarkers[rightClickTargetIndex - 1].getLatLng() &&
@@ -798,7 +817,7 @@
     loadingTrail++;
     clearTimeout(waitToSave);
     insertSwitch();
-
+    const oldLatlngs = trail[rightClickTargetIndex].getLatLngs() as LatLng[];
     //insert new marker and give it all the funcionality
     trailMarkers.splice(
       rightClickTargetIndex + 1,
@@ -836,9 +855,17 @@
       [part1, part2] = await Promise.all([
         getPath(latlngsToDataobject([startLatlng, midLatlng])),
         getPath(latlngsToDataobject([midLatlng, endLatlng])),
+
       ]);
     } catch (err) {
       console.log(err);
+      trail[rightClickTargetIndex].setLatLngs(oldLatlngs);
+      trail[rightClickTargetIndex + 1].off("contextmenu").remove();
+      trail[rightClickTargetIndex + 1] = null as any;
+      trail.splice(rightClickTargetIndex + 1, 1);
+      trailMarkers[rightClickTargetIndex + 1].off("dragend").off("contextmenu").remove();
+      trailMarkers[rightClickTargetIndex + 1] = null as any;
+      trailMarkers.splice(rightClickTargetIndex + 1, 1);
       loadingTrail--;
       return;
     }

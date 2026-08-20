@@ -297,7 +297,7 @@
     console.log(creatingPoi);
   }}
   class="button primary"
-  >{creatingPoi ? "Abbrechen(rechtclick)" : "Neue Sehenswürdikeit"}</button
+  >{creatingPoi ? "Abbrechen(rechtclick)" : "Neue Sehenswürdigkeit"}</button
 >
 
 <style>
