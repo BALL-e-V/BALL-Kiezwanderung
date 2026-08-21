@@ -35,9 +35,9 @@
       this.marker.addTo(map);
       if(id){
         this.id=id;
-        this.marker.setIcon(iconmaker(colors.poi, sizes.poi, id));
+        this.marker.setIcon(iconmaker({ color: colors.poi, size: sizes.poi, id }));
       }else{
-      this.marker.setIcon(iconmaker(colors.poi, sizes.poi));
+      this.marker.setIcon(iconmaker({ color: colors.poi, size: sizes.poi }));
     }
     }
     //position of the closest coordinate in the array of latlngs of the polylines in the trail, saved as the position of the poi in the trail for sorting and display purposes

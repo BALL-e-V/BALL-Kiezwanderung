@@ -16,7 +16,7 @@
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
   import Legend from "$lib/components/trails/Legend.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
-  import { compareTrailPosition, iconmaker2 } from "$lib/util";
+  import { compareTrailPosition, iconmaker } from "$lib/util";
   import {
     colors,
     tooltipSignCount,
@@ -302,7 +302,7 @@
       }
       pois.sort(compareTrailPosition);
       pois.forEach((p, i) => {
-        p.marker.setIcon(iconmaker2("yellow", 2, i + 1, p.id));
+        p.marker.setIcon(iconmaker({ color: "yellow", size: 2, number: i + 1, id: p.id }));
         poiTitles.push(p.title);
       });
       poisByTrailId.set(trailId, pois);
@@ -481,7 +481,7 @@
       if (poisByTrailId.has(trail.id)) {
         poisByTrailId.get(trail.id)?.forEach((poi, i) => {
           poi.marker.addTo(map);
-          poi.marker.setIcon(iconmaker2("yellow", 2, i + 1, poi.id));
+          poi.marker.setIcon(iconmaker({ color: "yellow", size: 2, number: i + 1, id: poi.id }));
           markerHoverSwitch(poi, "on");
           markerDownSwitch(poi, "on");
           poiTitles.push(poi.title);

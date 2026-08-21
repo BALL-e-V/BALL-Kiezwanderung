@@ -25,7 +25,6 @@
     latlngsToDataobject,
     responseToLatlngs,
     compareTrailPosition,
-    iconmaker2,
   } from "$lib/util";
   import {
     allTrails,
@@ -127,7 +126,7 @@
   ];
 
   let poiCreatorMarker = new Marker({ lat: 0, lng: 0 });
-  poiCreatorMarker.setIcon(iconmaker(colors.editing, sizes.poiHero));
+  poiCreatorMarker.setIcon(iconmaker({ color: colors.editing, size: sizes.poiHero }));
   let insertTrail = new Polyline([{ lat: 0, lng: 0 }]);
   //trail list filter and sort state
   //poi list sort state
@@ -162,14 +161,14 @@
       );
       //turning on poi interactivity
       poiList.forEach((p, i) => {
-        p.marker.setIcon(iconmaker2(colors.poi, sizes.poi, i + 1));
+        p.marker.setIcon(iconmaker({ color: colors.poi, size: sizes.poi, number: i + 1 }));
 
         p.marker.on("click", () => heromaker(p));
       });
       map.getContainer().style.cursor = "all-scroll";
       if (heroPoi >= 0) {
         poiList[heroPoi].marker.setIcon(
-          iconmaker2(colors.editing, sizes.poiHero, heroPoi + 1),
+          iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }),
         );
         poiList[heroPoi].marker.dragging?.enable();
         poiList[heroPoi].marker.on("dragend", (e) => {
@@ -214,7 +213,7 @@
         }
 
         poiList.forEach((p) => {
-          p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
+          p.marker.setIcon(iconmaker({ color: colors.inactivePoi, size: sizes.inactivePoi }));
           p.marker.off("click");
         });
       }
@@ -283,12 +282,12 @@
       map.getContainer().style.cursor = "all-scroll";
       creatingPoi = false;
       poiList.forEach((p, i) => {
-        p.marker.setIcon(iconmaker2(colors.poi, sizes.poi, i + 1));
+        p.marker.setIcon(iconmaker({ color: colors.poi, size: sizes.poi, number: i + 1 }));
         p.marker.on("click", () => heromaker(p));
       });
       if (heroPoi >= 0) {
         poiList[heroPoi].marker.setIcon(
-          iconmaker2(colors.editing, sizes.poiHero, heroPoi + 1),
+          iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }),
         );
         poiList[heroPoi].marker.dragging?.enable;
         poiList[heroPoi].marker.on("dragend", (e) => {
@@ -313,7 +312,7 @@
       }
 
       poiList.forEach((p) => {
-        p.marker.setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
+        p.marker.setIcon(iconmaker({ color: colors.inactivePoi, size: sizes.inactivePoi }));
         p.marker.off("click");
       });
     }
@@ -332,7 +331,7 @@
     if (heroPoi >= 0) {
       //setting the old hero poi back to normal and saving if need be
       poiList[heroPoi].marker.setIcon(
-        iconmaker2(colors.poi, sizes.poi, heroPoi + 1),
+        iconmaker({ color: colors.poi, size: sizes.poi, number: heroPoi + 1 }),
       );
       poiList[heroPoi].marker.off("dragend").dragging?.disable;
       if (waitToSave) {
@@ -340,7 +339,7 @@
       }
     }
     heroPoi = poiList.findIndex((p) => p === poi);
-    poi.marker.setIcon(iconmaker2(colors.editing, sizes.poiHero, heroPoi + 1));
+    poi.marker.setIcon(iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }));
     const time = setTimeout(() => {
       poiList[heroPoi].marker.dragging?.enable();
       clearTimeout(time);
@@ -368,12 +367,12 @@
     );
     trailMarkers.push(new Marker(e.latlng).addTo(map));
     trailMarkers[trailMarkers.length - 1].setIcon(
-      iconmaker(colors.editing, sizes.poiHero),
+      iconmaker({ color: colors.editing, size: sizes.poiHero }),
     );
     if (trailMarkers.length > 2) {
       trailMarkers[trailMarkers.length - 2]
         .setLatLng(e.latlng)
-        .setIcon(iconmaker(colors.inactivePoi, sizes.inactivePoi));
+        .setIcon(iconmaker({ color: colors.inactivePoi, size: sizes.inactivePoi }));
     }
 
     if (trail.length > 1) {
@@ -430,14 +429,14 @@
           m.on("dragend", (e) => {
             moveTrail(e);
           })
-            .setIcon(iconmaker(colors.movableMarker, sizes.trailMarker))
+            .setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }))
             .dragging?.enable();
         });
         trailMarkers[trailMarkers.length - 2].setIcon(
-          iconmaker(colors.trailEnd, sizes.trailMarker),
+          iconmaker({ color: colors.trailEnd, size: sizes.trailMarker }),
         );
         trailMarkers[0].setIcon(
-          iconmaker(colors.trailStart, sizes.trailMarker),
+          iconmaker({ color: colors.trailStart, size: sizes.trailMarker }),
         );
         trail[trail.length - 1].removeFrom(map).remove();
         trail[trail.length - 1] = null as any;
@@ -472,13 +471,13 @@
           trailMarkers[i].dragging?.disable();
           trailMarkers[i]
             .off("dragend")
-            .setIcon(iconmaker(colors.buildTrail, 1));
+            .setIcon(iconmaker({ color: colors.buildTrail, size: 1 }));
         }
         trailMarkers[trailMarkers.length - 1].setIcon(
-          iconmaker(colors.editing, sizes.activeTrailend),
+          iconmaker({ color: colors.editing, size: sizes.activeTrailend }),
         );
         trailMarkers[0].setIcon(
-          iconmaker(colors.trailStart, sizes.trailMarker),
+          iconmaker({ color: colors.trailStart, size: sizes.trailMarker }),
         );
       }
       trail.forEach((p) =>
@@ -504,10 +503,10 @@
       trailMarkers.push(new Marker({ lat: 0, lng: 0 }).addTo(map));
 
       if (trailMarkers.length == 1) {
-        trailMarkers[0].setIcon(iconmaker(colors.trailStart, sizes.poiHero));
+        trailMarkers[0].setIcon(iconmaker({ color: colors.trailStart, size: sizes.poiHero }));
       } else {
         trailMarkers[trailMarkers.length - 1].setIcon(
-          iconmaker(colors.editing, sizes.poiHero),
+          iconmaker({ color: colors.editing, size: sizes.poiHero }),
         );
       }
       // Creating a straight line as filler while loading and to save the position in the array
@@ -666,14 +665,14 @@
       //enabling all the properties of the end marker on the previous one unless there is only one left
       if (makingTrail) {
         trailMarkers[trailMarkers.length - 1]
-          .setIcon(iconmaker(colors.editing, sizes.activeTrailend))
+          .setIcon(iconmaker({ color: colors.editing, size: sizes.activeTrailend }))
           .on("dragend", (e) => {
             moveTrail(e);
           })
           .dragging?.enable();
       } else {
         trailMarkers[trailMarkers.length - 1].setIcon(
-          iconmaker(colors.trailEnd, sizes.trailMarker),
+          iconmaker({ color: colors.trailEnd, size: sizes.trailMarker }),
         );
       }
     } else if (trailMarkers.length == 1) {
@@ -712,7 +711,7 @@
       trail[rightClickTargetIndex] = null as any;
       trailMarkers.shift();
       trail.shift();
-      trailMarkers[0].setIcon(iconmaker(colors.trailStart, sizes.trailMarker));
+      trailMarkers[0].setIcon(iconmaker({ color: colors.trailStart, size: sizes.trailMarker }));
     } else {
       const changedTrailLatlngs =trail[rightClickTargetIndex - 1].getLatLngs() as LatLng[];
       trailMarkers[rightClickTargetIndex].remove();
@@ -773,20 +772,20 @@
       //getting start and end markers their respective colors if they were changed
       if (rightClickTargetIndex == 0) {
         trailMarkers[rightClickTargetIndex].setIcon(
-          iconmaker(colors.trailStart, sizes.trailMarker),
+          iconmaker({ color: colors.trailStart, size: sizes.trailMarker }),
         );
       } else {
         trailMarkers[rightClickTargetIndex].setIcon(
-          iconmaker(colors.movableMarker, sizes.trailMarker),
+          iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }),
         );
       }
       if (rightClickTargetIndex + 1 == trailMarkers.length - 1) {
         trailMarkers[rightClickTargetIndex + 1].setIcon(
-          iconmaker(colors.trailEnd, sizes.trailMarker),
+          iconmaker({ color: colors.trailEnd, size: sizes.trailMarker }),
         );
       } else {
         trailMarkers[rightClickTargetIndex + 1].setIcon(
-          iconmaker(colors.movableMarker, sizes.trailMarker),
+          iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }),
         );
       }
       trailMarkers.forEach((m) => {
@@ -808,10 +807,10 @@
       //coloring the trail and markers to indicate where the new marker will be placed
       trail[rightClickTargetIndex].setStyle({ color: colors.editing });
       trailMarkers[rightClickTargetIndex].setIcon(
-        iconmaker(colors.editing, sizes.trailMarker),
+        iconmaker({ color: colors.editing, size: sizes.trailMarker }),
       );
       trailMarkers[rightClickTargetIndex + 1].setIcon(
-        iconmaker(colors.editing, sizes.trailMarker),
+        iconmaker({ color: colors.editing, size: sizes.trailMarker }),
       );
       trailMarkers.forEach((m) => {
         m.dragging?.disable;
@@ -846,7 +845,7 @@
         moveTrail(e);
       })
       .on("contextmenu", (e) => rightClickContextMenu(e))
-      .setIcon(iconmaker(colors.movableMarker, sizes.trailMarker))
+      .setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }))
       .addTo(map);
     //save all the latlngs in case markers are moved during loading
     const startLatlng = trailMarkers[rightClickTargetIndex].getLatLng();
@@ -1125,13 +1124,13 @@
           m.addTo(map);
           m.on("contextmenu", (e) => rightClickContextMenu(e));
           m.on("dragend", (e) => moveTrail(e));
-          m.setIcon(iconmaker(colors.movableMarker, sizes.trailMarker));
+          m.setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }));
         });
         trailMarkers[0].setIcon(
-          iconmaker(colors.trailStart, sizes.trailMarker),
+          iconmaker({ color: colors.trailStart, size: sizes.trailMarker }),
         );
         trailMarkers[trailMarkers.length - 1].setIcon(
-          iconmaker(colors.trailEnd, sizes.trailMarker),
+          iconmaker({ color: colors.trailEnd, size: sizes.trailMarker }),
         );
         //caluclating the map bounds and placing the map
         let mapBounds = trail[0].getBounds();
@@ -1195,7 +1194,7 @@
         }
         poiList[poiList.length - 1].trailPosition = [p.position1, p.position2];
         poiList[poiList.length - 1].marker.setIcon(
-          iconmaker(colors.inactivePoi, sizes.inactivePoi),
+          iconmaker({ color: colors.inactivePoi, size: sizes.inactivePoi }),
         );
         poiList[poiList.length - 1].marker.dragging?.disable();
       });

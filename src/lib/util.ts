@@ -3,34 +3,7 @@
  import { pointOfInterest } from "./pointOfInterest.svelte";
 
 
-export function iconmaker(color: string, size: number, id?: string) {
-    const markerHtmlStyles = `
-  background-color: ${color};
-  width: ${size}rem;
-  height: ${size}rem;
-  display: block;
-  left: ${-0.5 * size}rem;
-  top: ${-0.5 * size}rem;
-  position: relative;
-  border-radius: 2rem 2rem 0;
-  transform: rotate(45deg);
-  border: 1px solid #000000`;
-  let html
-  if(id){
-    html = `<span id=${id} style="${markerHtmlStyles}"/>`;
-  }else{
-    html = `<span style="${markerHtmlStyles}"/>`;
-  }
-
-    return new DivIcon({
-        className: "my-custom-pin",
-        iconAnchor: [0, 12 * size],
-        popupAnchor: [0, -36],
-        html,
-    });
-}
-
-export function iconmaker2(color: string, size: number, number: number, id?: string) {
+export function iconmaker({color,size,number,id}:{color:string, size: number, number?: number, id?: string}) {
     const markerHtmlStyles = `
   background-color: ${color};
   width: ${size}rem;
@@ -44,7 +17,6 @@ export function iconmaker2(color: string, size: number, number: number, id?: str
   border-radius: 2rem 2rem 0;
   transform: rotate(45deg);
   border: 1px solid #000000`;
-  
   const numberStyles = `
   transform: rotate(-45deg);
   font-weight: bold;
@@ -53,14 +25,9 @@ export function iconmaker2(color: string, size: number, number: number, id?: str
   line-height: 1;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3)`;
   
-  let html;
-  const spanContent = `<span style="${numberStyles}">${number}</span>`;
-  
-  if(id){
-    html = `<span id=${id} style="${markerHtmlStyles}">${spanContent}</span>`;
-  }else{
-    html = `<span style="${markerHtmlStyles}">${spanContent}</span>`;
-  }
+  const spanContent = number === undefined ? "" : `<span style="${numberStyles}">${number}</span>`;
+  const idAttribute = id === undefined ? "" : ` id=${id}`;
+  const html = `<span${idAttribute} style="${markerHtmlStyles}">${spanContent}</span>`;
 
     return new DivIcon({
         className: "my-custom-pin",
