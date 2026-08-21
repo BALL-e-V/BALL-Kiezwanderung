@@ -100,13 +100,15 @@
   //fisrt option in the lst of trails to let the user know
   let trailLoadingStatus = $state("Lade Liste der Wanderwege");
   let pathFailureVisible = $state(false);
+  let failureTooltipMessage = $state("");
   let pathFailureTimer: ReturnType<typeof setTimeout> | undefined = $state();
 
   let loadTrailQuery = $state(false);
 
   let showPoiEditor: boolean = $state(false);
 
-  function showPathFailure() {
+  function showFailureTooltip(message: string) {
+    failureTooltipMessage = message;
     pathFailureVisible = true;
     clearTimeout(pathFailureTimer);
     pathFailureTimer = setTimeout(() => {
@@ -392,7 +394,7 @@
         );
       } catch (err) {
         console.log("trailMaker() failed to get a path:", err);
-        showPathFailure();
+        showFailureTooltip("wegfindung fehlgeschlagen");
         loadingTrail--;
         return;
       }
@@ -550,7 +552,7 @@
         response = await getPath(latlngsToDataobject([curLatlng, nextLatlng]));
       } catch (err) {
         console.log("moveTrail() failed to get a path", err);
-        showPathFailure();
+        showFailureTooltip("wegfindung fehlgeschlagen");
         trail[current].setLatLngs(previousTrailLatlngs);
         trailMarkers[current].setLatLng(previousTrailLatlngs[0]);
         loadingTrail--;
@@ -580,7 +582,7 @@
         response = await getPath(latlngsToDataobject([preLatlng, curLatlng]));
       } catch (err) {
         console.log("moveTrail() failed to get a path", err);
-        showPathFailure();
+        showFailureTooltip("wegfindung fehlgeschlagen");
         trail[previous].setLatLngs(previousTrailLatlngs);
         trailMarkers[current].setLatLng(
           previousTrailLatlngs[previousTrailLatlngs.length - 1],
@@ -619,7 +621,7 @@
         ]);
       } catch (err) {
         console.log("moveTrail() failed to get a path" + err);
-        showPathFailure();
+        showFailureTooltip("wegfindung fehlgeschlagen");
         trail[previous].setLatLngs(previousTrailLatlngs);
         trail[current].setLatLngs(currentTrailLatlngs);
         trailMarkers[current].setLatLng(
@@ -729,7 +731,7 @@
         response = await getPath(latlngsToDataobject([startLatlng, endLatlng]));
       } catch (err) {
         console.log("deleteWaypoint() failed to get a path", err);
-        showPathFailure();
+        showFailureTooltip("wegfindung fehlgeschlagen");
         trail[rightClickTargetIndex - 1].setLatLngs(changedTrailLatlngs);
         trailMarkers[rightClickTargetIndex].addTo(map);
         trail[rightClickTargetIndex].addTo(map);
@@ -874,7 +876,7 @@
       ]);
     } catch (err) {
       console.log("insertWaypoint() failed to get a path", err);
-      showPathFailure();
+      showFailureTooltip("wegfindung fehlgeschlagen");
       trail[rightClickTargetIndex].setLatLngs(oldLatlngs);
       trail[rightClickTargetIndex + 1].off("contextmenu").remove();
       trail[rightClickTargetIndex + 1] = null as any;
@@ -1012,6 +1014,7 @@
       response = await saveTrail(trailData);
     } catch (err) {
       console.log("trailToDatabase() failed to save the trail:" + err);
+      showFailureTooltip("Speichern gescheitert");
       loadingTrail--;
       return;
     }
@@ -1226,6 +1229,7 @@
         });
       } catch (err) {
         console.log(err);
+        showFailureTooltip("Speichern gescheitert");
       }
       if (response) {
         poiList[heroPoi].id = response;
@@ -1393,7 +1397,7 @@
         {insertingWaypoint}
       />
       {#if pathFailureVisible}
-        <div class="path-failure-tooltip" role="status">wegfindung fehlgeschlagen</div>
+        <div class="path-failure-tooltip" role="status">{failureTooltipMessage}</div>
       {/if}
     </div>
 

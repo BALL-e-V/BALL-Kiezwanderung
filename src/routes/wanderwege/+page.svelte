@@ -105,7 +105,7 @@
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }
-
+//turn on and off pointerover/out interactions for a poi marker
   function markerHoverSwitch(poi: pointOfInterest, onOff: "on" | "off") {
     if (onOff == "on") {
       poi.marker.on("pointerover", (event: any) => {
@@ -123,7 +123,7 @@
       poi.marker.off("pointerout");
     }
   }
-
+  //turn on and off trail pointerover/out interactions
   function trailHoverSwitch(trail: hikingTrail, onOff: "on" | "off") {
     if (onOff == "on") {
       trail.trail?.on("pointerover", (e: any) => {
@@ -143,7 +143,7 @@
       trail.trail?.off("pointerout");
     }
   }
-
+  
   function trailDownSwitch(trail: hikingTrail, onOff: "on" | "off") {
     if (onOff == "on") {
       trail.trail?.on("pointerdown", (e: any) => {
