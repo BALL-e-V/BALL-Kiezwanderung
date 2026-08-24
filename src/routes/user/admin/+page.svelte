@@ -9,6 +9,8 @@
   import type { Feature } from "$lib/authorization";
   import { onMount } from "svelte";
   import { fileToBase64 } from "$lib/util";
+  import{userConfig} from"$lib/config";
+  const {displayResponseTime} = userConfig;
 
   let searchTerm = $state("");
   let users = $state([]) as { id: string; name: string; email: string }[];
@@ -133,7 +135,7 @@
       displayTimer = setTimeout(() => {
         clearInterval(displayTimer);
         displayTimer = null as any;
-      }, 5000);
+      }, displayResponseTime);
     }
   }
 
@@ -163,7 +165,7 @@
           displayTimer = setTimeout(() => {
             clearInterval(displayTimer);
             displayTimer = null as any;
-          }, 5000);
+          }, displayResponseTime);
         }
       }
     } else {
@@ -177,7 +179,7 @@
         displayTimer = setTimeout(() => {
           clearInterval(displayTimer);
           displayTimer = null as any;
-        }, 5000);
+        }, displayResponseTime);
         users = users.filter((user) => user.id !== selectedUserId);
         selectedUserId = null;
         selectedUserDetails = {

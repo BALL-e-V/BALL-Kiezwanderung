@@ -3,6 +3,8 @@
   import { authClient } from "$lib/auth-client";
   import { fileToBase64 } from "$lib/util";
   import { saveImage } from "./editUser.remote";
+  import { userConfig } from "$lib/config";
+  const { displayResponseTime } = userConfig;
 
   let session;
 
@@ -37,7 +39,7 @@
       clearTimeout(displayTimer);
       saveResponse = null;
       displayTimer = null as any;
-    }, 5000);
+    }, displayResponseTime);
   }
 
   async function saveUser() {

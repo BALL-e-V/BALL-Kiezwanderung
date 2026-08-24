@@ -6,7 +6,7 @@
     targetIndex: number;
     markerCount: number;
     isLoading: boolean;
-    insertSwitch: () => void;
+    insertSwitch: (onOff: "on" | "off") => void;
     onDeleteWaypoint: (index: number) => void;
     onContinueTrail: () => void;
   }
@@ -41,7 +41,7 @@
     {#if isLoading}
       <p class="context-menu-message">Lade Wanderweg</p>
     {:else if target === "polyline"}
-      <button type="button" class="context-menu-button" onclick={insertSwitch}>
+      <button type="button" class="context-menu-button" onclick={() => insertSwitch("on")}>
         Wegpunkt hinzufügen
       </button>
     {:else if target === "marker"}
@@ -59,7 +59,7 @@
           class="context-menu-button"
           onclick={() => {
             targetIndex--;
-            insertSwitch();
+            insertSwitch("on");
           }}
         >
           Wegpunkt vor diesem einfügen
@@ -78,7 +78,7 @@
         <button
           type="button"
           class="context-menu-button"
-          onclick={() => insertSwitch()}
+          onclick={() => insertSwitch("on")}
         >
           Wegpunkt nach diesem einfügen
         </button>

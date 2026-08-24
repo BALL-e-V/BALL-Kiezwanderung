@@ -1,6 +1,8 @@
   import {Marker,LatLng,Map, Polyline}from "leaflet"
   import { iconmaker } from "./util";
-  import{colors,sizes}from "../routes/wanderwegErstellen/config"
+  import { wanderwegErstellenConfig } from "./config";
+
+  const { colors, sizes } = wanderwegErstellenConfig;
   
  export class pointOfInterest {
     //caption

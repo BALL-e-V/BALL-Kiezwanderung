@@ -17,16 +17,16 @@
   import Legend from "$lib/components/trails/Legend.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
   import { compareTrailPosition, iconmaker } from "$lib/util";
-  import {
+  import { wanderwegeConfig } from "$lib/config";
+  const {
     colors,
     tooltipSignCount,
     initialMapZoom,
     initialMapCoordinates,
     addPadding,
     trailLengthAccuracy,
-    highlightColor,
     longTapDelay,
-  } from "./config";
+  } = wanderwegeConfig;
 
   let map: LeafletMap;
   let tooltipVisible = $state(false);
@@ -91,7 +91,7 @@
   let mapCover: HTMLElement;
 
   function trailColor() {
-    return colors[trailCount++ % colors.length];
+    return colors.trailPalette[trailCount++ % colors.trailPalette.length];
   }
 
   function getProp(obj: any, ...names: string[]) {
@@ -110,7 +110,7 @@
     if (onOff == "on") {
       poi.marker.on("pointerover", (event: any) => {
         showtooltip({ event, poi });
-        event.originalEvent.target.style.border = "2px solid " + highlightColor;
+        event.originalEvent.target.style.border = "2px solid " + colors.highlight;
       });
       poi.marker.on("pointerout", (event: any) => {
         if (event.originalEvent.pointerType == "mouse") {
@@ -185,7 +185,7 @@
         } else {
           doubleTapTargetId = poi.id;
           showtooltip({ event: e, poi });
-          e.originalEvent.target.style.border = "2px solid " + highlightColor;
+          e.originalEvent.target.style.border = "2px solid " + colors.highlight;
           longTapTimer = setTimeout(() => {
             popupSwitch({ poi });
             clearTimeout(longTapTimer);
@@ -558,7 +558,7 @@
       popupData.poiId = selectedPoi.id;
       const poiElement = document.getElementById(selectedPoi.id);
       if (poiElement) {
-        poiElement.style.backgroundColor = highlightColor;
+        poiElement.style.backgroundColor = colors.highlight;
         poiElement.style.border = "1px solid black";
       }
     } else {
@@ -594,7 +594,7 @@
     if (index >= 0 && index < trailPois.length) {
       const poi = trailPois[index];
       const element = document.getElementById(poi.id);
-      if (element) element.style.border = "2px solid " + highlightColor;
+      if (element) element.style.border = "2px solid " + colors.highlight;
       if (
         previous !== undefined &&
         previous >= 0 &&

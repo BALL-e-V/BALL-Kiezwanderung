@@ -26,6 +26,7 @@
     responseToLatlngs,
     compareTrailPosition,
   } from "$lib/util";
+  import { wanderwegErstellenConfig } from "$lib/config";
   import {
     allTrails,
     deleteTrail,
@@ -34,7 +35,7 @@
     saveTrail,
   } from "./trailDB.remote";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
-  import { colors, sizes, timeToSave, trailResolution } from "./config";
+  const { colors, sizes, timeToSave, trailResolution,showFailureTime,poiDraggingDelay } = wanderwegErstellenConfig;
   import ContextMenu from "$lib/components/trailMaking/ContextMenu.svelte";
   import TrailEditorPanel from "$lib/components/trailMaking/TrailEditorPanel.svelte";
   import PoiEditorPanel from "$lib/components/trailMaking/PoiEditorPanel.svelte";
@@ -113,7 +114,7 @@
     pathFailureTimer = setTimeout(() => {
       pathFailureVisible = false;
       pathFailureTimer = undefined;
-    }, 3000);
+    }, showFailureTime);
   }
 
   // Legend marker definitions
@@ -131,8 +132,8 @@
   //trail list filter and sort state
   //poi list sort state
   //function to switch between editing pois and the trail
-  function editorSwitch() {
-    if (editing == "trail") {
+  function editorSwap() {
+    if (editing === "trail") {
       if (makingTrail) {
         //turning off trail interactivity
         map.off("click");
@@ -264,18 +265,18 @@
       heroPoi = poiList.length - 1;
     }
     showPoiEditor = true;
-    poiCreatorSwitch();
+    poiCreatorSwitch("off");
     poiToDatabase(heroPoi);
   }
   //function to switch the onclick for creating a new poi
-  function poiCreatorSwitch() {
+  function poiCreatorSwitch(onOff: "on" | "off") {
     if (waitToSave) {
       clearTimeout(waitToSave);
       waitToSave = null as any;
       poiToDatabase(heroPoi);
     }
     //i turn of poi interactivity while creating a new poi because its not needet and to have a visual indicator
-    if (creatingPoi) {
+    if (onOff === "off") {
       map.off("click", poiCreator);
       map.off("pointermove");
       poiCreatorMarker.removeFrom(map);
@@ -343,7 +344,7 @@
     const time = setTimeout(() => {
       poiList[heroPoi].marker.dragging?.enable();
       clearTimeout(time);
-    }, 200);
+    }, poiDraggingDelay);
     poiList[heroPoi].marker.on("dragend", (e) => {
       poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
       poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
@@ -416,8 +417,8 @@
   }
 
   //function to enable/disable the onclick for the previous trailmaker
-  function trailMakerSwitch() {
-    if (makingTrail) {
+  function trailMakerSwitch(onOff: "on" | "off") {
+    if (onOff === "off") {
       map.off("pointermove");
       map.getContainer().style.cursor = "all-scroll";
       map.off("click", trailMaker);
@@ -486,13 +487,14 @@
           weight: sizes.buildTrail,
         }),
       );
+            const initialLatlng = trailMarkers.length >0? trailMarkers[trailMarkers.length - 1].getLatLng(): map.getCenter();
       trailMarkers.forEach((m) => m.off("contextmenu"));
       if (trailMarkers.length > 0) {
         trail.push(
           new Polyline(
             [
               trailMarkers[trailMarkers.length - 1].getLatLng(),
-              { lat: 0, lng: 0 },
+              initialLatlng,
             ],
             { color: colors.buildTrail },
           ).addTo(map),
@@ -500,7 +502,8 @@
       }
       // creating a first waypoint marker for the trail if none exist
 
-      trailMarkers.push(new Marker({ lat: 0, lng: 0 }).addTo(map));
+
+      trailMarkers.push(new Marker(initialLatlng).addTo(map));
 
       if (trailMarkers.length == 1) {
         trailMarkers[0].setIcon(iconmaker({ color: colors.trailStart, size: sizes.poiHero }));
@@ -760,8 +763,8 @@
     }
   }
   //function to switch on the onclick to add a trailmarker into the trail between 2 others and all related graphical indicators
-  function insertSwitch() {
-    if (insertingWaypoint) {
+  function insertSwitch(onOff: "on" | "off") {
+    if (onOff === "off") {
       map.off("click");
       insertTrail.removeFrom(map);
       map.off("pointermove");
@@ -832,7 +835,7 @@
     trailUpdate = true;
     loadingTrail++;
     clearTimeout(waitToSave);
-    insertSwitch();
+    insertSwitch("off");
     const oldLatlngs = trail[rightClickTargetIndex].getLatLngs() as LatLng[];
     //insert new marker and give it all the funcionality
     trailMarkers.splice(
@@ -913,7 +916,7 @@
   function newTrail() {
     //turning off editing processes that might have been running from editing the previous trail
     if (insertingWaypoint) {
-      insertSwitch();
+      insertSwitch("off");
     }
     //deleting old stuff
     trail.forEach((t) => {
@@ -941,7 +944,7 @@
     poiList = [];
     //switch on the trailMaker bacause user will want to buildthe new trail
     if (!makingTrail) {
-      trailMakerSwitch();
+      trailMakerSwitch("on");
     }
   }
   //function to prepare data and save the
@@ -1062,10 +1065,10 @@
   async function trailFromDB(id: string) {
     //turning off editing processes that might have been running from editing the previous trail
     if (makingTrail) {
-      trailMakerSwitch();
+      trailMakerSwitch("off");
     }
     if (insertingWaypoint) {
-      insertSwitch();
+      insertSwitch("off");
     }
     loadTrailQuery = false;
     loadingTrail++;
@@ -1377,13 +1380,13 @@
         //having right-click switch off all the waypoint adding
         e.preventDefault();
         if (makingTrail) {
-          trailMakerSwitch();
+          trailMakerSwitch("off");
         }
         if (insertingWaypoint) {
-          insertSwitch();
+          insertSwitch("off");
         }
         if (creatingPoi) {
-          poiCreatorSwitch();
+          poiCreatorSwitch("off");
         }
       }}
     >
@@ -1421,7 +1424,7 @@
               poiToDatabase(heroPoi);
             }
           }
-          editorSwitch();
+          editorSwap();
         }}
         class="block switch-btn"
       >
@@ -1441,7 +1444,7 @@
         {trailId}
         {trail}
         {makingTrail}
-        {trailMakerSwitch}
+        trailMakerSwitch={() => trailMakerSwitch(makingTrail ? "off" : "on")}
         {newTrail}
         {trailFromDB}
         scheduleTrailSave={() => {
@@ -1500,7 +1503,7 @@
           deletePoiOrRelation(poi);
         }}
         onSelect={(poi: pointOfInterest) => heromaker(poi)}
-        onCreate={poiCreatorSwitch}
+        onCreate={() => poiCreatorSwitch(creatingPoi ? "off" : "on")}
         onUpload={(content: string, name: string, index: number) => {
           imageToBlobstorage(content, name, index);
         }}
@@ -1519,7 +1522,7 @@
   isLoading={loadingTrail > 0}
   onDeleteWaypoint={deleteWaypoint}
   {insertSwitch}
-  onContinueTrail={trailMakerSwitch}
+  onContinueTrail={() => trailMakerSwitch("on")}
 />
 
 <style>

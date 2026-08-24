@@ -3,6 +3,8 @@
   import "../styles.css";
   import { authClient } from "$lib/auth-client";
   import { goto } from "$app/navigation";
+  import { layoutConfig } from "$lib/config";
+  const { longPressTime } = layoutConfig;
 
   import type { UserWithRolesAndClaims } from "$lib/auth.d";
 
@@ -112,7 +114,7 @@
       clearLongPress();
       suppressNextClick = true;
       action();
-    }, 450);
+    }, longPressTime);
   }
 
   function runAction(action: () => void, event?: Event) {
