@@ -1,17 +1,22 @@
 <script lang="ts">
+  import { fileToBase64 } from "$lib/util";
+
   interface Props {
     open: boolean;
     position: { x: number; y: number };
-    target: "polyline" | "marker" | null;
+    target: "polyline" | "marker" | "poi" | null;
     targetIndex: number;
     markerCount: number;
     isLoading: boolean;
     hasGeolocation?: boolean;
+    hasCamera?: boolean;
+    canAddImage?: boolean;
     insertSwitch: (onOff: "on" | "off") => void;
     onDeleteWaypoint: (index: number) => void;
     onContinueTrail: () => void;
     onMoveMarkerToGPS?: (index: number) => void;
     onInsertMarkerAtGPS?: (index: number) => void;
+    onAddImageFromCamera?: (content: string, name: string, index: number) => void | Promise<void>;
     onClose?: () => void;
   }
 
@@ -23,13 +28,34 @@
     markerCount = 0,
     isLoading = false,
     hasGeolocation = false,
+    hasCamera = false,
+    canAddImage = true,
     insertSwitch,
     onDeleteWaypoint,
     onContinueTrail,
     onMoveMarkerToGPS,
     onInsertMarkerAtGPS,
+    onAddImageFromCamera,
     onClose,
   }: Props = $props();
+
+  let cameraInput = $state<HTMLInputElement | null>(null);
+  let isUploading = $state(false);
+
+  async function handleCameraImage(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !onAddImageFromCamera || targetIndex < 0) return;
+
+    isUploading = true;
+    try {
+      await onAddImageFromCamera(await fileToBase64(file), file.name, targetIndex);
+      onClose?.();
+    } finally {
+      isUploading = false;
+    }
+  }
 
   let canInsertBefore = $derived(target === "marker" && targetIndex > 0);
   let canInsertAfter = $derived(
@@ -65,7 +91,11 @@
   >
     <div class="context-menu-header">
       <span class="context-menu-title">
-        {target === "marker" ? `Wegpunkt ${targetIndex + 1}` : "Wegabschnitt"}
+        {target === "marker"
+          ? `Wegpunkt ${targetIndex + 1}`
+          : target === "poi"
+            ? `Sehenswürdigkeit ${targetIndex + 1}`
+            : "Wegabschnitt"}
       </span>
       {#if onClose}
         <button
@@ -81,6 +111,29 @@
 
     {#if isLoading}
       <p class="context-menu-message">Lade Wanderweg...</p>
+    {:else if target === "poi"}
+      {#if hasCamera && onAddImageFromCamera}
+        <button
+          type="button"
+          class="context-menu-button"
+          disabled={isUploading || !canAddImage}
+          onclick={() => cameraInput?.click()}
+        >
+          {isUploading
+            ? "Bild wird gespeichert..."
+            : canAddImage
+              ? "📷 Foto mit Kamera hinzufügen"
+              : "POI wird gespeichert..."}
+        </button>
+        <input
+          bind:this={cameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          class="hidden-file-input"
+          onchange={handleCameraImage}
+        />
+      {/if}
     {:else if target === "polyline"}
       <button type="button" class="context-menu-button" onclick={() => insertSwitch("on")}>
         ➕ Wegpunkt manuell einfügen
@@ -237,6 +290,15 @@
   .context-menu-button.danger:hover,
   .context-menu-button.danger:focus {
     background: #fef2f2;
+  }
+
+  .context-menu-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  .hidden-file-input {
+    display: none;
   }
 
   .context-menu-button.gps-action {

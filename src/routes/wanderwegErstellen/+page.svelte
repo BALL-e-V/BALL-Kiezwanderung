@@ -59,7 +59,7 @@
   //is the custom right-click menu showing?
   let showClickMenu = $state(false);
   //what was right-clicked on? currently marker or polyline
-  let rightClickTargetType = $state(null as "marker" | "polyline" | null);
+  let rightClickTargetType = $state(null as "marker" | "polyline" | "poi" | null);
   //position of the target in the respective array
   let rightClickTargetIndex = $state(-1);
   //position of the right-click menu
@@ -210,6 +210,7 @@
         p.marker.setIcon(iconmaker({ color: colors.poi, size: sizes.poi, number: i + 1 }));
 
         p.marker.on("click", () => heromaker(p));
+        p.marker.on("contextmenu", (e) => rightClickContextMenu(e));
       });
       map.getContainer().style.cursor = "all-scroll";
       if (heroPoi >= 0) {
@@ -266,7 +267,7 @@
 
         poiList.forEach((p) => {
           p.marker.setIcon(iconmaker({ color: colors.inactivePoi, size: sizes.inactivePoi }));
-          p.marker.off("click");
+          p.marker.off("click").off("contextmenu");
         });
       }
     }
@@ -294,6 +295,9 @@
     else if (trail.indexOf(e.target) >= 0) {
       rightClickTargetIndex = trail.indexOf(e.target);
       rightClickTargetType = "polyline";
+    } else if (poiList.some((p) => p.marker === e.target)) {
+      rightClickTargetIndex = poiList.findIndex((p) => p.marker === e.target);
+      rightClickTargetType = "poi";
     }
     menuPos = getEventScreenPos(e);
   }
@@ -554,6 +558,7 @@
       poiList.forEach((p, i) => {
         p.marker.setIcon(iconmaker({ color: colors.poi, size: sizes.poi, number: i + 1 }));
         p.marker.on("click", () => heromaker(p));
+        p.marker.on("contextmenu", (e) => rightClickContextMenu(e));
       });
       if (heroPoi >= 0) {
         poiList[heroPoi].marker.setIcon(
@@ -583,7 +588,7 @@
 
       poiList.forEach((p) => {
         p.marker.setIcon(iconmaker({ color: colors.inactivePoi, size: sizes.inactivePoi }));
-        p.marker.off("click");
+        p.marker.off("click").off("contextmenu");
       });
     }
   }
@@ -1871,6 +1876,10 @@
   onContinueTrail={() => trailMakerSwitch("on")}
   onMoveMarkerToGPS={moveMarkerToGPS}
   onInsertMarkerAtGPS={insertMarkerAtGPS}
+  hasCamera={hasCamera}
+  canAddImage={rightClickTargetType === "poi" && rightClickTargetIndex >= 0 && poiList[rightClickTargetIndex]?.id !== ""}
+  onAddImageFromCamera={(content: string, name: string, index: number) =>
+    imageToBlobstorage(content, name, index)}
   onClose={() => (showClickMenu = false)}
 />
 
