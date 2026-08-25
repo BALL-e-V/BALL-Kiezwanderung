@@ -2,7 +2,6 @@ import { query,command } from "$app/server";
 import { user } from "$lib/server/db/auth.schema";
 import {db}from "$lib/server/db";
 import * as v from "valibot";
-import { success } from "better-auth";
 import{eq}from "drizzle-orm"
 import {hikingTrails, poi,trailsToPoi} from "$lib/server/db/trails.schema"
 export const allUsers = query (async()=>{
@@ -52,7 +51,7 @@ export const makeAdmin = command(v.string(), async (userId) => {
         throw error;
     }
 
-    return success;
+    return { success: true };
  });
 
  export const allTrailPoiRealations = query (async()=>{
@@ -72,5 +71,5 @@ export const makeAdmin = command(v.string(), async (userId) => {
         throw error;
     }
 
-    return success;
+    return { success: true };
  })

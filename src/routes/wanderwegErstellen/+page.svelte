@@ -8,6 +8,7 @@
     Polyline,
     TileLayer,
     LatLngBounds,
+    CircleMarker,
     type LeafletEvent,
     type LeafletMouseEvent,
   } from "leaflet";
@@ -40,6 +41,9 @@
   import TrailEditorPanel from "$lib/components/trailMaking/TrailEditorPanel.svelte";
   import PoiEditorPanel from "$lib/components/trailMaking/PoiEditorPanel.svelte";
   import Legend from "$lib/components/trailMaking/Legend.svelte";
+  import MobileControls from "$lib/components/trailMaking/MobileControls.svelte";
+  import TitleModal from "$lib/components/trailMaking/TitleModal.svelte";
+
   //leaflet map and the dom element
   let map: LeafletMap;
   //the set of polylines that make up the hiking trail
@@ -75,8 +79,23 @@
   //uuid from database
   let trailId = $state("");
   //has the path of the trail been updated since the last save?
-  let trailUpdate = false;
+  let trailUpdate = $state(false);
   let primaryPoi = $state("");
+
+  // Mobile, Geolocation, and Camera State
+  let isTouchDevice = $state(false);
+  let isMobileLayout = $state(false);
+  let hasGeolocation = $state(false);
+  let hasCamera = $state(true);
+  let isLocating = $state(false);
+  let userLocation = $state<{ lat: number; lng: number } | null>(null);
+  let userLocationMarker: CircleMarker | null = null;
+
+  // Title modal state for mobile
+  let titleModalOpen = $state(false);
+  let titleModalMode = $state<"trail" | "poi">("trail");
+  let titleModalInitial = $state("");
+  let pendingPoiLocation = $state<{ lat: number; lng: number } | null>(null);
 
   type TrailListItem = {
     id: string;
@@ -131,6 +150,30 @@
   let insertTrail = new Polyline([{ lat: 0, lng: 0 }]);
   //trail list filter and sort state
   //poi list sort state
+  // Helper to safely get event screen coordinates
+  function getEventScreenPos(e: any): { x: number; y: number } {
+    if (e.originalEvent) {
+      if (e.originalEvent.clientX !== undefined && e.originalEvent.clientX !== 0) {
+        return { x: e.originalEvent.clientX, y: e.originalEvent.clientY };
+      }
+      if (e.originalEvent.touches && e.originalEvent.touches.length > 0) {
+        return { x: e.originalEvent.touches[0].clientX, y: e.originalEvent.touches[0].clientY };
+      }
+      if (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length > 0) {
+        return { x: e.originalEvent.changedTouches[0].clientX, y: e.originalEvent.changedTouches[0].clientY };
+      }
+    }
+    if (e.latlng && map) {
+      const pt = map.latLngToContainerPoint(e.latlng);
+      const rect = map.getContainer().getBoundingClientRect();
+      return { x: rect.left + pt.x, y: rect.top + pt.y };
+    }
+    return {
+      x: typeof window !== "undefined" ? window.innerWidth / 2 - 100 : 100,
+      y: typeof window !== "undefined" ? window.innerHeight / 2 - 100 : 100,
+    };
+  }
+
   //function to switch between editing pois and the trail
   function editorSwap() {
     if (editing === "trail") {
@@ -147,10 +190,12 @@
       } else {
         trail.forEach((t) => {
           t.off("contextmenu");
+          t.off("click");
         });
         trailMarkers.forEach((m) => {
           m.off("dragend");
           m.off("contextmenu");
+          m.off("click");
         });
       }
       trailMarkers.forEach((m) => m.removeFrom(map));
@@ -192,9 +237,15 @@
           moveTrail(e);
         });
         m.on("contextmenu", (e) => rightClickContextMenu(e));
+        m.on("click", (e) => {
+          if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
+        });
       });
       trail.forEach((t) => {
         t.on("contextmenu", (e) => rightClickContextMenu(e));
+        t.on("click", (e) => {
+          if (isTouchDevice && !makingTrail && !insertingWaypoint) rightClickContextMenu(e);
+        });
         t.setStyle({
           color: colors.path,
           weight: sizes.clickableTrail,
@@ -233,7 +284,7 @@
   }
 
   //displaying the menu to add or remove markers from the trail
-  function rightClickContextMenu(e: LeafletMouseEvent) {
+  function rightClickContextMenu(e: any) {
     showClickMenu = true;
     //checking if the target is one of the trailmarkers
     if (trailMarkers.indexOf(e.target) >= 0) {
@@ -244,10 +295,228 @@
       rightClickTargetIndex = trail.indexOf(e.target);
       rightClickTargetType = "polyline";
     }
-    menuPos = {
-      x: e.originalEvent.clientX,
-      y: e.originalEvent.clientY,
-    };
+    menuPos = getEventScreenPos(e);
+  }
+
+  // Geolocation helpers
+  function updateUserLocationMarker(lat: number, lng: number) {
+    if (!map) return;
+    if (!userLocationMarker) {
+      userLocationMarker = new CircleMarker([lat, lng], {
+        radius: 8,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#4f46e5",
+        fillOpacity: 1,
+        pane: "markerPane",
+      }).addTo(map);
+    } else {
+      userLocationMarker.setLatLng([lat, lng]);
+    }
+  }
+
+  function getUserGPSLocation(): Promise<{ lat: number; lng: number }> {
+    return new Promise((resolve, reject) => {
+      if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+        showFailureTooltip("Geolocation wird nicht unterstützt");
+        reject(new Error("Geolocation not supported"));
+        return;
+      }
+      isLocating = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          isLocating = false;
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          userLocation = coords;
+          updateUserLocationMarker(coords.lat, coords.lng);
+          resolve(coords);
+        },
+        (err) => {
+          isLocating = false;
+          console.error("GPS error:", err);
+          showFailureTooltip("GPS-Standort konnte nicht ermittelt werden");
+          reject(err);
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+      );
+    });
+  }
+
+  async function centerOnUserLocation() {
+    try {
+      const coords = await getUserGPSLocation();
+      if (map) {
+        map.setView([coords.lat, coords.lng], Math.max(map.getZoom(), 16));
+      }
+    } catch (err) {
+      console.log("Could not center on user location", err);
+    }
+  }
+
+  async function addWaypointAtGPS() {
+    try {
+      const coords = await getUserGPSLocation();
+      const latlng = new LatLng(coords.lat, coords.lng);
+
+      if (trailTitle === "Namen Eingeben" && trailMarkers.length === 0 && isMobileLayout) {
+        titleModalInitial = "Neuer Wanderweg";
+        titleModalMode = "trail";
+        titleModalOpen = true;
+      }
+
+      if (trailMarkers.length === 0) {
+        const firstMarker = new Marker(latlng, { draggable: true }).addTo(map);
+        firstMarker.setIcon(iconmaker({ color: colors.trailStart, size: sizes.poiHero }));
+        firstMarker.on("dragend", moveTrail);
+        firstMarker.on("contextmenu", rightClickContextMenu);
+        firstMarker.on("click", (e) => {
+          if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
+        });
+        trailMarkers.push(firstMarker);
+        map.setView(latlng, Math.max(map.getZoom(), 15));
+      } else {
+        const prevIndex = trailMarkers.length - 1;
+        const prevMarker = trailMarkers[prevIndex];
+        const prevLatLng = prevMarker.getLatLng();
+
+        if (prevIndex === 0) {
+          prevMarker.setIcon(iconmaker({ color: colors.trailStart, size: sizes.trailMarker }));
+        } else {
+          prevMarker.setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }));
+        }
+        prevMarker.dragging?.enable();
+
+        const newMarker = new Marker(latlng, { draggable: true }).addTo(map);
+        newMarker.setIcon(iconmaker({ color: colors.trailEnd, size: sizes.trailMarker }));
+        newMarker.on("dragend", moveTrail);
+        newMarker.on("contextmenu", rightClickContextMenu);
+        newMarker.on("click", (e) => {
+          if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
+        });
+        trailMarkers.push(newMarker);
+
+        const newPoly = new Polyline([prevLatLng, latlng], {
+          color: colors.path,
+          weight: sizes.clickableTrail,
+        }).addTo(map);
+        newPoly.on("contextmenu", rightClickContextMenu);
+        newPoly.on("click", (e) => {
+          if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
+        });
+        trail.push(newPoly);
+
+        trailUpdate = true;
+        loadingTrail++;
+        clearTimeout(waitToSave);
+
+        try {
+          const response = await getPath(latlngsToDataobject([prevLatLng, latlng]));
+          newPoly.setLatLngs(responseToLatlngs(response, trailResolution));
+        } catch (err) {
+          console.error("addWaypointAtGPS getPath failed:", err);
+          showFailureTooltip("Wegfindung fehlgeschlagen");
+        } finally {
+          loadingTrail--;
+        }
+
+        if (poiList.length > 0) {
+          poiList.forEach((p) => p.positionInTrail(trail));
+          poiList.sort(compareTrailPosition);
+          poiRelationtoDB(poiList);
+        }
+
+        scheduleTrailSave();
+        map.panTo(latlng);
+      }
+    } catch (err) {
+      console.log("addWaypointAtGPS error or cancelled", err);
+    }
+  }
+
+  async function addPoiAtGPS() {
+    try {
+      const coords = await getUserGPSLocation();
+      pendingPoiLocation = coords;
+      titleModalMode = "poi";
+      titleModalInitial = "Neue Sehenswürdigkeit";
+      titleModalOpen = true;
+    } catch (err) {
+      console.log("addPoiAtGPS error", err);
+    }
+  }
+
+  async function handleTitleModalSubmit(title: string, photoBase64?: string, photoName?: string) {
+    titleModalOpen = false;
+
+    if (titleModalMode === "trail") {
+      trailTitle = title;
+      scheduleTrailSave();
+      return;
+    }
+
+    if (titleModalMode === "poi" && pendingPoiLocation) {
+      const latlng = pendingPoiLocation;
+      pendingPoiLocation = null;
+
+      const newPoi = new pointOfInterest(map, latlng);
+      newPoi.title = title;
+      poiPositionUpdate = true;
+
+      if (trail.length > 0) {
+        newPoi.positionInTrail(trail);
+        poiList.push(newPoi);
+        poiList.sort(compareTrailPosition);
+        heroPoi = poiList.findIndex((p) => p === newPoi);
+      } else {
+        poiList.push(newPoi);
+        heroPoi = poiList.length - 1;
+      }
+
+      if (editing !== "poi") {
+        editorSwap();
+      }
+      showPoiEditor = true;
+
+      // First save POI to database to gain the UUID
+      await poiToDatabase(heroPoi);
+
+      // If photo was provided, upload it via imageToBlobstorage
+      if (photoBase64 && photoName && heroPoi >= 0) {
+        await imageToBlobstorage(photoBase64, photoName, heroPoi);
+      }
+
+      map.panTo(latlng);
+    }
+  }
+
+  async function moveMarkerToGPS(targetIndex: number) {
+    showClickMenu = false;
+    if (targetIndex < 0 || targetIndex >= trailMarkers.length) return;
+    try {
+      const coords = await getUserGPSLocation();
+      const latlng = new LatLng(coords.lat, coords.lng);
+      trailMarkers[targetIndex].setLatLng(latlng);
+      await moveTrail({ target: trailMarkers[targetIndex] } as any);
+      map.panTo(latlng);
+    } catch (err) {
+      console.error("moveMarkerToGPS failed:", err);
+    }
+  }
+
+  async function insertMarkerAtGPS(targetIndex: number) {
+    showClickMenu = false;
+    if (targetIndex < 0 || targetIndex >= trailMarkers.length - 1) return;
+    try {
+      const coords = await getUserGPSLocation();
+      const latlng = new LatLng(coords.lat, coords.lng);
+      await insertWaypoint({ latlng } as any, targetIndex);
+      map.panTo(latlng);
+    } catch (err) {
+      console.error("insertMarkerAtGPS failed:", err);
+    }
   }
 
   //switch between editing trail and poi
@@ -1361,6 +1630,35 @@
   //need to load a list of trails and session when we mount the page
   onMount(async () => {
     await loadTrailList();
+
+    if (typeof window !== "undefined") {
+      const mobileQuery = window.matchMedia("(max-width: 900px)");
+      const touchQuery = window.matchMedia("(pointer: coarse)");
+
+      const syncMedia = () => {
+        isMobileLayout = mobileQuery.matches;
+        isTouchDevice = touchQuery.matches || navigator.maxTouchPoints > 0;
+      };
+      syncMedia();
+      mobileQuery.addEventListener("change", syncMedia);
+      touchQuery.addEventListener("change", syncMedia);
+
+      hasGeolocation = "geolocation" in navigator;
+
+      if (navigator.mediaDevices?.enumerateDevices) {
+        navigator.mediaDevices
+          .enumerateDevices()
+          .then((devices) => {
+            const videoDevices = devices.filter((d) => d.kind === "videoinput");
+            hasCamera = videoDevices.length > 0 || ("ontouchstart" in window);
+          })
+          .catch(() => {
+            hasCamera = "ontouchstart" in window;
+          });
+      } else {
+        hasCamera = "ontouchstart" in window;
+      }
+    }
   });
 </script>
 
@@ -1402,6 +1700,44 @@
         <div class="path-failure-tooltip" role="status">{failureTooltipMessage}</div>
       {/if}
     </div>
+
+    {#if isMobileLayout || isTouchDevice}
+      <MobileControls
+        {hasGeolocation}
+        {isLocating}
+        {editing}
+        {makingTrail}
+        {creatingPoi}
+        {insertingWaypoint}
+        {loadingTrail}
+        hasUnsavedChanges={waitToSave !== null || trailUpdate}
+        onAddWaypointGPS={addWaypointAtGPS}
+        onAddPoiGPS={addPoiAtGPS}
+        onCenterUserLocation={centerOnUserLocation}
+        onToggleMode={() => {
+          if (waitToSave) {
+            if (editing === "trail") {
+              trailToDatabase();
+            } else if (editing === "poi" && heroPoi >= 0) {
+              poiToDatabase(heroPoi);
+            }
+          }
+          editorSwap();
+        }}
+        onSave={() => {
+          if (editing === "trail") {
+            trailToDatabase();
+          } else if (editing === "poi" && heroPoi >= 0) {
+            poiToDatabase(heroPoi);
+          }
+        }}
+        onCancelAction={() => {
+          if (makingTrail) trailMakerSwitch("off");
+          if (insertingWaypoint) insertSwitch("off");
+          if (creatingPoi) poiCreatorSwitch("off");
+        }}
+      />
+    {/if}
 
     <div class="map-footer">
       <p>{editorial}</p>
@@ -1445,7 +1781,14 @@
         {trail}
         {makingTrail}
         trailMakerSwitch={() => trailMakerSwitch(makingTrail ? "off" : "on")}
-        {newTrail}
+        newTrail={() => {
+          if (isMobileLayout) {
+            titleModalMode = "trail";
+            titleModalInitial = "Neuer Wanderweg";
+            titleModalOpen = true;
+          }
+          newTrail();
+        }}
         {trailFromDB}
         scheduleTrailSave={() => {
           if (loadingTrail > 0) return;
@@ -1467,6 +1810,8 @@
             deleteTrail(trailId);
             listofTrails = listofTrails.filter((trail) => trail.id !== trailId);
           }
+            newTrail();
+
         }}
       />
     {:else if editing === "poi"}
@@ -1512,7 +1857,7 @@
   </div>
 </div>
 
-<!--right-click menu for editing the trail -->
+<!--right-click / touch menu for editing the trail -->
 <ContextMenu
   open={showClickMenu}
   position={menuPos}
@@ -1520,9 +1865,25 @@
   bind:targetIndex={rightClickTargetIndex}
   markerCount={trailMarkers.length}
   isLoading={loadingTrail > 0}
+  {hasGeolocation}
   onDeleteWaypoint={deleteWaypoint}
   {insertSwitch}
   onContinueTrail={() => trailMakerSwitch("on")}
+  onMoveMarkerToGPS={moveMarkerToGPS}
+  onInsertMarkerAtGPS={insertMarkerAtGPS}
+  onClose={() => (showClickMenu = false)}
+/>
+
+<TitleModal
+  open={titleModalOpen}
+  mode={titleModalMode}
+  initialTitle={titleModalInitial}
+  {hasCamera}
+  onSubmit={handleTitleModalSubmit}
+  onClose={() => {
+    titleModalOpen = false;
+    pendingPoiLocation = null;
+  }}
 />
 
 <style>
@@ -1604,18 +1965,26 @@
     .alignment {
       flex-direction: column;
       height: auto;
-      min-height: min(70vh, 720px);
+      min-height: auto;
       overflow: visible;
+      gap: 12px;
+    }
+
+    .map-column {
+      flex: 0 0 auto;
+      width: 100%;
     }
 
     .ui-panel {
       width: 100%;
       flex-basis: auto;
       max-height: none;
+      overflow: visible;
     }
 
     #map {
-      height: min(60vh, 560px);
+      height: min(48vh, 420px);
+      min-height: 280px;
       width: 100%;
     }
   }

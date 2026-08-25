@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { fileToBase64 } from "$lib/util";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
 
@@ -45,6 +46,24 @@
 
   let sortCriteria = $state("trailPosition" as SortCriteria);
   let sortAscending = $state(true);
+  let hasCamera = $state(true);
+  let cameraInput = $state<HTMLInputElement | null>(null);
+
+  onMount(() => {
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.enumerateDevices) {
+      navigator.mediaDevices
+        .enumerateDevices()
+        .then((devices) => {
+          const videoDevices = devices.filter((d) => d.kind === "videoinput");
+          hasCamera = videoDevices.length > 0 || ("ontouchstart" in window);
+        })
+        .catch(() => {
+          hasCamera = typeof window !== "undefined" && "ontouchstart" in window;
+        });
+    } else {
+      hasCamera = typeof window !== "undefined" && "ontouchstart" in window;
+    }
+  });
 
   const currentImageUrl = $derived(poiList[heroPoi]?.imageUrl ?? "");
   const currentImageAlt = $derived(poiList[heroPoi]?.imageAlt ?? "POI Bild");
@@ -105,7 +124,6 @@
       sortAscending = !sortAscending;
     } else {
       sortCriteria = column;
-      sortAscending = true;
     }
   }
 
@@ -155,10 +173,29 @@
     ></textarea>
   </div>
   <div>
-    <label for="poiImage">Bild hochladen:</label>
+    <label for="poiImage">Bild hinzufügen:</label>
+    {#if hasCamera}
+      <button
+        type="button"
+        class="button secondary camera-action-btn"
+        disabled={poiList[heroPoi].id == ""}
+        onclick={() => cameraInput?.click()}
+      >
+        📷 Foto aufnehmen (Kamera)
+      </button>
+      <input
+        bind:this={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        class="hidden-file-input"
+        disabled={poiList[heroPoi].id == ""}
+        onchange={handleImageUpload}
+      />
+    {/if}
     <input
       id="poiImage"
-      class="block"
+      class="block file-input-block"
       type="file"
       accept="image/*"
       disabled={poiList[heroPoi].id == ""}
@@ -446,5 +483,16 @@
 
   .poi-image--loaded {
     opacity: 1;
+  }
+
+  .camera-action-btn {
+    margin-bottom: 8px;
+    background: var(--accent-surface-alt, #f5f7ff);
+    border-color: var(--accent-400, #818cf8);
+    color: var(--accent-900, #312e81);
+  }
+
+  .hidden-file-input {
+    display: none;
   }
 </style>

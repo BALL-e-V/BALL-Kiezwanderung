@@ -10,8 +10,10 @@
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import Asdf from "./asdf.svelte";
+  import Thing from "./thing.svelte"
 
   const session = authClient.useSession();
+  let displayThing =$state(false);
 
   async function deleteDeprecatedPoi() {
     const relationships = await allTrailPoiRealations();
@@ -103,6 +105,10 @@
   }
 </script>
 
+<button onclick={()=>displayThing=!displayThing}>thing</button>
+{#if displayThing}
+<Thing/>
+{/if}
 <h1 bind:this={reg}>Register</h1>
 <Asdf {registerColor} {reg}></Asdf>
 <label>
