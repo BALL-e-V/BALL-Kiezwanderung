@@ -25,7 +25,7 @@
     iconmaker,
     latlngsToDataobject,
     responseToLatlngs,
-    compareTrailPosition,
+    compareTrailPosition,fileToBase64
   } from "$lib/util";
   import { wanderwegErstellenConfig } from "$lib/config";
   import {
@@ -121,7 +121,7 @@
   let pathFailureVisible = $state(false);
   let failureTooltipMessage = $state("");
   let pathFailureTimer: ReturnType<typeof setTimeout> | undefined = $state();
-
+    let cameraInput = $state<HTMLInputElement | null>(null);
   let loadTrailQuery = $state(false);
 
   let showPoiEditor: boolean = $state(false);
@@ -275,7 +275,15 @@
 
   //clicking on the page stops displaying the right-click menu
   function onPageClick() {
-    showClickMenu = false;
+    if(showClickMenu){
+      showClickMenu = false;
+      if(rightClickTargetType === "marker" && rightClickTargetIndex >= 0 && rightClickTargetIndex < trailMarkers.length){
+        trailMarkers[rightClickTargetIndex].dragging?.enable();
+      } else if(rightClickTargetType === "poi" && rightClickTargetIndex >= 0 && rightClickTargetIndex < poiList.length){
+        poiList[rightClickTargetIndex].marker.dragging?.enable();
+      }
+  
+    }
   }
 
   function scheduleTrailSave() {
@@ -286,10 +294,22 @@
 
   //displaying the menu to add or remove markers from the trail
   function rightClickContextMenu(e: any) {
+
+    if(showClickMenu){
+      if(rightClickTargetType === "marker" && rightClickTargetIndex >= 0 && rightClickTargetIndex < trailMarkers.length){
+        trailMarkers[rightClickTargetIndex].dragging?.enable();
+      } else if(rightClickTargetType === "poi" && rightClickTargetIndex >= 0 && rightClickTargetIndex < poiList.length){
+        poiList[rightClickTargetIndex].marker.dragging?.enable();
+      }
+  
+    }
+
+
     showClickMenu = true;
     //checking if the target is one of the trailmarkers
     if (trailMarkers.indexOf(e.target) >= 0) {
       rightClickTargetIndex = trailMarkers.indexOf(e.target);
+      e.target.dragging?.disable();
       rightClickTargetType = "marker";
     } // checking if the target is a polyline in the trail
     else if (trail.indexOf(e.target) >= 0) {
@@ -297,6 +317,7 @@
       rightClickTargetType = "polyline";
     } else if (poiList.some((p) => p.marker === e.target)) {
       rightClickTargetIndex = poiList.findIndex((p) => p.marker === e.target);
+      e.target.dragging?.disable();
       rightClickTargetType = "poi";
     }
     menuPos = getEventScreenPos(e);
@@ -520,6 +541,17 @@
       map.panTo(latlng);
     } catch (err) {
       console.error("insertMarkerAtGPS failed:", err);
+    }
+  }
+  async function handleCameraImage(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || rightClickTargetIndex < 0) return;
+
+    try {
+      await imageToBlobstorage(await fileToBase64(file), file.name, rightClickTargetIndex);
+    } finally {
     }
   }
 
@@ -1878,9 +1910,7 @@
   onInsertMarkerAtGPS={insertMarkerAtGPS}
   hasCamera={hasCamera}
   canAddImage={rightClickTargetType === "poi" && rightClickTargetIndex >= 0 && poiList[rightClickTargetIndex]?.id !== ""}
-  onAddImageFromCamera={(content: string, name: string, index: number) =>
-    imageToBlobstorage(content, name, index)}
-  onClose={() => (showClickMenu = false)}
+  cameraInput={cameraInput}
 />
 
 <TitleModal
@@ -1894,7 +1924,14 @@
     pendingPoiLocation = null;
   }}
 />
-
+        <input
+          bind:this={cameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          class="hidden-file-input"
+          onchange={handleCameraImage}
+        />
 <style>
   .alignment {
     display: flex;
@@ -1996,5 +2033,8 @@
       min-height: 280px;
       width: 100%;
     }
+      .hidden-file-input {
+    display: none;
+  }
   }
 </style>
