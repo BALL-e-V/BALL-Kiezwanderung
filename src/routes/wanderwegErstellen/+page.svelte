@@ -9,7 +9,6 @@
     TileLayer,
     LatLngBounds,
     CircleMarker,
-    type LeafletEvent,
     type LeafletMouseEvent,
   } from "leaflet";
   import { getPath } from "./getPath.remote";
@@ -114,6 +113,7 @@
   let deleteQuery = $state(false);
   //<p> to display autor,editor and the times it happened
   let editorial = $state("Neu erstellter Wanderweg");
+  let trailEditorial = "";
   //index of the currently selected point of interest whose data is displayed and can be edited
   let heroPoi = $state(-1);
   //fisrt option in the lst of trails to let the user know
@@ -214,6 +214,8 @@
       });
       map.getContainer().style.cursor = "all-scroll";
       if (heroPoi >= 0) {
+        editorial = "Erstellt von "+poiList[heroPoi].author+ " am "+ poiList[heroPoi].created+ "editiert von "+poiList[heroPoi].editor+ " am "+ poiList[heroPoi].edited;
+
         poiList[heroPoi].marker.setIcon(
           iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }),
         );
@@ -231,12 +233,11 @@
       }
       editing = "poi";
     } else {
+      editorial = trailEditorial;
       //turning on trail interactivity
       trailMarkers.forEach((m) => {
         m.addTo(map);
-        m.on("dragend", (e) => {
-          moveTrail(e);
-        });
+        m.on("dragend", () => moveTrail(trailMarkers.indexOf(m)));
         m.on("contextmenu", (e) => rightClickContextMenu(e));
         m.on("click", (e) => {
           if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
@@ -257,7 +258,7 @@
       //turning off poi interactivity
       if (creatingPoi) {
         //if creatingPoi interactivity is already off
-        map.off("click", poiCreator);
+        map.off("click", poiCreatorClick);
         creatingPoi = false;
       } else {
         if (heroPoi >= 0) {
@@ -395,7 +396,7 @@
       if (trailMarkers.length === 0) {
         const firstMarker = new Marker(latlng, { draggable: true }).addTo(map);
         firstMarker.setIcon(iconmaker({ color: colors.trailStart, size: sizes.poiHero }));
-        firstMarker.on("dragend", moveTrail);
+        firstMarker.on("dragend", () => moveTrail(0));
         firstMarker.on("contextmenu", rightClickContextMenu);
         firstMarker.on("click", (e) => {
           if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
@@ -416,7 +417,7 @@
 
         const newMarker = new Marker(latlng, { draggable: true }).addTo(map);
         newMarker.setIcon(iconmaker({ color: colors.trailEnd, size: sizes.trailMarker }));
-        newMarker.on("dragend", moveTrail);
+        newMarker.on("dragend", () => moveTrail(trailMarkers.length));
         newMarker.on("contextmenu", rightClickContextMenu);
         newMarker.on("click", (e) => {
           if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
@@ -524,7 +525,7 @@
       const coords = await getUserGPSLocation();
       const latlng = new LatLng(coords.lat, coords.lng);
       trailMarkers[targetIndex].setLatLng(latlng);
-      await moveTrail({ target: trailMarkers[targetIndex] } as any);
+      await moveTrail(targetIndex);
       map.panTo(latlng);
     } catch (err) {
       console.error("moveMarkerToGPS failed:", err);
@@ -557,8 +558,8 @@
 
   //switch between editing trail and poi
 
-  function poiCreator(e: LeafletMouseEvent) {
-    poiList.push(new pointOfInterest(map, e.latlng));
+  function poiCreator(latlng: LatLng) {
+    poiList.push(new pointOfInterest(map, latlng));
     poiPositionUpdate = true;
     if (trail.length > 0) {
       poiList[poiList.length - 1].positionInTrail(trail);
@@ -573,6 +574,10 @@
     poiCreatorSwitch("off");
     poiToDatabase(heroPoi);
   }
+
+  function poiCreatorClick(e: LeafletMouseEvent) {
+    poiCreator(e.latlng);
+  }
   //function to switch the onclick for creating a new poi
   function poiCreatorSwitch(onOff: "on" | "off") {
     if (waitToSave) {
@@ -582,7 +587,7 @@
     }
     //i turn of poi interactivity while creating a new poi because its not needet and to have a visual indicator
     if (onOff === "off") {
-      map.off("click", poiCreator);
+      map.off("click", poiCreatorClick);
       map.off("pointermove");
       poiCreatorMarker.removeFrom(map);
       map.getContainer().style.cursor = "all-scroll";
@@ -609,7 +614,7 @@
         });
       }
     } else {
-      map.on("click", poiCreator);
+      map.on("click", poiCreatorClick);
       poiCreatorMarker.setLatLng({ lat: 0, lng: 0 }).addTo(map);
       map.on("pointermove", (e) => moveCreatorMarker(e));
       map.getContainer().style.cursor = "crosshair";
@@ -646,6 +651,7 @@
       }
     }
     heroPoi = poiList.findIndex((p) => p === poi);
+    editorial = "Erstellt von "+poiList[heroPoi].author+ " am "+ poiList[heroPoi].created+ "editiert von "+poiList[heroPoi].editor+ " am "+ poiList[heroPoi].edited;
     poi.marker.setIcon(iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }));
     const time = setTimeout(() => {
       poiList[heroPoi].marker.dragging?.enable();
@@ -733,9 +739,7 @@
       if (trailMarkers.length > 1) {
         //allow moving the trail by dragging markers and recoloring to indicate that
         trailMarkers.forEach((m) => {
-          m.on("dragend", (e) => {
-            moveTrail(e);
-          })
+          m.on("dragend", () => moveTrail(trailMarkers.indexOf(m)))
             .setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }))
             .dragging?.enable();
         });
@@ -836,12 +840,10 @@
 
 
   //function to move the trail by dragging markers, input is the number of the marker and the surrounding markers in the array
-  async function moveTrail(e: LeafletEvent) {
+  async function moveTrail(current: number) {
     trailUpdate = true;
 
     clearTimeout(waitToSave);
-    // finding the dragged marker and both around it in the array
-    let current = trailMarkers.indexOf(e.target);
     let next = current + 1;
     let previous = current - 1;
 
@@ -976,7 +978,7 @@
         trailMarkers[trailMarkers.length - 1]
           .setIcon(iconmaker({ color: colors.editing, size: sizes.activeTrailend }))
           .on("dragend", (e) => {
-            moveTrail(e);
+            moveTrail(trailMarkers.length - 1);
           })
           .dragging?.enable();
       } else {
@@ -1099,7 +1101,7 @@
       }
       trailMarkers.forEach((m) => {
         m.dragging?.enable;
-        m.on("dragend", (e) => moveTrail(e));
+        m.on("dragend", () => moveTrail(trailMarkers.indexOf(m)));
         m.on("contextmenu", (e) => rightClickContextMenu(e));
       });
       trail.forEach((t) =>
@@ -1151,7 +1153,7 @@
     );
     trailMarkers[rightClickTargetIndex + 1]
       .on("dragend", (e) => {
-        moveTrail(e);
+        moveTrail(rightClickTargetIndex + 1);
       })
       .on("contextmenu", (e) => rightClickContextMenu(e))
       .setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }))
@@ -1432,7 +1434,7 @@
         trailMarkers.forEach((m) => {
           m.addTo(map);
           m.on("contextmenu", (e) => rightClickContextMenu(e));
-          m.on("dragend", (e) => moveTrail(e));
+          m.on("dragend", () => moveTrail(trailMarkers.indexOf(m)));
           m.setIcon(iconmaker({ color: colors.movableMarker, size: sizes.trailMarker }));
         });
         trailMarkers[0].setIcon(
@@ -1448,7 +1450,7 @@
       }
       const author = result[0].author ? result[0].author : "gelöschter User";
       const editor = result[0].editor ? result[0].editor : "gelöschter User";
-      editorial =
+      trailEditorial =
         "erstellt: " +
         result[0].created.toLocaleString() +
         " von " +
@@ -1460,6 +1462,7 @@
         " Länge: " +
         Math.round(Number(result[0].length) / 100) / 10 +
         "km";
+        editorial=trailEditorial;
     }
     let pois;
     try {
@@ -1595,6 +1598,10 @@
     heroPoi: number,
   ) {
     if (heroPoi >= 0) {
+      if(poiList[heroPoi].id === "") {
+        let timer = setInterval(()=>{imageToBlobstorage(content, fileName, heroPoi); clearInterval(timer)}, 1000 );
+       
+      }else{
       let imageUrl;
       try {
         imageUrl = await saveImage({
@@ -1608,7 +1615,7 @@
       }
       if (imageUrl) {
         poiList[heroPoi].imageUrl = imageUrl;
-      }
+      }}
     } else {
       console.log("heroPoi is not defined");
     }
@@ -2033,8 +2040,8 @@
       min-height: 280px;
       width: 100%;
     }
-      .hidden-file-input {
+  
+  }.hidden-file-input {
     display: none;
-  }
   }
 </style>
