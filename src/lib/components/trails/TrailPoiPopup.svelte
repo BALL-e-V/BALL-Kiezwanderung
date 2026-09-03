@@ -46,6 +46,9 @@
   let activeImage = $derived(imageUrls[activeImageIndex] ?? "");
   let popupTitle = $derived(length > 0 ? `${title} · ${length} km` : title);
   let showPoiNavigation = $derived.by(() => isPoiSelection && poiCount > 1);
+  let separateImageAndDescription = $derived.by(
+    () => !showPoiNavigation && hasImages && !hasMultipleImages,
+  );
 
   function beginDrag(event: PointerEvent) {
     isDragging = true;
@@ -96,6 +99,7 @@
 
 <div
   class="trail-popup"
+  class:trail-popup--image-separated={separateImageAndDescription}
   style={`left:${position.x}px; top:${position.y}px;`}
   role="dialog"
   aria-modal="true"
@@ -199,7 +203,7 @@
           </div>
         {/if}
         <img
-          class="trail-popup__image trail-popup__image--single"
+          class="trail-popup__image trail-popup__image--single trail-popup__image--standalone"
           class:trail-popup__image--loaded={!isImageLoading}
           src={imageUrls[0]}
           alt={title}
@@ -211,7 +215,9 @@
   {/if}
 
   {#if description}
-    <div class="trail-popup__description">{description}</div>
+    <div class="trail-popup__content">
+      <div class="trail-popup__description">{description}</div>
+    </div>
   {/if}
 </div>
 
@@ -221,6 +227,9 @@
     z-index: 2500;
     width: min(92vw, 360px);
     max-width: 360px;
+    max-height: min(80vh, 560px);
+    display: flex;
+    flex-direction: column;
     border-radius: 0.85rem;
     background: rgba(255, 255, 255, 0.97);
     color: #1f2937;
@@ -311,10 +320,17 @@
     width: 100%;
     background: #f8fafc;
     overflow: hidden;
+    flex-shrink: 0;
   }
 
   .trail-popup__media .trail-popup__image-container {
     max-height: 220px;
+  }
+
+  .trail-popup__image--standalone {
+    display: block;
+    max-height: 260px;
+    border-bottom: 1px solid #e2e8f0;
   }
 
   .trail-popup__image-container:has(.trail-popup__image--single) {
@@ -384,9 +400,25 @@
     border-color: #94a3b8;
   }
 
+  .trail-popup__content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .trail-popup--image-separated .trail-popup__content {
+    border-top: none;
+    margin-top: 0;
+    max-height: min(32vh, 240px);
+    display: block;
+  }
+
   .trail-popup__description {
     padding: 0.9rem 1rem 1rem;
     line-height: 1.5;
     white-space: pre-wrap;
+    word-break: break-word;
   }
 </style>

@@ -21,7 +21,6 @@
     class="minimize-button"
     onclick={() => {
       isMinimized = !isMinimized;
-      console.log(trails, poiTitles);
     }}
     aria-label={isMinimized ? "Expand legend" : "Minimize legend"}
   >
@@ -54,6 +53,14 @@
           <div class="legend-title">{trail.title}</div>
         </div>
       {/each}
+      <div class="legend-item">
+        <div class="legend-marker start-marker"></div>
+        <div class="legend-title">Anfang eines Wanderwegs</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-marker end-marker"></div>
+        <div class="legend-title">Ende eines Wanderwegs</div>
+      </div>
       {#if poiTitles.length > 0}
         {#each poiTitles as title, index}
           <div class="legend-item">
@@ -132,6 +139,23 @@
     height: 4px;
     flex-shrink: 0;
     border-radius: 2px;
+  }
+
+  .legend-marker {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: 50% 50% 0;
+    border: 1px solid #000000;
+    transform: rotate(45deg);
+  }
+
+  .legend-marker.start-marker {
+    background-color: green;
+  }
+
+  .legend-marker.end-marker {
+    background-color: white;
   }
 
   .legend-title {

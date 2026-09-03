@@ -14,7 +14,7 @@
     lat: number;
     lng: number;
     //serial uuid assigned by the database
-    id = "";
+    id = $state("");
     //leaflet marker to display the poi on the map and for interaction
     marker: Marker;
     // the position of the polyline in trail, and the position of the latlng in the latlng array of the polyline which is closest to the point of interest

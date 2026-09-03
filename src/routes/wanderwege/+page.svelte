@@ -1,5 +1,7 @@
 <script lang="ts">
   import "leaflet/dist/leaflet.css";
+  import domtoimage from "dom-to-image-more"
+  import { jsPDF } from "jspdf"
   import {
     fetchTrails,
     initialLoadTrails,
@@ -11,6 +13,7 @@
     Polyline,
     LatLngBounds,
     LatLng,
+    Marker,
   } from "leaflet";
   import TrailPoiTooltip from "$lib/components/trails/TrailPoiTooltip.svelte";
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
@@ -18,6 +21,7 @@
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
   import { compareTrailPosition, iconmaker } from "$lib/util";
   import { wanderwegeConfig } from "$lib/config";
+  import { onMount } from "svelte";
   const {
     colors,
     tooltipSignCount,
@@ -72,6 +76,8 @@
     loading: boolean;
     length?: number;
     imageAlt?: string;
+    startMarker:Marker|null;
+    endMarker:Marker|null;
   }
 
   let trailList: hikingTrail[] = $state([]);
@@ -87,8 +93,17 @@
 
   //count of trails that have been displayed for color selection
   let trailCount = 0;
+  let isPrinting = $state(false);
   //covering the map to stop interaction during loading
   let mapCover: HTMLElement;
+  let printMapElement: HTMLDivElement;
+  let printMap: LeafletMap;
+  let printMapMarkers:Marker[]=[];
+  let trailBoundsRatio:number;
+  let printHikingTrail:Polyline;
+
+
+
 
   function trailColor() {
     return colors.trailPalette[trailCount++ % colors.trailPalette.length];
@@ -211,11 +226,21 @@
       trailDownSwitch(trail, "off");
       trail.trail?.removeFrom(map);
       trail.display = false;
+      trail.startMarker?.removeFrom(map);
+      trail.endMarker?.removeFrom(map);
+      trail.startMarker = null;
+      trail.endMarker = null;
     } else {
       trail.trail?.addTo(map);
       trailHoverSwitch(trail, "on");
       trailDownSwitch(trail, "on");
       trail.display = true;
+      trail.startMarker = new Marker(trail.start, {
+        icon: iconmaker({ color: "green", size: 1})
+      }).addTo(map)
+      trail.endMarker = new Marker(trail.end, {
+        icon: iconmaker({ color: "white", size: 1  }),
+      }).addTo(map);
     }
   }
 
@@ -310,6 +335,7 @@
       console.error(`Failed to load POIs for trail ${trailId}:`, error);
     }
     popupSwitch({ trail });
+    configurePrintMap(trail)
     mapCover.style.display = "none";
   }
 
@@ -470,6 +496,7 @@
       //if no mouse is used, turn the click handler  into a double tap to trigger this function
 
       focussedTrail = trail;
+
       map.fitBounds(trail.bounds);
       map.off("moveend", handleMapmove);
       trailList.forEach((t) => {
@@ -486,11 +513,42 @@
           markerDownSwitch(poi, "on");
           poiTitles.push(poi.title);
         });
+              configurePrintMap(trail)
         popupSwitch({ trail });
       } else {
         loadTrailPOIs(trail);
       }
     }
+  }
+
+  function reverseTrail(trail: hikingTrail) {
+    // Reverse the POIs for this trail
+    const pois = poisByTrailId.get(trail.id);
+    if (pois) {
+      pois.reverse();
+      // Update the marker icons with new numbers
+      pois.forEach((p, i) => {
+        p.marker.setIcon(iconmaker({ color: "yellow", size: 2, number: i + 1, id: p.id }));
+      });
+    }
+
+    // Swap start and end coordinates
+    const tempStart = trail.start;
+    trail.start = trail.end;
+    trail.end = tempStart;
+
+    // Remove old markers
+    trail.startMarker?.removeFrom(map);
+    trail.endMarker?.removeFrom(map);
+
+    // Recreate markers with swapped positions
+    trail.startMarker = new Marker(trail.start, {
+      icon: iconmaker({ color: "green", size: 1 })
+    }).addTo(map);
+
+    trail.endMarker = new Marker(trail.end, {
+      icon: iconmaker({ color: "white", size: 1 })
+    }).addTo(map);
   }
 
   function popupSwitch({
@@ -607,13 +665,398 @@
     }
   }
 
+  function createPrintMap(){
+    
+    printMap = new LeafletMap(printMapElement,{ zoomControl: false }).setView(
+      initialMapCoordinates,
+      initialMapZoom,
+    )
+    const tiles = new TileLayer(
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png?b",
+
+      {
+        maxZoom: 19,
+    tileSize: 512,
+    zoomOffset: -1,
+        attribution:
+          '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      },
+    ).addTo(printMap)
+    printHikingTrail = new Polyline([]).addTo(printMap);
+  }
+
+  function configurePrintMap(trail:hikingTrail){
+
+    trailBoundsRatio =
+      trail.bounds.getNorthEast().distanceTo(trail.bounds.getNorthWest()) /
+      trail.bounds.getNorthEast().distanceTo(trail.bounds.getSouthEast());
+
+    const pixelsPerMm = 200 / 25.4;
+    let printWidthMm = 100;
+    let printHeightMm = 287;
+
+    if (trailBoundsRatio < 0.3) {
+      printWidthMm = 100;
+      printHeightMm = 287;
+    } else if (trailBoundsRatio < 1) {
+      printWidthMm = 140;
+      printHeightMm = 185;
+    } else if (trailBoundsRatio < 3) {
+      printWidthMm = 185;
+      printHeightMm = 140;
+    } else {
+      printWidthMm = 287;
+      printHeightMm = 100;
+    }
+    printHikingTrail.setLatLngs(trail.trail?.getLatLngs()??[]).setStyle({color:trail.color,weight:3})
+
+    printMapElement.style.width = `${printWidthMm * pixelsPerMm}px`;
+    printMapElement.style.height = `${printHeightMm * pixelsPerMm}px`;
+    printMap?.invalidateSize();
+    printMap?.fitBounds(trail.bounds)
+    printMapMarkers.forEach((m)=>{
+      m.remove();
+      m= null as any;
+    })
+    printMapMarkers = [];
+    printMapMarkers.push(new Marker(trail.start).setIcon(iconmaker({size:2,color:"white"})).addTo(printMap))
+      poisByTrailId.get(trail.id)?.forEach((p,i)=>
+        printMapMarkers.push(new Marker({lat:p.lat,lng:p.lng}).setIcon(iconmaker({size:3,color:"yellow",number:i+1})).addTo(printMap))
+      )
+    printMapMarkers.push(new Marker(trail.end).setIcon(iconmaker({size:2,color:"green"})).addTo(printMap))
+   
+  }
+
+  async function fetchImageData(imageUrl: string) {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith("data:")) return imageUrl;
+
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+ 
+  async function printTrail(){
+    if (isPrinting || !focussedTrail || !printMapElement) return;
+
+    isPrinting = true;
+
+    try {
+      const dataUrl = await domtoimage.toJpeg(printMapElement,{quality: 1, bgcolor: "white"});
+      const descriptionLineHeight = 5;
+      let doc: jsPDF;
+      let pageLeftMargin = 5;
+      let pageTopMargin = 5;
+      let imgX = pageLeftMargin;
+      let imgY = pageTopMargin;
+      let imgW = 100;
+      let imgH = 287;
+      let textX = pageLeftMargin;
+      let textY = pageTopMargin;
+      let textWidth = 190;
+      let pageWidth = 210;
+      let pageHeight = 297;
+
+      if (trailBoundsRatio < 0.3) {
+        doc = new jsPDF({ unit: "mm" });
+        pageWidth = doc.internal.pageSize.getWidth();
+        pageHeight = doc.internal.pageSize.getHeight();
+        pageLeftMargin = 20;
+        pageTopMargin = 5;
+        imgX = pageLeftMargin;
+        imgY = pageTopMargin;
+        imgW = 100;
+        imgH = 287;
+        textX = imgX + imgW + 10;
+        textY = imgY;
+        textWidth = Math.max(50, pageWidth - textX - 5);
+      } else if (trailBoundsRatio < 1) {
+        doc = new jsPDF({ orientation: "l", unit: "mm" });
+        pageWidth = doc.internal.pageSize.getWidth();
+        pageHeight = doc.internal.pageSize.getHeight();
+        pageLeftMargin = 5;
+        pageTopMargin = 20;
+        imgX = pageLeftMargin;
+        imgY = pageTopMargin;
+        imgW = 140;
+        imgH = 185;
+        textX = imgX + imgW + 10;
+        textY = imgY;
+        textWidth = Math.max(50, pageWidth - textX - 5);
+      } else if (trailBoundsRatio < 3) {
+        doc = new jsPDF({ unit: "mm" });
+        pageWidth = doc.internal.pageSize.getWidth();
+        pageHeight = doc.internal.pageSize.getHeight();
+        pageLeftMargin = 20;
+        pageTopMargin = 5;
+        imgX = pageLeftMargin;
+        imgY = pageTopMargin;
+        imgW = 185;
+        imgH = 140;
+        textX = pageLeftMargin;
+        textY = imgY + imgH+3;
+        textWidth = pageWidth - pageLeftMargin * 2;
+      } else {
+        doc = new jsPDF({ orientation: "l", unit: "mm" });
+        pageWidth = doc.internal.pageSize.getWidth();
+        pageHeight = doc.internal.pageSize.getHeight();
+        pageLeftMargin = 5;
+        pageTopMargin = 20;
+        imgX = pageLeftMargin;
+        imgY = pageTopMargin;
+        imgW = 287;
+        imgH = 100;
+        textX = pageLeftMargin;
+        textY = imgY + imgH+3;
+        textWidth = pageWidth - pageLeftMargin * 2;
+      }
+
+      const titleText = (focussedTrail.title || "Wanderweg").trim();
+      const descriptionText = (focussedTrail.description || "Keine Beschreibung verfügbar.").trim();
+
+      doc.addImage(dataUrl, "JPEG", imgX, imgY, imgW, imgH);
+
+      doc.setTextColor(30, 30, 30);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      const titleLines = doc.splitTextToSize(titleText, textWidth);
+      const titleHeight = titleLines.length * 7;
+      doc.text(titleLines, textX, textY + 7);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+
+      const descriptionStartY = textY + titleHeight + 8;
+      const firstPageBottomMargin = 5;
+      const firstPageLineLimit = Math.max(
+        1,
+        Math.floor((pageHeight - firstPageBottomMargin - descriptionStartY) / descriptionLineHeight) + 1,
+      );
+
+      const splitFirstPageText = (text: string, width: number, lineLimit: number) => {
+        const firstPageLines: string[] = [];
+        const remainingSourceLines: string[] = [];
+        let pageIsFull = false;
+
+        for (const sourceLine of text.split(/\r?\n/)) {
+          const wrappedLines = sourceLine
+            ? doc.splitTextToSize(sourceLine, width)
+            : [""];
+
+          if (pageIsFull) {
+            remainingSourceLines.push(sourceLine);
+            continue;
+          }
+
+          const availableLines = lineLimit - firstPageLines.length;
+          firstPageLines.push(...wrappedLines.slice(0, availableLines));
+          if (wrappedLines.length > availableLines) {
+            remainingSourceLines.push(wrappedLines.slice(availableLines).join(" "));
+          }
+          pageIsFull = firstPageLines.length >= lineLimit;
+        }
+
+        return { firstPageLines, remainingSourceLines };
+      };
+
+      const { firstPageLines, remainingSourceLines } = splitFirstPageText(
+        descriptionText,
+        textWidth,
+        firstPageLineLimit,
+      );
+      doc.text(firstPageLines, textX, descriptionStartY);
+      let nextContentY = descriptionStartY + firstPageLines.length * descriptionLineHeight + 8;
+
+      if (remainingSourceLines.some((line) => line.trim())) {
+        const continuationRightMargin = 5;
+        const continuationBottomMargin = 5;
+        const continuationTextWidth = doc.internal.pageSize.getWidth() - pageLeftMargin - continuationRightMargin;
+
+        const addContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
+          doc.addPage();
+          let currentY = topMargin;
+          doc.setTextColor(30, 30, 30);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(18);
+          const titleLines = doc.splitTextToSize(titleText, textWidth);
+          doc.text(titleLines, leftMargin, currentY+7);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(11);
+          currentY += titleLines.length * 7 + 10;
+          return currentY;
+        };
+
+        const splitContinuationText = (sourceLines: string[], width: number, lineLimit: number) => {
+          const textLines = sourceLines.flatMap((line) =>
+            line ? doc.splitTextToSize(line, width) : [""],
+          );
+          const pages: string[][] = [];
+          let remaining = textLines;
+
+          while (remaining.length > 0) {
+            pages.push(remaining.slice(0, lineLimit));
+            remaining = remaining.slice(lineLimit);
+          }
+
+          return pages;
+        };
+
+        const drawContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
+          let currentY = addContinuationPage(leftMargin, topMargin, textWidth);
+          const maxLines = Math.max(1, Math.floor((doc.internal.pageSize.getHeight() - currentY - continuationBottomMargin) / descriptionLineHeight) + 1);
+          const continuationPages = splitContinuationText(remainingSourceLines, textWidth, maxLines);
+
+          continuationPages.forEach((chunk, index) => {
+            doc.text(chunk, leftMargin, currentY);
+
+            if (index < continuationPages.length - 1) {
+              currentY = addContinuationPage(leftMargin, topMargin, textWidth);
+            }
+          });
+          return currentY + (continuationPages.at(-1)?.length ?? 0) * descriptionLineHeight + 8;
+        };
+
+        nextContentY = drawContinuationPage(
+          pageLeftMargin,
+          pageTopMargin,
+          continuationTextWidth,
+        );
+      }
+
+      const trailPois = poisByTrailId.get(focussedTrail.id) ?? [];
+      const poiLineHeight = 4.5;
+      const poiImageArea = 60 * 45;
+      const poiRightMargin = pageWidth - (textX + textWidth);
+      const poiBottomMargin = firstPageBottomMargin;
+      let poiY = Math.max(nextContentY, pageTopMargin);
+
+      for (const [index, poi] of trailPois.entries()) {
+        const poiImage = await fetchImageData(poi.imageUrl);
+        const imageGap = 8;
+        const imageProperties = poiImage ? doc.getImageProperties(poiImage) : null;
+        const imageRatio = imageProperties
+          ? imageProperties.width / imageProperties.height
+          : 60 / 45;
+        const poiImageWidth = Math.sqrt(poiImageArea * imageRatio);
+        const poiImageHeight = poiImageArea / poiImageWidth;
+        const sideTextX = pageLeftMargin + poiImageWidth + imageGap;
+        const sideTextWidth = pageWidth - sideTextX - poiRightMargin;
+        const fullTextWidth = pageWidth - pageLeftMargin - poiRightMargin;
+        const poiTitle = `${index + 1}. ${(poi.title || "Foto").trim()}`;
+        const poiDescription = (poi.description || "Keine Beschreibung verfügbar.").trim();
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        const poiTitleLines = doc.splitTextToSize(poiTitle, sideTextWidth);
+        const poiBlockHeight = Math.max(
+          poiImageHeight,
+          poiTitleLines.length * 6 + 4,
+        );
+        if (poiY + poiBlockHeight > pageHeight - poiBottomMargin) {
+          doc.addPage();
+          poiY = pageTopMargin;
+        }
+
+        const imageY = poiY;
+        const textY = poiY;
+        if (poiImage && imageProperties) {
+          doc.addImage(
+            poiImage,
+            imageProperties.fileType,
+            pageLeftMargin,
+            imageY,
+            poiImageWidth,
+            poiImageHeight,
+          );
+        }
+
+        doc.setTextColor(30, 30, 30);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(poiTitleLines, sideTextX, textY + 6);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const poiDescriptionStartY = textY + poiTitleLines.length * 6 + 4;
+        const sideLineLimit = Math.max(
+          0,
+          Math.floor((poiImageHeight - (poiDescriptionStartY - textY)) / poiLineHeight),
+        );
+        const sideLines: string[] = [];
+        const remainingPoiSourceLines: string[] = [];
+        let sideIsFull = false;
+
+        for (const sourceLine of poiDescription.split(/\r?\n/)) {
+          const wrappedLines = sourceLine
+            ? doc.splitTextToSize(sourceLine, sideTextWidth)
+            : [""];
+          if (sideIsFull) {
+            remainingPoiSourceLines.push(sourceLine);
+            continue;
+          }
+          const availableLines = sideLineLimit - sideLines.length;
+          sideLines.push(...wrappedLines.slice(0, availableLines));
+          if (wrappedLines.length > availableLines) {
+            remainingPoiSourceLines.push(wrappedLines.slice(availableLines).join(" "));
+          }
+          sideIsFull = sideLines.length >= sideLineLimit;
+        }
+
+        if (sideLines.length > 0) {
+          doc.text(sideLines, sideTextX, poiDescriptionStartY);
+        }
+
+        const fullWidthStartY = imageY + poiImageHeight + 7;
+        const fullWidthLines = remainingPoiSourceLines.flatMap((line) =>
+          line ? doc.splitTextToSize(line, fullTextWidth) : [""],
+        );
+        let remainingFullWidthLines = fullWidthLines;
+        let currentY = fullWidthStartY;
+        let fullWidthEndY = fullWidthStartY;
+        while (remainingFullWidthLines.length > 0) {
+          const fullWidthLineLimit = Math.max(
+            1,
+            Math.floor((pageHeight - poiBottomMargin - currentY) / poiLineHeight) + 1,
+          );
+          const pageLines = remainingFullWidthLines.slice(0, fullWidthLineLimit);
+          doc.text(pageLines, pageLeftMargin, currentY);
+          fullWidthEndY = currentY + pageLines.length * poiLineHeight;
+          remainingFullWidthLines = remainingFullWidthLines.slice(fullWidthLineLimit);
+          if (remainingFullWidthLines.length > 0) {
+            doc.addPage();
+            currentY = pageTopMargin;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+          }
+        }
+        poiY = fullWidthLines.length > 0
+          ? fullWidthEndY + 8
+          : imageY + poiBlockHeight + 8;
+      }
+
+      doc.save(`${focussedTrail.title || "wanderweg"}.pdf`);
+    } finally {
+      isPrinting = false;
+    }
+  }
+
   function createMap(element: any) {
     map = new LeafletMap(element, { renderer: addPadding }).setView(
       initialMapCoordinates,
       initialMapZoom,
     );
     const tiles = new TileLayer(
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png?a",
 
       {
         maxZoom: 19,
@@ -639,18 +1082,46 @@
       },
     };
   }
+  onMount(createPrintMap)
 </script>
+
+<div class="print-map-shell" aria-hidden="true">
+  <div id="printMap" bind:this={printMapElement}></div>
+</div>
 
 <div class="alignment">
   <div class="map-container">
     <div id="map" use:createMap>
       <div class="leaflet-top leaflet-right">
         {#if focussedTrail}
-          <button
-            style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
-            onpointerdown={(e) => focusTrailSwitch(focussedTrail, "off")}
-            >Zurück</button
-          >{/if}
+          <div style="display: flex; gap: 8px; align-items: center;">
+             <button
+              type="button"
+              class="print-button"
+              disabled={isPrinting}
+              aria-label={isPrinting ? "Druck wird vorbereitet" : "Trail drucken"}
+              aria-busy={isPrinting}
+              style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
+              onpointerdown={(e) => { e.stopPropagation(); printTrail(); }}
+              >
+                {#if isPrinting}
+                  <span class="print-spinner" aria-hidden="true"></span>
+                {:else}
+                  <span aria-hidden="true">🖶</span>
+                {/if}
+              </button>
+            <button
+              style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
+              onpointerdown={(e) => { e.stopPropagation(); reverseTrail(focussedTrail); }}
+              >Umkehren</button
+            >
+            <button
+              style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
+              onpointerdown={(e) => { e.stopPropagation(); focusTrailSwitch(focussedTrail, "off"); }}
+              >Zurück</button
+            >
+          </div>
+        {/if}
       </div>
     </div>
     <div class="map-overlay" bind:this={mapCover}></div>
@@ -672,6 +1143,23 @@
 </div>
 
 <style>
+  .print-map-shell {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  #printMap {
+    width: 1000px;
+    height: 1000px;
+    visibility: hidden;
+  }
+
   .map-container {
     position: relative;
     display: flex;
@@ -713,6 +1201,35 @@
     min-height: 0;
     width: 100%;
     height: 100%;
+  }
+
+  .print-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 36px;
+  }
+
+  .print-button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .print-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(51, 51, 51, 0.25);
+    border-top-color: #333;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   :global(.content-area) {

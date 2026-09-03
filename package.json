@@ -53,6 +53,8 @@
 		"@pnpm/exe": "^10.34.5",
 		"@tailwindcss/vite": "^4.3.3",
 		"@vercel/blob": "^2.6.1",
+		"dom-to-image-more": "^3.10.2",
+		"jspdf": "^4.2.1",
 		"mysql": "^2.18.1",
 		"mysql-server": "^1.0.5",
 		"mysql2": "^3.23.1",

@@ -41,9 +41,13 @@
   const tooltipStyle = $derived(
     `left:${placement === "right" ? x + offsetX : x - offsetX}px; top:${resolvedY}px; transform:${placement === "left" ? "translateX(-100%)" : "none"}`,
   );
+
+  const tooltipClass = $derived(
+    imageUrl ? "trail-tooltip trail-tooltip--with-image" : "trail-tooltip",
+  );
 </script>
 
-<div class="trail-tooltip" style={tooltipStyle} role="tooltip">
+<div class={tooltipClass} style={tooltipStyle} role="tooltip">
   {#if imageUrl}
     <div class="trail-tooltip__image-container">
       {#if isImageLoading}
@@ -86,6 +90,14 @@
     white-space: pre-wrap;
     display: grid;
     gap: 0.6rem;
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .trail-tooltip--with-image {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
   }
 
   .trail-tooltip__title {
@@ -146,6 +158,8 @@
 
   .trail-tooltip__content {
     min-width: 0;
+    width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .trail-tooltip__excerpt {

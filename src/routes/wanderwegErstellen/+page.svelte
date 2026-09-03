@@ -213,8 +213,9 @@
         p.marker.on("contextmenu", (e) => rightClickContextMenu(e));
       });
       map.getContainer().style.cursor = "all-scroll";
+
       if (heroPoi >= 0) {
-        editorial = "Erstellt von "+poiList[heroPoi].author+ " am "+ poiList[heroPoi].created+ "editiert von "+poiList[heroPoi].editor+ " am "+ poiList[heroPoi].edited;
+        editorial = "Erstellt von "+poiList[heroPoi].author+ " am "+ poiList[heroPoi].created.toLocaleString()+ " editiert von "+poiList[heroPoi].editor+ " am "+ poiList[heroPoi].edited.toLocaleString();
 
         poiList[heroPoi].marker.setIcon(
           iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }),
@@ -651,7 +652,7 @@
       }
     }
     heroPoi = poiList.findIndex((p) => p === poi);
-    editorial = "Erstellt von "+poiList[heroPoi].author+ " am "+ poiList[heroPoi].created+ "editiert von "+poiList[heroPoi].editor+ " am "+ poiList[heroPoi].edited;
+    editorial = "Erstellt von "+poiList[heroPoi].author+ " am "+ poiList[heroPoi].created.toLocaleString()+ " editiert von "+poiList[heroPoi].editor+ " am "+ poiList[heroPoi].edited.toLocaleString();
     poi.marker.setIcon(iconmaker({ color: colors.editing, size: sizes.poiHero, number: heroPoi + 1 }));
     const time = setTimeout(() => {
       poiList[heroPoi].marker.dragging?.enable();
@@ -1274,11 +1275,15 @@
         for (let i = 0; i < latlngs.length - 2; i++) {
           length += latlngs[i].distanceTo(latlngs[i + 1]);
         }
-        startLat = latlngs[0].lat as number;
-        startLng = latlngs[0].lng as number;
-        endLat = latlngs[latlngs.length - 1].lat as number;
-        endLng = latlngs[latlngs.length - 1].lng as number;
       });
+        startLat = (trail[0].getLatLngs() as LatLng[])[0].lat as number;
+        startLng = (trail[0].getLatLngs() as LatLng[])[0].lng as number;
+        endLat = (trail[trail.length - 1].getLatLngs() as LatLng[])[
+          (trail[trail.length - 1].getLatLngs() as LatLng[]).length - 1
+        ].lat as number;
+        endLng = (trail[trail.length - 1].getLatLngs() as LatLng[])[
+          (trail[trail.length - 1].getLatLngs() as LatLng[]).length - 1
+        ].lng as number;
     } else {
       bounds = map.getBounds();
     }
@@ -1348,7 +1353,7 @@
     } else {
       //updating the position in the list if the title was changed
       let index = listofTrails.findIndex((t) => t.id == trailData.id);
-      listofTrails[index].published = trailData.published;
+      listofTrails[index].published = published;
       if (listofTrails[index].title != trailData.title) {
         listofTrails.splice(index, 1);
         let i = 0;
