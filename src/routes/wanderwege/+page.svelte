@@ -30,6 +30,7 @@
     addPadding,
     trailLengthAccuracy,
     longTapDelay,
+    print: printConfig,
   } = wanderwegeConfig;
 
   let map: LeafletMap;
@@ -719,11 +720,11 @@
       m= null as any;
     })
     printMapMarkers = [];
-    printMapMarkers.push(new Marker(trail.start).setIcon(iconmaker({size:2,color:"white"})).addTo(printMap))
+    printMapMarkers.push(new Marker(trail.start).setIcon(iconmaker({size: printConfig.startEndSize, color: colors.trailEnd})).addTo(printMap))
       poisByTrailId.get(trail.id)?.forEach((p,i)=>
-        printMapMarkers.push(new Marker({lat:p.lat,lng:p.lng}).setIcon(iconmaker({size:3,color:"yellow",number:i+1})).addTo(printMap))
+        printMapMarkers.push(new Marker({lat:p.lat,lng:p.lng}).setIcon(iconmaker({size: printConfig.poiSize, color: colors.poi, number:i+1})).addTo(printMap))
       )
-    printMapMarkers.push(new Marker(trail.end).setIcon(iconmaker({size:2,color:"green"})).addTo(printMap))
+    printMapMarkers.push(new Marker(trail.end).setIcon(iconmaker({size: printConfig.startEndSize, color: colors.trailStart})).addTo(printMap))
    
   }
 
@@ -753,7 +754,7 @@
 
     try {
       const dataUrl = await domtoimage.toJpeg(printMapElement,{quality: 1, bgcolor: "white"});
-      const descriptionLineHeight = 5;
+      const descriptionLineHeight = printConfig.descriptionFontSize * (5 / 12);
       let doc: jsPDF;
       let pageLeftMargin = 5;
       let pageTopMargin = 5;
@@ -804,7 +805,7 @@
         imgW = 185;
         imgH = 140;
         textX = pageLeftMargin;
-        textY = imgY + imgH+3;
+        textY = imgY + imgH + printConfig.margins.mapContent;
         textWidth = pageWidth - pageLeftMargin * 2;
       } else {
         doc = new jsPDF({ orientation: "l", unit: "mm" });
@@ -817,26 +818,38 @@
         imgW = 287;
         imgH = 100;
         textX = pageLeftMargin;
-        textY = imgY + imgH+3;
+        textY = imgY + imgH + printConfig.margins.mapContent;
         textWidth = pageWidth - pageLeftMargin * 2;
       }
 
       const titleText = (focussedTrail.title || "Wanderweg").trim();
       const descriptionText = (focussedTrail.description || "Keine Beschreibung verfügbar.").trim();
+      const continuationRightMargin = 5;
+      const continuationBottomMargin = 5;
+      const addContinuationNotice = (noticeX = pageLeftMargin) => {
+        doc.setTextColor(30, 30, 30);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text(
+          "Auf der nächsten Seite weiter -->",
+          noticeX,
+          pageHeight - continuationBottomMargin,
+        );
+      };
 
       doc.addImage(dataUrl, "JPEG", imgX, imgY, imgW, imgH);
 
       doc.setTextColor(30, 30, 30);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
+      doc.setFontSize(printConfig.trailTitleFontSize);
       const titleLines = doc.splitTextToSize(titleText, textWidth);
       const titleHeight = titleLines.length * 7;
       doc.text(titleLines, textX, textY + 7);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
+      doc.setFontSize(printConfig.descriptionFontSize);
 
-      const descriptionStartY = textY + titleHeight + 8;
+      const descriptionStartY = textY + titleHeight + printConfig.margins.titleDescription;
       const firstPageBottomMargin = 5;
       const firstPageLineLimit = Math.max(
         1,
@@ -875,24 +888,24 @@
         firstPageLineLimit,
       );
       doc.text(firstPageLines, textX, descriptionStartY);
-      let nextContentY = descriptionStartY + firstPageLines.length * descriptionLineHeight + 8;
+      let nextContentY = descriptionStartY + firstPageLines.length * descriptionLineHeight + printConfig.margins.contentBlock;
 
       if (remainingSourceLines.some((line) => line.trim())) {
-        const continuationRightMargin = 5;
-        const continuationBottomMargin = 5;
+        addContinuationNotice(textX);
         const continuationTextWidth = doc.internal.pageSize.getWidth() - pageLeftMargin - continuationRightMargin;
 
         const addContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
+          addContinuationNotice(leftMargin);
           doc.addPage();
           let currentY = topMargin;
           doc.setTextColor(30, 30, 30);
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(18);
+          doc.setFontSize(printConfig.trailTitleFontSize);
           const titleLines = doc.splitTextToSize(titleText, textWidth);
           doc.text(titleLines, leftMargin, currentY+7);
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(11);
-          currentY += titleLines.length * 7 + 10;
+          doc.setFontSize(printConfig.descriptionFontSize);
+          currentY += titleLines.length * 7 + printConfig.margins.continuationTitleDescription;
           return currentY;
         };
 
@@ -923,7 +936,7 @@
               currentY = addContinuationPage(leftMargin, topMargin, textWidth);
             }
           });
-          return currentY + (continuationPages.at(-1)?.length ?? 0) * descriptionLineHeight + 8;
+          return currentY + (continuationPages.at(-1)?.length ?? 0) * descriptionLineHeight + printConfig.margins.contentBlock;
         };
 
         nextContentY = drawContinuationPage(
@@ -934,15 +947,15 @@
       }
 
       const trailPois = poisByTrailId.get(focussedTrail.id) ?? [];
-      const poiLineHeight = 4.5;
-      const poiImageArea = 60 * 45;
+      const poiLineHeight = printConfig.descriptionFontSize * (5 / 12);
+      const poiImageArea = printConfig.poiImageArea;
       const poiRightMargin = pageWidth - (textX + textWidth);
       const poiBottomMargin = firstPageBottomMargin;
       let poiY = Math.max(nextContentY, pageTopMargin);
 
       for (const [index, poi] of trailPois.entries()) {
         const poiImage = await fetchImageData(poi.imageUrl);
-        const imageGap = 8;
+        const imageGap = printConfig.margins.imageText;
         const imageProperties = poiImage ? doc.getImageProperties(poiImage) : null;
         const imageRatio = imageProperties
           ? imageProperties.width / imageProperties.height
@@ -956,11 +969,11 @@
         const poiDescription = (poi.description || "Keine Beschreibung verfügbar.").trim();
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
+        doc.setFontSize(printConfig.poiTitleFontSize);
         const poiTitleLines = doc.splitTextToSize(poiTitle, sideTextWidth);
         const poiBlockHeight = Math.max(
           poiImageHeight,
-          poiTitleLines.length * 6 + 4,
+          poiTitleLines.length * printConfig.poiTitleFontSize*(5/12) + printConfig.margins.poiTitle,
         );
         if (poiY + poiBlockHeight > pageHeight - poiBottomMargin) {
           doc.addPage();
@@ -982,15 +995,15 @@
 
         doc.setTextColor(30, 30, 30);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
+        doc.setFontSize(printConfig.poiTitleFontSize);
         doc.text(poiTitleLines, sideTextX, textY + 6);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        const poiDescriptionStartY = textY + poiTitleLines.length * 6 + 4;
+        doc.setFontSize(printConfig.descriptionFontSize);
+        const poiDescriptionStartY = textY + poiTitleLines.length * printConfig.poiTitleFontSize*(5/12) + descriptionLineHeight + printConfig.margins.poiDescription;
         const sideLineLimit = Math.max(
           0,
-          Math.floor((poiImageHeight - (poiDescriptionStartY - textY)) / poiLineHeight),
+          Math.ceil((poiImageHeight - (poiDescriptionStartY - textY)) / poiLineHeight),
         );
         const sideLines: string[] = [];
         const remainingPoiSourceLines: string[] = [];
@@ -1016,32 +1029,43 @@
           doc.text(sideLines, sideTextX, poiDescriptionStartY);
         }
 
-        const fullWidthStartY = imageY + poiImageHeight + 7;
+        const fullWidthStartY = imageY + poiImageHeight + printConfig.margins.imageDescription;
         const fullWidthLines = remainingPoiSourceLines.flatMap((line) =>
           line ? doc.splitTextToSize(line, fullTextWidth) : [""],
         );
         let remainingFullWidthLines = fullWidthLines;
         let currentY = fullWidthStartY;
         let fullWidthEndY = fullWidthStartY;
+        if (
+          remainingFullWidthLines.length > 0 &&
+          fullWidthStartY > pageHeight - poiBottomMargin
+        ) {
+          addContinuationNotice(sideTextX);
+          doc.addPage();
+          currentY = pageTopMargin;
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(printConfig.descriptionFontSize);
+        }
         while (remainingFullWidthLines.length > 0) {
           const fullWidthLineLimit = Math.max(
             1,
-            Math.floor((pageHeight - poiBottomMargin - currentY) / poiLineHeight) + 1,
+            Math.floor((pageHeight - poiBottomMargin - currentY) / poiLineHeight),
           );
           const pageLines = remainingFullWidthLines.slice(0, fullWidthLineLimit);
           doc.text(pageLines, pageLeftMargin, currentY);
           fullWidthEndY = currentY + pageLines.length * poiLineHeight;
           remainingFullWidthLines = remainingFullWidthLines.slice(fullWidthLineLimit);
           if (remainingFullWidthLines.length > 0) {
+            addContinuationNotice();
             doc.addPage();
             currentY = pageTopMargin;
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
+            doc.setFontSize(printConfig.descriptionFontSize);
           }
         }
         poiY = fullWidthLines.length > 0
           ? fullWidthEndY + 8
-          : imageY + poiBlockHeight + 8;
+          : imageY + poiBlockHeight + printConfig.margins.contentBlock;
       }
 
       doc.save(`${focussedTrail.title || "wanderweg"}.pdf`);

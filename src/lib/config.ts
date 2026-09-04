@@ -33,6 +33,24 @@ export const wanderwegeConfig = {
   addPadding: new Canvas({ tolerance: 9 }),
   trailLengthAccuracy: 10,
   longTapDelay: 1000,
+  print: {
+    descriptionFontSize: 12,
+    trailTitleFontSize: 18,
+    poiTitleFontSize: 14,
+    poiImageArea: 60 * 45,
+    startEndSize: 2,
+    poiSize: 3,
+    margins: {
+      mapContent: 3,
+      titleDescription: 8,
+      contentBlock: 8,
+      continuationTitleDescription: 10,
+      poiTitle: 4,
+      poiDescription: 2,
+      imageDescription: 7,
+      imageText: 8,
+    },
+  },
 };
 
 export const wanderwegErstellenConfig = {
