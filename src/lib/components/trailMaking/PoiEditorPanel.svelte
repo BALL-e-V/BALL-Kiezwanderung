@@ -232,8 +232,8 @@
       onclick={() => onSetPrimaryPoi(poiList[heroPoi].id)}
     >
       {heroPoi >= 0 && poiList[heroPoi]?.id === primaryPoi
-        ? "Primärer POI"
-        : "Als primären POI setzen"}
+        ? "Titelbild"
+        : "Als Titelbild setzen"}
     </button>
     <button
       type="button"
@@ -287,7 +287,7 @@
 
     <div class="poi-scroll">
       {#if sortedPoiList.length === 0}
-        <p class="empty-state">Noch keine POIs.</p>
+        <p class="empty-state">Noch keine Sehenswürdigkeiten</p>
       {:else}
         <table class="poi-table">
           <thead>
@@ -331,7 +331,6 @@
   type="button"
   onclick={() => {
     onCreate();
-    console.log(creatingPoi);
   }}
   class="button primary"
   >{creatingPoi ? "Abbrechen(rechtclick)" : "Neue Sehenswürdigkeit"}</button

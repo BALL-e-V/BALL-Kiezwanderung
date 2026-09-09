@@ -58,7 +58,7 @@
   //is the custom right-click menu showing?
   let showClickMenu = $state(false);
   //what was right-clicked on? currently marker or polyline
-  let rightClickTargetType = $state(null as "marker" | "polyline" | "poi" | null);
+  let rightClickTargetType = $state(null as "marker" | "polyline" | "poi" |"map"| null);
   //position of the target in the respective array
   let rightClickTargetIndex = $state(-1);
   //position of the right-click menu
@@ -152,6 +152,9 @@
   //poi list sort state
   // Helper to safely get event screen coordinates
   function getEventScreenPos(e: any): { x: number; y: number } {
+    if (e.clientX !== undefined && e.clientY !== undefined) {
+      return { x: e.clientX, y: e.clientY };
+    }
     if (e.originalEvent) {
       if (e.originalEvent.clientX !== undefined && e.originalEvent.clientX !== 0) {
         return { x: e.originalEvent.clientX, y: e.originalEvent.clientY };
@@ -296,6 +299,7 @@
 
   //displaying the menu to add or remove markers from the trail
   function rightClickContextMenu(e: any) {
+    e.originalEvent?.stopPropagation();
 
     if(showClickMenu){
       if(rightClickTargetType === "marker" && rightClickTargetIndex >= 0 && rightClickTargetIndex < trailMarkers.length){
@@ -321,6 +325,9 @@
       rightClickTargetIndex = poiList.findIndex((p) => p.marker === e.target);
       e.target.dragging?.disable();
       rightClickTargetType = "poi";
+    } else {
+      rightClickTargetIndex = -1;
+      rightClickTargetType = "map";
     }
     menuPos = getEventScreenPos(e);
   }
@@ -1080,7 +1087,6 @@
       map.getContainer().style.cursor = "all-scroll";
       insertingWaypoint = false;
       trail[rightClickTargetIndex].setStyle({ color: colors.path });
-      trail[rightClickTargetIndex - 1].setStyle({ color: colors.path });
       //getting start and end markers their respective colors if they were changed
       if (rightClickTargetIndex == 0) {
         trailMarkers[rightClickTargetIndex].setIcon(
@@ -1314,7 +1320,6 @@
     clearInterval(waitToSave);
     waitToSave = null as any;
     loadingTrail++;
-
     //if the trail was updated we need to ensure the position of the pois is still correct
     if (trailData.trailUpdate && poiList.length > 0) {
       poiList.forEach((p) => {
@@ -1735,6 +1740,7 @@
         if (creatingPoi) {
           poiCreatorSwitch("off");
         }
+        rightClickContextMenu(e);
       }}
     >
       <Legend
@@ -1911,6 +1917,7 @@
   open={showClickMenu}
   position={menuPos}
   target={rightClickTargetType}
+  {editing}
   bind:targetIndex={rightClickTargetIndex}
   markerCount={trailMarkers.length}
   isLoading={loadingTrail > 0}
@@ -1918,6 +1925,7 @@
   onDeleteWaypoint={deleteWaypoint}
   {insertSwitch}
   onContinueTrail={() => trailMakerSwitch("on")}
+  onCreatePoi={() => poiCreatorSwitch("on")}
   onMoveMarkerToGPS={moveMarkerToGPS}
   onInsertMarkerAtGPS={insertMarkerAtGPS}
   hasCamera={hasCamera}

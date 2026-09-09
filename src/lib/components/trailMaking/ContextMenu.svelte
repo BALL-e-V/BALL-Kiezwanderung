@@ -4,7 +4,8 @@
   interface Props {
     open: boolean;
     position: { x: number; y: number };
-    target: "polyline" | "marker" | "poi" | null;
+    target: "polyline" | "marker" | "poi" | "map" | null;
+    editing: "trail" | "poi";
     targetIndex: number;
     markerCount: number;
     isLoading: boolean;
@@ -14,6 +15,7 @@
     insertSwitch: (onOff: "on" | "off") => void;
     onDeleteWaypoint: (index: number) => void;
     onContinueTrail: () => void;
+    onCreatePoi: () => void;
     onMoveMarkerToGPS?: (index: number) => void;
     onInsertMarkerAtGPS?: (index: number) => void;
     onAddImageFromCamera?: (content: string, name: string, index: number) => void | Promise<void>;
@@ -24,6 +26,7 @@
     open = false,
     position = { x: 0, y: 0 },
     target = null,
+    editing = "trail",
     targetIndex = $bindable(),
     markerCount = 0,
     isLoading = false,
@@ -33,6 +36,7 @@
     insertSwitch,
     onDeleteWaypoint,
     onContinueTrail,
+    onCreatePoi,
     onMoveMarkerToGPS,
     onInsertMarkerAtGPS,
     onAddImageFromCamera,
@@ -48,7 +52,7 @@ cameraInput
     target === "marker" && targetIndex < markerCount - 1,
   );
   let canContinueTrail = $derived(
-    target === "marker" && targetIndex === markerCount - 1,
+    (target === "marker" && targetIndex === markerCount - 1) || target === "map",
   );
 
   let adjustedPos = $derived.by(() => {
@@ -81,7 +85,9 @@ cameraInput
           ? `Wegpunkt ${targetIndex + 1}`
           : target === "poi"
             ? `Sehenswürdigkeit ${targetIndex + 1}`
-            : "Wegabschnitt"}
+            : target === "map"
+              ? "Karte"
+              : "Wegabschnitt"}
       </span>
     </div>
 
@@ -102,6 +108,24 @@ cameraInput
               : "POI wird gespeichert..."}
         </button>
 
+      {/if}
+    {:else if target === "map"}
+      {#if editing === "trail"}
+        <button
+          type="button"
+          class="context-menu-button"
+          onclick={onContinueTrail}
+        >
+          ▶️ Wanderweg fortsetzen
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="context-menu-button"
+          onclick={onCreatePoi}
+        >
+          📍 Neue Sehenswürdigkeit
+        </button>
       {/if}
     {:else if target === "polyline"}
       <button type="button" class="context-menu-button" onclick={() => insertSwitch("on")}>
