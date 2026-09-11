@@ -1131,7 +1131,7 @@
                 {#if isPrinting}
                   <span class="print-spinner" aria-hidden="true"></span>
                 {:else}
-                  <span aria-hidden="true">🖶</span>
+                  <span aria-hidden="true">Druckansicht</span>
                 {/if}
               </button>
             <button

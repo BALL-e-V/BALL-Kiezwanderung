@@ -73,3 +73,18 @@ export const makeAdmin = command(v.string(), async (userId) => {
 
     return { success: true };
  })
+
+ export const allTrails = query (async()=>{
+        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title }).from(hikingTrails)
+        return Trails;
+
+})
+
+export const trailDirection = command(v.string(), async (trailId) => {
+    try {
+        const trail = await db.select({directions:hikingTrails.directions}).from(hikingTrails).where(eq(hikingTrails.id, trailId));
+        return trail[0].directions;
+    } catch (error) {
+        throw error;
+    }
+})

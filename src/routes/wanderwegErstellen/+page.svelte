@@ -10,6 +10,7 @@
     LatLngBounds,
     CircleMarker,
     type LeafletMouseEvent,
+    type LeafletEvent,
   } from "leaflet";
   import { getPath } from "./getPath.remote";
   import { onMount } from "svelte";
@@ -121,8 +122,9 @@
   let pathFailureVisible = $state(false);
   let failureTooltipMessage = $state("");
   let pathFailureTimer: ReturnType<typeof setTimeout> | undefined = $state();
-    let cameraInput = $state<HTMLInputElement | null>(null);
+  let cameraInput = $state<HTMLInputElement | null>(null);
   let loadTrailQuery = $state(false);
+  let streetSearchInput = $state("");
 
   let showPoiEditor: boolean = $state(false);
 
@@ -665,9 +667,13 @@
       poiList[heroPoi].marker.dragging?.enable();
       clearTimeout(time);
     }, poiDraggingDelay);
-    poiList[heroPoi].marker.on("dragend", (e) => {
-      poiList[heroPoi].lat = Number(e.target.getLatLng.lat);
-      poiList[heroPoi].lng = Number(e.target.getLatLng.lng);
+    poiList[heroPoi].marker.on("dragend", (e:LeafletEvent) => movePoi(e));
+  }
+
+
+  function movePoi (e:LeafletEvent){
+    poiList[heroPoi].lat = Number(e.target.getLatLng().lat);
+      poiList[heroPoi].lng = Number(e.target.getLatLng().lng);
       if (trail.length > 0) {
         poiList[heroPoi].positionInTrail(trail);
         const id = poiList[heroPoi].id;
@@ -675,9 +681,9 @@
         poiList.sort(compareTrailPosition);
         heroPoi = poiList.findIndex((p) => p.id == id);
       }
-    });
+      clearInterval(waitToSave);
+      waitToSave = setTimeout(() => poiToDatabase(heroPoi), timeToSave);
   }
-
   //onclick functions to add a new waypoint at the end of the trail and find the path to it
   async function trailMaker(e: LeafletMouseEvent) {
     trail.push(
@@ -735,6 +741,7 @@
       }
     }
   }
+
 
   //function to enable/disable the onclick for the previous trailmaker
   function trailMakerSwitch(onOff: "on" | "off") {
@@ -1258,8 +1265,8 @@
     });
     poiList = [];
     //switch on the trailMaker bacause user will want to buildthe new trail
-    if (!makingTrail) {
-      trailMakerSwitch("on");
+    if (makingTrail) {
+      trailMakerSwitch("off");
     }
   }
   //function to prepare data and save the
@@ -1271,6 +1278,7 @@
     let startLng = 0;
     let endLat = 0;
     let endLng = 0;
+    let waypointString = "";
     if (trailUpdate && trail.length != 0) {
       let latlngs: LatLng[];
       bounds = trail[0].getBounds();
@@ -1290,6 +1298,10 @@
         endLng = (trail[trail.length - 1].getLatLngs() as LatLng[])[
           (trail[trail.length - 1].getLatLngs() as LatLng[]).length - 1
         ].lng as number;
+        trailMarkers.forEach((m)=>{
+          waypointString += ";"+m.getLatLng().lng +","+ m.getLatLng().lat 
+        })
+        waypointString = waypointString.slice(1);
     } else {
       bounds = map.getBounds();
     }
@@ -1309,6 +1321,7 @@
       trailUpdate: trailUpdate,
       length: length,
       published: published,
+      waypointString,
     };
   }
   //function to save the trail in the database and update the list of trails if the title was changed or a new trail was created
@@ -1341,7 +1354,7 @@
 
     //if the trail was new the database will respond by sending back the assigned uuid
     if (response) {
-      trailId = response[0].id;
+      trailId = response.result[0].id;
       let i = 0;
       //placing the trail into its location in the dropdown list according to the title
       while (i < listofTrails.length && listofTrails[i].title < trailTitle) {
@@ -1350,7 +1363,7 @@
       listofTrails.splice(i, 0, {
         id: trailId,
         title: trailTitle,
-        author: "firstCause",
+        author: response.author,
         created: new Date().toISOString(),
         updated: new Date().toISOString(),
         published: published,
@@ -1531,7 +1544,6 @@
       loadingTrail++;
       clearInterval(waitToSave);
       waitToSave = null as any;
-
       let response;
       try {
         //sending the relattion data with the poi to upsert the relation if positionupdate = true
@@ -1628,6 +1640,56 @@
       }}
     } else {
       console.log("heroPoi is not defined");
+    }
+  }
+  async function streetSearch(name: string) {
+    const query = name.trim();
+    if (!query || !map) {
+      return;
+    }
+
+    const url = `https://nominatim.openstreetmap.org/search?format=geojson&street=${encodeURIComponent(query)}`;
+
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`street search failed with status ${response.status}`);
+      }
+    } catch (e) {
+      console.log("streetSearch() failed:", e);
+      showFailureTooltip("Straßensuche fehlgeschlagen");
+      return;
+    }
+
+    try {
+      const data = (await response.json()) as {
+        features?: Array<{
+          geometry?: { coordinates?: [number, number] };
+          properties?: { display_name?: string };
+        }>;
+      };
+
+      const result = data.features?.[0];
+      const coordinates = result?.geometry?.coordinates;
+      if (!result || !coordinates || coordinates.length < 2) {
+        showFailureTooltip("Keine passende Straße gefunden");
+        return;
+      }
+
+      const [lng, lat] = coordinates;
+      map.flyTo([lat, lng], 16, {
+        animate: true,
+        duration: 1.2,
+      });
+      streetSearchInput = "";
+    } catch (e) {
+      console.log("streetSearch() parse failed:", e);
+      showFailureTooltip("Straßensuche fehlgeschlagen");
     }
   }
 
@@ -1743,6 +1805,19 @@
         rightClickContextMenu(e);
       }}
     >
+      <div class="street-search-overlay">
+        <form class="street-search-form" onsubmit={(e) => {e.preventDefault();streetSearch(streetSearchInput)}}>
+          <input
+            bind:value={streetSearchInput}
+            type="text"
+            placeholder="Straße suchen"
+            aria-label="Straße suchen"
+          />
+          <button type="submit" disabled={streetSearchInput.trim().length === 0}>
+            Suchen
+          </button>
+        </form>
+      </div>
       <Legend
         editorMode={editing}
         {trailMarkup}
@@ -1917,15 +1992,15 @@
   open={showClickMenu}
   position={menuPos}
   target={rightClickTargetType}
-  {editing}
+  trailStarted={trailTitle != "Namen Eintragen" && trailId != ""}
   bind:targetIndex={rightClickTargetIndex}
   markerCount={trailMarkers.length}
   isLoading={loadingTrail > 0}
   {hasGeolocation}
   onDeleteWaypoint={deleteWaypoint}
   {insertSwitch}
-  onContinueTrail={() => trailMakerSwitch("on")}
-  onCreatePoi={() => poiCreatorSwitch("on")}
+  onContinueTrail={() =>{ if(editing == "poi"){editorSwap()}trailMakerSwitch("on")}}
+  onCreatePoi={() => { if(editing == "trail"){editorSwap()}poiCreatorSwitch("on")}}
   onMoveMarkerToGPS={moveMarkerToGPS}
   onInsertMarkerAtGPS={insertMarkerAtGPS}
   hasCamera={hasCamera}
@@ -1992,6 +2067,53 @@
     min-height: 0;
     height: 100%;
     width: 100%;
+  }
+
+  .street-search-overlay {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1200;
+    pointer-events: none;
+  }
+
+  .street-search-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: 0.75rem;
+    padding: 0.35rem 0.45rem;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+    pointer-events: auto;
+  }
+
+  .street-search-form input {
+    width: min(220px, 36vw);
+    min-width: 140px;
+    border: none;
+    background: transparent;
+    color: #0f172a;
+    font: inherit;
+    padding: 0.45rem 0.5rem;
+    outline: none;
+  }
+
+  .street-search-form button {
+    border: none;
+    border-radius: 0.5rem;
+    background: #1d4ed8;
+    color: white;
+    padding: 0.5rem 0.8rem;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .street-search-form button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 
   .path-failure-tooltip {

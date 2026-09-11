@@ -6,6 +6,7 @@ import { db } from "$lib/server/db";
 import { aliasedTable, eq } from "drizzle-orm";
 import {deleteTrailPOIRelation} from "./poiDB.remote";
 import { ensureAccess, getAuthenticatedUser } from "$lib/authorization";
+import {getDirections} from "./serverFunctions";
 
 type createTrail = typeof hikingTrails.$inferInsert;
 const editor = aliasedTable(user,"editor")
@@ -29,7 +30,8 @@ export const saveTrail = command(v.object({
     startLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     endLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
     endLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
-    published: v.boolean()
+    published: v.boolean(),
+    waypointString:v.string(),
 
 }),
     async (data) => {
@@ -48,10 +50,14 @@ export const saveTrail = command(v.object({
                     length: data.length,
                     published: data.published
             }} else {
+
+                const directions = await formatDirections(data.waypointString);
+
                 Trail = {
                     title: data.title,
                     description: data.description,
                     trail: data.trail,
+                    directions:directions,
                     author: user.id,
                     editor: user.id,
                     length: data.length,
@@ -68,7 +74,7 @@ export const saveTrail = command(v.object({
             }
             try {
                 const result = await db.insert(hikingTrails).values(Trail).$returningId();
-                return result;
+                return {result:result, author:user.name};
             } catch (error) {
                  throw error
 
@@ -93,10 +99,13 @@ export const saveTrail = command(v.object({
                 } else {
 
                 try {
+                    const directions = await formatDirections(data.waypointString);
+                    
                     await db.update(hikingTrails).set({
                         title: data.title,
                         description: data.description,
                         trail: data.trail,
+                        directions: directions,
                         editor: user.id,//change the editor instead of the author
                         length: data.length,
                         startLat: data.startLat,
@@ -202,3 +211,22 @@ export const getTrailPOIs = command(v.string(), async (trailId) => {
          throw error
     }
 })
+
+
+async function formatDirections(waypointString: string) {
+    const response = await getDirections(waypointString);
+    const directions = (response?.routes ?? [])
+        .flatMap((route:any) => route.legs ?? [])
+        .flatMap((leg:any) => leg.steps ?? [])
+        .map((step:any) => step.maneuver?.instruction)
+        .filter((instruction:any): instruction is string => {
+            if (typeof instruction !== "string") return false;
+            const trimmed = instruction.trim();
+            return trimmed.length > 0 &&
+                trimmed !== "Sie haben Ihr Ziel erreicht." &&
+                !trimmed.startsWith("Das Ziel befindet");
+        });
+        return directions;
+                    
+}
+

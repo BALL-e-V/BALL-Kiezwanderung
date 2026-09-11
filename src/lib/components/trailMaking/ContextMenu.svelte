@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { fileToBase64 } from "$lib/util";
 
   interface Props {
     open: boolean;
     position: { x: number; y: number };
     target: "polyline" | "marker" | "poi" | "map" | null;
-    editing: "trail" | "poi";
+    trailStarted: boolean;
     targetIndex: number;
     markerCount: number;
     isLoading: boolean;
@@ -26,7 +25,7 @@
     open = false,
     position = { x: 0, y: 0 },
     target = null,
-    editing = "trail",
+    trailStarted = false,
     targetIndex = $bindable(),
     markerCount = 0,
     isLoading = false,
@@ -110,23 +109,22 @@ cameraInput
 
       {/if}
     {:else if target === "map"}
-      {#if editing === "trail"}
         <button
           type="button"
           class="context-menu-button"
           onclick={onContinueTrail}
         >
-          ▶️ Wanderweg fortsetzen
+          ▶️ Wanderweg {markerCount > 0 ? "fortsetzen" : "starten"}
         </button>
-      {:else}
-        <button
-          type="button"
-          class="context-menu-button"
-          onclick={onCreatePoi}
-        >
-          📍 Neue Sehenswürdigkeit
-        </button>
-      {/if}
+        {#if trailStarted}
+          <button
+            type="button"
+            class="context-menu-button"
+            onclick={onCreatePoi}
+          >
+            📍 Neue Sehenswürdigkeit
+          </button>
+        {/if}
     {:else if target === "polyline"}
       <button type="button" class="context-menu-button" onclick={() => insertSwitch("on")}>
         ➕ Wegpunkt manuell einfügen

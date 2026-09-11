@@ -64,7 +64,7 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       />
-    </svg>
+    </svg>{isMinimized? "":"schliessen"}
   </button>
 
   {#if !isMinimized}

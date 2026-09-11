@@ -6,6 +6,7 @@
     allTrailPoiRealations,
     allPoi,
     deletePoi,
+    allTrails,trailDirection,
   } from "./register.remote";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
@@ -176,4 +177,9 @@
   <p>
     {poi.id}+" "+{poi.title}
   </p>
+{/each}
+
+{#each await allTrails() as trail}
+  <button onclick={async()=>console.log(await trailDirection(trail.id))}>{trail.title}</button>
+
 {/each}
