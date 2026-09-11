@@ -54,15 +54,17 @@ export function checkMapboxCounter(){
 
         let currentMapboxUsage = readMapboxUsageCounter();
 
-        if (++ currentMapboxUsage.mapboxUsageCounter > 100000) {
-            if (currentMapboxUsage.mapboxCounterResetDate <= Date.now()) {
-                currentMapboxUsage = {
-                    mapboxUsageCounter: 0,
-                    mapboxCounterResetDate: setMapboxCounterResetDate(),
-                };
-            }else{
-                throw new Error("pathfinding api usage expired for the month")
-            }
+        if (currentMapboxUsage.mapboxCounterResetDate <= Date.now()) {
+            currentMapboxUsage = {
+                mapboxUsageCounter: 0,
+                mapboxCounterResetDate: setMapboxCounterResetDate(),
+            };
+        }
+
+        if (++ currentMapboxUsage.mapboxUsageCounter > 99000) {
+
+            throw new Error("pathfinding api usage expired for the month")
+            
         }
 
         writeMapboxUsageCounter(currentMapboxUsage);
