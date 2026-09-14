@@ -2,7 +2,7 @@
 import { command } from "$app/server";
 import * as v from "valibot";
 import { env } from '$env/dynamic/private';
-import { checkMapboxCounter } from "./serverFunctions";
+import { checkMapboxCounter } from "../../lib/server/serverFunctions";
 
 
 export const getPath = command(v.array(
@@ -13,10 +13,10 @@ export const getPath = command(v.array(
 
     async (coordinates) => {
 
-        checkMapboxCounter();
-
         const coordString = coordinates.map(c => `${c.lng},${c.lat}`).join(';');
         const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${coordString}?geometries=geojson&access_token=${env.MAPBOX_TOKEN}`;
+
+        await checkMapboxCounter(url);
 
         let result;
 

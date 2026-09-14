@@ -9,5 +9,6 @@ export const task = mysqlTable('task', {
 
 export * from './auth.schema';
 
-export * from './trails.schema'
+export * from './trails.schema';
+export * from './logs.schema';
 

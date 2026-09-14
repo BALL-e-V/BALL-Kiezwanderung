@@ -6,7 +6,7 @@ import { db } from "$lib/server/db";
 import { aliasedTable, eq } from "drizzle-orm";
 import {deleteTrailPOIRelation} from "./poiDB.remote";
 import { ensureAccess, getAuthenticatedUser } from "$lib/authorization";
-import {getDirections} from "./serverFunctions";
+import {getDirections} from "../../lib/server/serverFunctions";
 
 type createTrail = typeof hikingTrails.$inferInsert;
 const editor = aliasedTable(user,"editor")
