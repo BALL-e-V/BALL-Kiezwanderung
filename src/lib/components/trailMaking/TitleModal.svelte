@@ -19,13 +19,22 @@
     onClose,
   }: Props = $props();
 
-  let title = $state(initialTitle);
+  let title = $state("");
   let photoBase64 = $state<string | undefined>(undefined);
   let photoName = $state<string | undefined>(undefined);
   let photoPreview = $state<string | undefined>(undefined);
   let cameraInput = $state<HTMLInputElement | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
 
+  // Sync title when modal opens
+  $effect(() => {
+    if (open) {
+      title = initialTitle || (mode === "trail" ? "Neuer Wanderweg" : "Neuer POI");
+      photoBase64 = undefined;
+      photoName = undefined;
+      photoPreview = undefined;
+    }
+  });
 
   async function handleFileSelected(event: Event) {
     const target = event.currentTarget as HTMLInputElement;

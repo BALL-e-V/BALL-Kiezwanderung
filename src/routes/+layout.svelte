@@ -3,6 +3,7 @@
   import "../styles.css";
   import { authClient } from "$lib/auth-client";
   import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import { layoutConfig } from "$lib/config";
   const { longPressTime } = layoutConfig;
 
@@ -23,6 +24,7 @@
   let longPressTimer: number | null = null;
   let suppressNextClick = false;
   let topbar: HTMLElement | null = null;
+  let isWanderwegePage = $derived($page.url.pathname === "/wanderwege");
 
   onMount(() => mountHandler());
 
@@ -217,6 +219,10 @@
       Math.floor(Math.random() * 256) +
       ")";
   }
+
+  function toggleWanderwegeSearch() {
+    window.dispatchEvent(new CustomEvent("toggle-wanderwege-search"));
+  }
 </script>
 
 <div class="app-shell">
@@ -250,6 +256,20 @@
           </a>
         </h1>
       </div>
+
+      {#if isWanderwegePage}
+        <button
+          type="button"
+          class="button secondary"
+          aria-label="Suche öffnen oder schließen"
+          onclick={(event) => {
+            event.stopPropagation();
+            toggleWanderwegeSearch();
+          }}
+        >
+          Suche
+        </button>
+      {/if}
 
       {#if isMobileLayout && isTouchDevice}
         <button

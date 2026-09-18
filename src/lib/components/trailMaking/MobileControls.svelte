@@ -44,7 +44,7 @@
         {#if makingTrail}
           🖊️ Wegaufzeichnung aktiv (Tippe auf Karte)
         {:else if creatingPoi}
-          📍 Sehenswürdigkeit-Platzierung aktiv (Tippe auf Karte)
+          📍 POI-Platzierung aktiv (Tippe auf Karte)
         {:else if insertingWaypoint}
           ➕ Wegpunkt einfügen aktiv
         {/if}
@@ -84,7 +84,7 @@
       >
         <span class="btn-icon">📸</span>
         <div class="btn-text">
-          <strong class="btn-title">+ Sehenswürdigkeit</strong>
+          <strong class="btn-title">+ POI</strong>
           <span class="btn-subtitle">Foto & GPS-Standort</span>
         </div>
       </button>
@@ -103,6 +103,15 @@
         🎯 Mein Standort
       </button>
     {/if}
+
+    <button
+      type="button"
+      class="button secondary quick-btn mode-btn"
+      disabled={isLoading}
+      onclick={onToggleMode}
+    >
+      🔀 {editing === "trail" ? "Zu POIs" : "Zum Weg"}
+    </button>
 
     <button
       type="button"

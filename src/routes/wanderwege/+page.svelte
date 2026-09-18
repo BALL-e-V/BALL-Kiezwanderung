@@ -2,7 +2,6 @@
   import "leaflet/dist/leaflet.css";
   import { printTrail } from "./printTrail";
   import {
-    fetchTrails,
     initialLoadTrails,
     getTrailPOIs,
   } from "./loadTrails.remote";
@@ -17,6 +16,8 @@
   import TrailPoiTooltip from "$lib/components/trails/TrailPoiTooltip.svelte";
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
   import Legend from "$lib/components/trails/Legend.svelte";
+  import SearchInterface from "$lib/components/trails/SearchInterface.svelte";
+  import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
   import { compareTrailPosition, iconmaker } from "$lib/util";
   import { wanderwegeConfig } from "$lib/config";
@@ -76,11 +77,19 @@
     loading: boolean;
     length?: number;
     imageAlt?: string;
+    districts: string[];
+    startDistrict: string[];
+    poiTitles: string[];
     startMarker:Marker|null;
     endMarker:Marker|null;
   }
 
   let trailList: hikingTrail[] = $state([]);
+  let filteredTrails: hikingTrail[] = $state([]);
+  let displayMode = $state<"list" | "map">("list");
+  let searchVisible = $state(false);
+  let noTrailsFound = $state(false);
+  let noResultsTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Store POIs by trail ID
   let poisByTrailId = new Map<string, pointOfInterest[]>();
@@ -339,15 +348,38 @@
     mapCover.style.display = "none";
   }
 
-  async function fetchInitialTrailData(bounds: LatLngBounds) {
-    const boundCoordinates = {
-      neLat: bounds.getNorthEast().lat,
-      neLng: bounds.getNorthEast().lng,
-      swLat: bounds.getSouthWest().lat,
-      swLng: bounds.getSouthWest().lng,
-    };
+  async function fetchInitialTrailData() {
+
 
     function mapToHikingTrail(item: any): hikingTrail {
+      const rawDistricts = getProp(item, "districts")
+        ?? [];
+      const districtEntries = typeof rawDistricts === "string"
+        ? JSON.parse(rawDistricts)
+        : rawDistricts;
+      const districts = Array.isArray(districtEntries)
+        ? Array.from(new Set(
+            districtEntries.flatMap((entry: any) =>
+              [entry?.city, entry?.borough, entry?.suburb]
+                .filter((value): value is string => typeof value === "string")
+                .map((value) => value.trim())
+                .filter(Boolean),
+            ),
+          ))
+        : [];
+
+      const startDistrict = Array.from(new Set(
+        [districtEntries[0]?.city, 
+        districtEntries[0]?.borough, 
+        districtEntries[0]?.suburb,
+        districtEntries[districtEntries.length -1]?.city, 
+        districtEntries[districtEntries.length -1]?.borough, 
+        districtEntries[districtEntries.length -1]?.suburb]
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ));
+
       const neLat = toNum(getProp(item, "neLat", "nelat", "ne_lat"));
       const neLng = toNum(getProp(item, "neLng", "nelng", "ne_lng"));
       const swLat = toNum(getProp(item, "swLat", "swlat", "sw_lat"));
@@ -373,6 +405,9 @@
       const start = new LatLng(startLat, startLng);
       const end = new LatLng(endLat, endLng);
 
+      const length = Math.round((getProp(item, "length") as number)/100)/10;
+      console.log(length)
+  
       const trailData = getProp(item, "trail", "geojson") || undefined;
       let trail: Polyline | undefined;
       if (trailData) {
@@ -395,80 +430,90 @@
         bounds,
         start,
         end,
-        length: getProp(item, "length") || undefined,
+        length,
+        districts,
+        startDistrict,
+        poiTitles: Array.isArray(getProp(item, "poiTitles"))
+          ? getProp(item, "poiTitles")
+          : [],
         loading: false,
         display: false,
       } as hikingTrail;
     }
-    const response = await initialLoadTrails(boundCoordinates);
-    // map fullTrails first (display: true)
-    if (response && response.fullTrails && Array.isArray(response.fullTrails)) {
-      for (const t of response.fullTrails) {
-        trailList.push(mapToHikingTrail(t));
-        const trail = trailList[trailList.length - 1];
+    const response = await initialLoadTrails();
+    if (Array.isArray(response)) {
+      for (const item of response) {
+        const trail = mapToHikingTrail(item);
         trail.color = trailColor();
+        trail.trail?.setStyle({ color: trail.color });
+        trailList.push(trail);
         displayTrailSwitch(trail, "on");
-        trail.trail?.setStyle({
-          color: trail.color,
-        });
       }
-    }
-
-    // then partialTrails (display: false)
-    if (
-      response &&
-      response.partialTrails &&
-      Array.isArray(response.partialTrails)
-    ) {
-      for (const t of response.partialTrails) {
-        trailList.push(mapToHikingTrail(t));
-      }
+      filteredTrails = [...trailList];
     }
     mapCover.style.display = "none";
   }
 
-  async function getAndShowTrails(idList: string[]) {
-    const trailData = await fetchTrails(idList);
-    trailData.forEach((data) => {
-      const i = trailList.findIndex((t) => t.id == data.id);
-      trailList[i].description = data.description;
-      trailList[i].color = trailColor();
-      trailList[i].length = data.length || undefined;
-      trailList[i].imageUrl = data.imageUrl || undefined;
-      trailList[i].imageAlt = data.imageAlt || undefined;
-
-      if (Array.isArray(data.trail)) {
-        trailList[i].trail = new Polyline(data.trail);
-      } else if (typeof data.trail == "string") {
-        trailList[i].trail = new Polyline(JSON.parse(data.trail));
-      }
-      trailList[i].trail?.setStyle({ color: trailList[i].color });
-      if (trailList[i].display) {
-        displayTrailSwitch(trailList[i], "off");
-      }
-      trailList[i].loading = false;
-    });
+  function showMap() {
+    displayMode = "map";
+    requestAnimationFrame(() => map?.invalidateSize());
   }
 
-  function handleMapmove() {
-    let idList: string[] = [];
+  function showList() {
+    displayMode = "list";
+  }
 
-    trailList.forEach((t) => {
-      if (t.display && !t.bounds.overlaps(map.getBounds())) {
-        displayTrailSwitch(t, "off");
-      } else if (!t.display && t.trail && map.getBounds().contains(t.bounds)) {
-        displayTrailSwitch(t, "on");
-      } else if (!t.display && !t.trail && map.getBounds().contains(t.bounds)) {
-        if (!t.loading) {
-          idList.push(t.id);
-          t.loading = true;
-        }
-        t.display = true;
+  function selectTrailFromList(trail: { id: string }) {
+    const selectedTrail = trailList.find((item) => item.id === trail.id);
+    if (!selectedTrail) return;
+
+    showMap();
+    focusTrailSwitch(selectedTrail, "on");
+  }
+
+  function applyTrailSearch(nextFilteredTrails: Array<{ id: string }>) {
+    if (focussedTrail){
+      focusTrailSwitch(focussedTrail,"off")
+    }
+    const filteredIds = new Set(nextFilteredTrails.map((trail) => trail.id));
+    filteredTrails = trailList.filter((trail) => filteredIds.has(trail.id));
+    trailList.forEach((trail) => {
+      const shouldDisplay = filteredIds.has(trail.id);
+      if (shouldDisplay !== trail.display) {
+        displayTrailSwitch(trail, shouldDisplay ? "on" : "off");
       }
     });
-    if (idList.length > 0) {
-      getAndShowTrails(idList);
+
+    const displayedTrails = trailList.filter((trail) => trail.display);
+    if (displayedTrails.length === 0) {
+      noTrailsFound = true;
+      if (noResultsTimer) {
+        clearTimeout(noResultsTimer);
+      }
+      noResultsTimer = setTimeout(() => {
+        noTrailsFound = false;
+        noResultsTimer = null;
+      }, 3000);
+      return;
     }
+    if (noResultsTimer) {
+      clearTimeout(noResultsTimer);
+      noResultsTimer = null;
+    }
+    noTrailsFound = false;
+
+    const displayedBounds = displayedTrails.reduce(
+      (bounds, trail) => bounds.extend(trail.bounds),
+      new LatLngBounds(
+        displayedTrails[0].bounds.getSouthWest(),
+        displayedTrails[0].bounds.getNorthEast(),
+      ),
+    );
+    map.fitBounds(displayedBounds);
+    if(displayedTrails.length == 1){
+      focusTrailSwitch(displayedTrails[0],"on")
+    }
+    searchVisible=false;
   }
 
   function focusTrailSwitch(trail: hikingTrail, onOff: "on" | "off") {
@@ -485,8 +530,12 @@
         markerDownSwitch(p, "off");
         p.marker.removeFrom(map);
       });
+      trailList.forEach((otherTrail) => {
+        if (otherTrail.id !== trail.id && !otherTrail.display) {
+          displayTrailSwitch(otherTrail, "on");
+        }
+      });
 
-      map.on("moveend", handleMapmove);
       if (map.getZoom() > initialMapZoom) {
         map.setZoom(initialMapZoom);
       } else {
@@ -498,13 +547,11 @@
       focussedTrail = trail;
 
       map.fitBounds(trail.bounds);
-      map.off("moveend", handleMapmove);
-      trailList.forEach((t) => {
-        if (t.display && t.id != trail.id) {
-          displayTrailSwitch(t, "off");
+      trailList.forEach((otherTrail) => {
+        if (otherTrail.id !== trail.id && otherTrail.display) {
+          displayTrailSwitch(otherTrail, "off");
         }
       });
-
       if (poisByTrailId.has(trail.id)) {
         poisByTrailId.get(trail.id)?.forEach((poi, i) => {
           poi.marker.addTo(map);
@@ -513,7 +560,7 @@
           markerDownSwitch(poi, "on");
           poiTitles.push(poi.title);
         });
-              configurePrintMap(trail)
+        configurePrintMap(trail)
         popupSwitch({ trail });
       } else {
         loadTrailPOIs(trail);
@@ -782,8 +829,7 @@
     tiles.addTo(map);
 
     map.getContainer().style.cursor = "all-scroll";
-    fetchInitialTrailData(map.getBounds());
-    map.on("moveend", handleMapmove);
+    fetchInitialTrailData();
     requestAnimationFrame(() => {
       map?.invalidateSize();
     });
@@ -797,6 +843,15 @@
     };
   }
   onMount(createPrintMap)
+
+  onMount(() => {
+    const toggleSearch = () => {
+      searchVisible = !searchVisible;
+    };
+
+    window.addEventListener("toggle-wanderwege-search", toggleSearch);
+    return () => window.removeEventListener("toggle-wanderwege-search", toggleSearch);
+  });
 </script>
 
 <div class="print-map-shell" aria-hidden="true">
@@ -804,7 +859,8 @@
 </div>
 
 <div class="alignment">
-  <div class="map-container">
+  <div class="viewport-shell">
+  <div class="map-container" class:map-visible={displayMode === "map"}>
     <div id="map" use:createMap>
       <div class="leaflet-top leaflet-right">
         {#if focussedTrail}
@@ -835,6 +891,18 @@
               >Zurück</button
             >
           </div>
+        {:else}
+          <button
+            type="button"
+            class="list-mode-button"
+            onpointerdown={(event) => event.stopPropagation()}
+            onclick={(event) => {
+              event.stopPropagation();
+              showList();
+            }}
+          >
+            Zur Liste wechseln
+          </button>
         {/if}
       </div>
     </div>
@@ -853,6 +921,25 @@
       />
     {/if}
     <Legend trails={trailList} {poiTitles} />
+  </div>
+  {#if searchVisible}
+    <div class="search-overlay">
+      <SearchInterface
+        trails={trailList}
+        onSearch={applyTrailSearch}
+        {noTrailsFound}
+      />
+    </div>
+  {/if}
+  {#if displayMode === "list"}
+    <div class="trail-display-viewport">
+      <TrailDisplay
+        trails={filteredTrails}
+        onSelectTrail={selectTrailFromList}
+        onMapMode={showMap}
+      />
+    </div>
+  {/if}
   </div>
 </div>
 
@@ -875,12 +962,38 @@
   }
 
   .map-container {
-    position: relative;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     display: flex;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .map-container.map-visible {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .viewport-shell {
+    position: relative;
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
     height: 100%;
+    overflow: hidden;
+  }
+
+  .trail-display-viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
   }
 
   #map {
@@ -898,6 +1011,17 @@
     background-color: lightgray;
     opacity: 0.4;
   }
+
+  .search-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1200;
+    width: min(280px, calc(100% - 2rem));
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+  }
+
   @media print {
     :global(body) {
       visibility: hidden;
@@ -923,6 +1047,19 @@
     justify-content: center;
     min-width: 44px;
     min-height: 36px;
+  }
+
+  .list-mode-button {
+    pointer-events: auto;
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .print-button:disabled {
@@ -954,3 +1091,4 @@
     min-height: 0 !important;
   }
 </style>
+

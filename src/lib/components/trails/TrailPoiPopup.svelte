@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+
   let {
     title = "",
     description = "",
@@ -49,6 +51,14 @@
   let separateImageAndDescription = $derived.by(
     () => !showPoiNavigation && hasImages && !hasMultipleImages,
   );
+
+  onMount(() => {
+    const popupWidth = Math.min(window.innerWidth * 0.92, 360);
+    position = {
+      x: Math.max(24, window.innerWidth - popupWidth - 24),
+      y: 24,
+    };
+  });
 
   function beginDrag(event: PointerEvent) {
     isDragging = true;

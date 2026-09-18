@@ -32,6 +32,11 @@ export const saveTrail = command(v.object({
     endLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     published: v.boolean(),
     waypointString:v.string(),
+    districts: v.array(v.object({
+        city: v.optional(v.string()),
+        borough: v.optional(v.string()),
+        suburb: v.optional(v.string()),
+    })),
 
 }),
     async (data) => {
@@ -48,7 +53,7 @@ export const saveTrail = command(v.object({
                     author: user.id,
                     editor: user.id,
                     length: data.length,
-                    published: data.published
+                    published: data.published,
             }} else {
 
                 const directions = await formatDirections(data.waypointString);
@@ -69,7 +74,8 @@ export const saveTrail = command(v.object({
                     swBoundLng: data.swBoundLng,
                     neBoundLat: data.neBoundLat,
                     neBoundLng: data.neBoundLng,
-                    published: data.published
+                    published: data.published,
+                    districts: data.districts,
                 }
             }
             try {
@@ -116,6 +122,7 @@ export const saveTrail = command(v.object({
                         swBoundLng: data.swBoundLng,
                         neBoundLat: data.neBoundLat,
                         neBoundLng: data.neBoundLng,
+                        districts: data.districts,
                         published: data.published
                     }).where(eq(hikingTrails.id, data.id))
                 } catch (error) {
@@ -173,6 +180,7 @@ export const getTrail = command(v.string(), async (trailId) => {
             created:hikingTrails.created,
             updated:hikingTrails.updated,
             trail:hikingTrails.trail,
+            districts:hikingTrails.districts,
             description:hikingTrails.description,
             length:hikingTrails.length, 
             primaryPoi:hikingTrails.primaryPoi,
@@ -229,4 +237,3 @@ async function formatDirections(waypointString: string) {
         return directions;
                     
 }
-

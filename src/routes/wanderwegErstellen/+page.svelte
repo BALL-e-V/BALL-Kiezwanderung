@@ -44,12 +44,25 @@
   import MobileControls from "$lib/components/trailMaking/MobileControls.svelte";
   import TitleModal from "$lib/components/trailMaking/TitleModal.svelte";
 
+
   //leaflet map and the dom element
   let map: LeafletMap;
   //the set of polylines that make up the hiking trail
   let trail: Polyline[] = $state([]);
+  type TrailMarkerEntry = Marker & {
+    marker: Marker;
+    borough?: string;
+    city?: string;
+    suburb?: string;
+  };
+
+  type TrailMarkerMetadata = Pick<TrailMarkerEntry, "city" | "borough" | "suburb">;
+
+  function wrapTrailMarker(marker: Marker): TrailMarkerEntry {
+    return Object.assign(marker, { marker }) as TrailMarkerEntry;
+  }
   //waypoint markers at the start and end of all the polylines for help editing the trail
-  let trailMarkers: Marker[] = $state([]);
+  let trailMarkers: TrailMarkerEntry[] = $state([]);
   //are you editing the trail or the poi
   let editing = $state("trail") as "trail" | "poi";
   //is the onclick listener for the trailmaker active?
@@ -197,7 +210,7 @@
           t.off("contextmenu");
           t.off("click");
         });
-        trailMarkers.forEach((m) => {
+        trailMarkers.forEach(({ marker: m }) => {
           m.off("dragend");
           m.off("contextmenu");
           m.off("click");
@@ -411,11 +424,13 @@
         firstMarker.on("click", (e) => {
           if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
         });
-        trailMarkers.push(firstMarker);
+        const firstTrailMarker = wrapTrailMarker(firstMarker);
+        void populateTrailMarkerLocationInfo(firstTrailMarker);
+        trailMarkers.push(firstTrailMarker);
         map.setView(latlng, Math.max(map.getZoom(), 15));
       } else {
         const prevIndex = trailMarkers.length - 1;
-        const prevMarker = trailMarkers[prevIndex];
+        const prevMarker = trailMarkers[prevIndex].marker;
         const prevLatLng = prevMarker.getLatLng();
 
         if (prevIndex === 0) {
@@ -432,7 +447,9 @@
         newMarker.on("click", (e) => {
           if (!makingTrail && !insertingWaypoint) rightClickContextMenu(e);
         });
-        trailMarkers.push(newMarker);
+        const newTrailMarker = wrapTrailMarker(newMarker);
+        void populateTrailMarkerLocationInfo(newTrailMarker);
+        trailMarkers.push(newTrailMarker);
 
         const newPoly = new Polyline([prevLatLng, latlng], {
           color: colors.path,
@@ -534,7 +551,7 @@
     try {
       const coords = await getUserGPSLocation();
       const latlng = new LatLng(coords.lat, coords.lng);
-      trailMarkers[targetIndex].setLatLng(latlng);
+      trailMarkers[targetIndex].marker.setLatLng(latlng);
       await moveTrail(targetIndex);
       map.panTo(latlng);
     } catch (err) {
@@ -692,7 +709,7 @@
         { color: colors.buildTrail },
       ).addTo(map),
     );
-    trailMarkers.push(new Marker(e.latlng).addTo(map));
+    trailMarkers.push(wrapTrailMarker(new Marker(e.latlng).addTo(map)));
     trailMarkers[trailMarkers.length - 1].setIcon(
       iconmaker({ color: colors.editing, size: sizes.poiHero }),
     );
@@ -727,12 +744,13 @@
       //checking if the marker is still in the same place
       if (
         trailMarkers.length > trailPosition + 1 &&
-        e.latlng == trailMarkers[trailPosition + 1].getLatLng()
+        e.latlng == trailMarkers[trailPosition + 1].marker.getLatLng()
       ) {
         //making the new piece of trail
         trail[trailPosition].setLatLngs(
           responseToLatlngs(response, trailResolution),
         );
+        await populateTrailMarkerLocationInfo(trailMarkers[trailPosition + 1]);
       } // else discarding the response
       loadingTrail--;
       // we only need to initiate saving when all the loading is done, so only the last function to finish loading the trail starts the timeout
@@ -828,7 +846,7 @@
       // creating a first waypoint marker for the trail if none exist
 
 
-      trailMarkers.push(new Marker(initialLatlng).addTo(map));
+      trailMarkers.push(wrapTrailMarker(new Marker(initialLatlng).addTo(map)));
 
       if (trailMarkers.length == 1) {
         trailMarkers[0].setIcon(iconmaker({ color: colors.trailStart, size: sizes.poiHero }));
@@ -891,6 +909,7 @@
       ) {
         // turn coordinates into latlngs and the changed part of the trail
         trail[0].setLatLngs(responseToLatlngs(response, trailResolution));
+        await populateTrailMarkerLocationInfo(trailMarkers[current]);
       } // else discard the response
     } else if (next >= trailMarkers.length) {
       //change one path if the end of the trail is moved and the next marker is after the end of the array
@@ -925,6 +944,7 @@
         trail[previous].setLatLngs(
           responseToLatlngs(response, trailResolution),
         );
+        await populateTrailMarkerLocationInfo(trailMarkers[current]);
       } //else discard the response
     } else {
       //moving a marker in the middle of the trail and finding the 2 path around it
@@ -963,6 +983,7 @@
         preLatlng == trailMarkers[previous].getLatLng()
       ) {
         trail[previous].setLatLngs(responseToLatlngs(part1, trailResolution));
+        await populateTrailMarkerLocationInfo(trailMarkers[current]);
       }
       if (
         trailMarkers.length > next &&
@@ -970,6 +991,7 @@
         nextLatlng == trailMarkers[next].getLatLng()
       ) {
         trail[current].setLatLngs(responseToLatlngs(part2, trailResolution));
+        await populateTrailMarkerLocationInfo(trailMarkers[current]);
       } // else discarding responses
     }
     loadingTrail--;
@@ -1163,7 +1185,7 @@
     trailMarkers.splice(
       rightClickTargetIndex + 1,
       0,
-      new Marker(event.latlng, { draggable: true }),
+      wrapTrailMarker(new Marker(event.latlng, { draggable: true })),
     );
     trailMarkers[rightClickTargetIndex + 1]
       .on("dragend", (e) => {
@@ -1227,6 +1249,7 @@
       trail[rightClickTargetIndex + 1].setLatLngs(
         responseToLatlngs(part2, trailResolution),
       );
+      await populateTrailMarkerLocationInfo(trailMarkers[rightClickTargetIndex + 1]);
     } //else discarding the response
     loadingTrail--;
     // we only need to initiate saving when all the loading is done, so only the last function to finish loading the trail starts the timeout
@@ -1272,6 +1295,7 @@
   //function to prepare data and save the
   function prepareTrailData() {
     let trailCoordinates: { lat: number; lng: number }[][] = [];
+    let districts: TrailMarkerMetadata[] = [];
     let length = 0;
     let bounds: LatLngBounds;
     let startLat = 0;
@@ -1280,6 +1304,11 @@
     let endLng = 0;
     let waypointString = "";
     if (trailUpdate && trail.length != 0) {
+      districts =trailMarkers.map((marker) => ({
+        city: marker.city,
+        borough: marker.borough,
+        suburb: marker.suburb,
+      }));
       let latlngs: LatLng[];
       bounds = trail[0].getBounds();
       trail.forEach((t) => {
@@ -1322,6 +1351,7 @@
       length: length,
       published: published,
       waypointString,
+      districts,
     };
   }
   //function to save the trail in the database and update the list of trails if the title was changed or a new trail was created
@@ -1437,19 +1467,26 @@
           lat: number;
           lng: number;
         }[][];
+        const districts = Array.isArray(result[0].districts)
+          ? (result[0].districts as TrailMarkerMetadata[])
+          : [];
         coordinates.forEach((t) => {
-          trailMarkers.push(new Marker(t[0], { draggable: true }));
+          const marker = wrapTrailMarker(new Marker(t[0], { draggable: true }));
+          Object.assign(marker, districts[trailMarkers.length]);
+          trailMarkers.push(marker);
           trail.push(new Polyline(t));
         });
-        trailMarkers.push(
+        const endMarker = wrapTrailMarker(
           new Marker(
-            //selecting the last element of the lest element in [][] is a nightmare
-            coordinates[coordinates.length - 1][
-              coordinates[coordinates.length - 1].length - 1
-            ],
-            { draggable: true },
+              //selecting the last element of the lest element in [][] is a nightmare
+              coordinates[coordinates.length - 1][
+                coordinates[coordinates.length - 1].length - 1
+              ],
+              { draggable: true },
           ),
         );
+        Object.assign(endMarker, districts[trailMarkers.length]);
+        trailMarkers.push(endMarker);
         trail.forEach((t) => {
           t.addTo(map);
           t.on("contextmenu", (e) => rightClickContextMenu(e));
@@ -1743,6 +1780,33 @@
     }
   }
 
+  async function findWaypointDistrict(lat:number,lng:number){
+    const result = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14`)
+    return result.json()
+  }
+
+  async function addMetadata() {
+    for (const markerEntry of trailMarkers) {
+      try {
+        await populateTrailMarkerLocationInfo(markerEntry);
+      } catch (error) {
+        console.log("Failed to add metadata for trail marker", error);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  async function populateTrailMarkerLocationInfo(markerEntry: TrailMarkerEntry) {
+    const { lat, lng } = markerEntry.getLatLng();
+    const result = await findWaypointDistrict(lat, lng);
+    const address = result?.address ?? {};
+
+    markerEntry.borough = address.borough ?? markerEntry.borough;
+    markerEntry.city = address.city ?? address.town ?? address.village ?? markerEntry.city;
+    markerEntry.suburb = address.suburb ?? markerEntry.suburb;
+  }
+
   //need to load a list of trails and session when we mount the page
   onMount(async () => {
     await loadTrailList();
@@ -1777,7 +1841,6 @@
     }
   });
 </script>
-
 <svelte:window
   on:click={onPageClick}
   on:contextmenu={() => {
@@ -2019,14 +2082,14 @@
     pendingPoiLocation = null;
   }}
 />
-        <input
-          bind:this={cameraInput}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          class="hidden-file-input"
-          onchange={handleCameraImage}
-        />
+<input
+  bind:this={cameraInput}
+  type="file"
+  accept="image/*"
+  capture="environment"
+  class="hidden-file-input"
+  onchange={handleCameraImage}
+/> 
 <style>
   .alignment {
     display: flex;
