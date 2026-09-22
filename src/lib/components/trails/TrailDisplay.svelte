@@ -6,6 +6,10 @@
     imageUrl?: string;
     imageAlt?: string;
     length?: number;
+    matchedDistricts?: string[];
+    matchedPoiTitles?: string[];
+    matchedPoiImageUrl?: string;
+    matchedPoiImageAlt?: string;
   };
 
   interface Props {
@@ -20,8 +24,7 @@
 <section class="trail-display" aria-label="Gefilterte Wanderwege">
   <header class="trail-display__header">
     <div>
-      <p class="trail-display__eyebrow">Wanderwege</p>
-      <h2>Gefilterte Wege</h2>
+      <h2>Ausgewählte Wege</h2>
     </div>
     <button type="button" class="trail-display__map-button" onclick={onMapMode}>
       Zur Karte wechseln.
@@ -37,11 +40,25 @@
           onclick={() => onSelectTrail(trail)}
           aria-label={`${trail.title} auf der Karte anzeigen`}
         >
+          {#if trail.matchedDistricts?.length}
+            <div class="trail-card__match-row" aria-label="Passende Stadtteile">
+              {#each trail.matchedDistricts as district}
+                <span>{district}</span>
+              {/each}
+            </div>
+          {/if}
+          {#if trail.matchedPoiTitles?.length}
+            <div class="trail-card__match-row" aria-label="Passende Sehenswürdigkeiten">
+              {#each trail.matchedPoiTitles as poiTitle}
+                <span>{poiTitle}</span>
+              {/each}
+            </div>
+          {/if}
           <div class="trail-card__image-frame">
-            {#if trail.imageUrl}
+            {#if trail.matchedPoiImageUrl || trail.imageUrl}
               <img
-                src={trail.imageUrl}
-                alt={trail.imageAlt || trail.title}
+                src={trail.matchedPoiImageUrl || trail.imageUrl}
+                alt={trail.matchedPoiImageAlt || trail.imageAlt || trail.title}
                 class="trail-card__image"
               />
             {:else}
@@ -171,6 +188,17 @@
     min-width: 0;
     min-height: 18rem;
     background: var(--accent-100, #e8f0ef);
+  }
+
+  .trail-card__match-row {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    gap: 0.35rem 0.5rem;
+    padding: 0.65rem 0.75rem 0;
+    color: var(--accent-muted-text, #526174);
+    font-size: 0.8rem;
+    font-weight: 700;
   }
 
   .trail-card__image,

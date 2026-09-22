@@ -31,7 +31,7 @@ export const saveTrail = command(v.object({
     endLat: v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),
     endLng: v.pipe(v.number(), v.minValue(-180), v.maxValue(180)),
     published: v.boolean(),
-    waypointString:v.string(),
+    waypoints: v.array(v.tuple([v.pipe(v.number(), v.minValue(-90), v.maxValue(90)),v.pipe(v.number(), v.minValue(-180), v.maxValue(180))])),
     districts: v.array(v.object({
         city: v.optional(v.string()),
         borough: v.optional(v.string()),
@@ -56,13 +56,14 @@ export const saveTrail = command(v.object({
                     published: data.published,
             }} else {
 
-                const directions = await formatDirections(data.waypointString);
+                const {directions,reverseDirections} = await formatDirections(data.waypoints);
 
                 Trail = {
                     title: data.title,
                     description: data.description,
                     trail: data.trail,
                     directions:directions,
+                    reverseDirections:reverseDirections,
                     author: user.id,
                     editor: user.id,
                     length: data.length,
@@ -105,13 +106,14 @@ export const saveTrail = command(v.object({
                 } else {
 
                 try {
-                    const directions = await formatDirections(data.waypointString);
+                    const {directions,reverseDirections} = await formatDirections(data.waypoints);
                     
                     await db.update(hikingTrails).set({
                         title: data.title,
                         description: data.description,
                         trail: data.trail,
                         directions: directions,
+                        reverseDirections: reverseDirections,
                         editor: user.id,//change the editor instead of the author
                         length: data.length,
                         startLat: data.startLat,
@@ -221,8 +223,12 @@ export const getTrailPOIs = command(v.string(), async (trailId) => {
 })
 
 
-async function formatDirections(waypointString: string) {
-    const response = await getDirections(waypointString);
+async function formatDirections(waypoints:[number,number][]) {
+    const waypointString = waypoints.map((point) => `${point[1]},${point[0]}`).join(";");
+    const reverseWaypointString = waypoints.map((point) => `${point[1]},${point[0]}`).reverse().join(";");
+
+    const response= await getDirections(waypointString);
+    const reverseResponse = await getDirections(reverseWaypointString);
     const directions = (response?.routes ?? [])
         .flatMap((route:any) => route.legs ?? [])
         .flatMap((leg:any) => leg.steps ?? [])
@@ -234,6 +240,17 @@ async function formatDirections(waypointString: string) {
                 trimmed !== "Sie haben Ihr Ziel erreicht." &&
                 !trimmed.startsWith("Das Ziel befindet");
         });
-        return directions;
+    const reverseDirections = (reverseResponse?.routes ?? [])
+        .flatMap((route:any) => route.legs ?? [])
+        .flatMap((leg:any) => leg.steps ?? [])
+        .map((step:any) => step.maneuver?.instruction)
+        .filter((instruction:any): instruction is string => {
+            if (typeof instruction !== "string") return false;
+            const trimmed = instruction.trim();
+            return trimmed.length > 0 &&
+                trimmed !== "Sie haben Ihr Ziel erreicht." &&
+                !trimmed.startsWith("Das Ziel befindet");
+        });
+        return {directions,reverseDirections};
                     
 }

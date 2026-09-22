@@ -82,7 +82,7 @@ export const makeAdmin = command(v.string(), async (userId) => {
 
 export const trailDirection = command(v.string(), async (trailId) => {
     try {
-        const trail = await db.select({directions:hikingTrails.directions}).from(hikingTrails).where(eq(hikingTrails.id, trailId));
+        const trail = await db.select({directions:hikingTrails.reverseDirections}).from(hikingTrails).where(eq(hikingTrails.id, trailId));
         return trail[0].directions;
     } catch (error) {
         throw error;

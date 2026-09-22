@@ -12,6 +12,7 @@
     insertingWaypoint = false,
     poiList = [],
     trailMarkup = [],
+    heromaker,
   }: {
     poiList: pointOfInterest[];
     insertingWaypoint: boolean;
@@ -19,6 +20,7 @@
     creatingPoi: boolean;
     editorMode: "trail" | "poi";
     trailMarkup: LegendMarker[];
+    heromaker: (poi: pointOfInterest) => void;
   } = $props();
 
   let isMinimized = $state(false);
@@ -95,7 +97,9 @@
               Sehenswürdigkeit zum bearbeiten oder verschieben anclicken
             </div>{/if}
           {#each poiList as poi, index}
-            <span>{index + 1} {poi.title}</span>
+            <button type="button" class="poi-button" onclick={() => heromaker(poi)}>
+              {index + 1} {poi.title}
+            </button>
           {/each}
         {/if}
       </div>
@@ -201,5 +205,21 @@
     font-size: 0.75rem;
     color: #475569;
     line-height: 1.25;
+  }
+
+  .poi-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #475569;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .poi-button:hover,
+  .poi-button:focus-visible {
+    color: #1f2937;
+    text-decoration: underline;
   }
 </style>

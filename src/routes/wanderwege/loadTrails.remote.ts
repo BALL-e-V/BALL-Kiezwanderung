@@ -38,21 +38,36 @@ export const initialLoadTrails = command(
             ? await db.select({
                 trailId: trailsToPoi.trailId,
                 title: poi.title,
+                imageUrl: poi.imageUrl,
+                imageAlt: poi.imageAlt,
             })
                 .from(trailsToPoi)
                 .leftJoin(poi, eq(poi.id, trailsToPoi.poiId))
                 .where(inArray(trailsToPoi.trailId, trailIds))
             : [];
         const poiTitlesByTrailId = new Map<string, string[]>();
+        const poiImagesByTrailId = new Map<string, Array<{
+            title: string;
+            imageUrl?: string | null;
+            imageAlt?: string | null;
+        }>>();
         for (const row of poiRows) {
             if (!row.title) continue;
             const titles = poiTitlesByTrailId.get(row.trailId) ?? [];
             titles.push(row.title);
             poiTitlesByTrailId.set(row.trailId, titles);
+            const poiImages = poiImagesByTrailId.get(row.trailId) ?? [];
+            poiImages.push({
+                title: row.title,
+                imageUrl: row.imageUrl,
+                imageAlt: row.imageAlt,
+            });
+            poiImagesByTrailId.set(row.trailId, poiImages);
         }
         const addPoiTitles = <T extends { id: string }>(trail: T) => ({
             ...trail,
             poiTitles: poiTitlesByTrailId.get(trail.id) ?? [],
+            poiImages: poiImagesByTrailId.get(trail.id) ?? [],
         });
 
         return trails.map(addPoiTitles);

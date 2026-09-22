@@ -77,7 +77,7 @@ export async function printTrail({
     let pageHeight = 297;
 
     if (trailBoundsRatio < 0.3) {
-        doc = new jsPDF({ unit: "mm" });
+        doc = new jsPDF({ unit: "mm", hotfixes: ["px_scaling"] });
         pageWidth = doc.internal.pageSize.getWidth();
         pageHeight = doc.internal.pageSize.getHeight();
         pageLeftMargin = 20;
@@ -90,7 +90,7 @@ export async function printTrail({
         textY = imgY;
         textWidth = Math.max(50, pageWidth - textX - 5);
     } else if (trailBoundsRatio < 1) {
-        doc = new jsPDF({ orientation: "l", unit: "mm" });
+        doc = new jsPDF({ orientation: "l", unit: "mm", hotfixes: ["px_scaling"]  });
         pageWidth = doc.internal.pageSize.getWidth();
         pageHeight = doc.internal.pageSize.getHeight();
         pageLeftMargin = 5;
@@ -103,7 +103,7 @@ export async function printTrail({
         textY = imgY;
         textWidth = Math.max(50, pageWidth - textX - 5);
     } else if (trailBoundsRatio < 3) {
-        doc = new jsPDF({ unit: "mm" });
+        doc = new jsPDF({ unit: "mm", hotfixes: ["px_scaling"] });
         pageWidth = doc.internal.pageSize.getWidth();
         pageHeight = doc.internal.pageSize.getHeight();
         pageLeftMargin = 20;
@@ -116,7 +116,7 @@ export async function printTrail({
         textY = imgY + imgH + printConfig.margins.mapContent;
         textWidth = pageWidth - pageLeftMargin * 2;
     } else {
-        doc = new jsPDF({ orientation: "l", unit: "mm" });
+        doc = new jsPDF({ orientation: "l", unit: "mm", hotfixes: ["px_scaling"] });
         pageWidth = doc.internal.pageSize.getWidth();
         pageHeight = doc.internal.pageSize.getHeight();
         pageLeftMargin = 5;
@@ -134,7 +134,7 @@ export async function printTrail({
     const descriptionText = (focussedTrail.description || "Keine Beschreibung verfügbar.").trim();
     const continuationRightMargin = 5;
     const continuationBottomMargin = 5;
-    const addContinuationNotice = (noticeX = pageLeftMargin) => {
+    const addContinuationNotice = (noticeX = textX) => {
         doc.setTextColor(30, 30, 30);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
@@ -201,7 +201,7 @@ export async function printTrail({
         const continuationTextWidth = doc.internal.pageSize.getWidth() - pageLeftMargin - continuationRightMargin;
 
         const addContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
-            addContinuationNotice(leftMargin);
+            addContinuationNotice(textX);
             doc.addPage();
             let currentY = topMargin;
             doc.setTextColor(30, 30, 30);

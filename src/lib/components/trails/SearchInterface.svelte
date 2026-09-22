@@ -5,25 +5,45 @@
     districts: string[];
     startDistrict: string[];
     poiTitles: string[];
+    poiImages: Array<{ title: string; imageUrl?: string | null; imageAlt?: string | null }>;
     length?: number;
+  };
+
+  type SearchResult = {
+    id: string;
+    matchedDistricts: string[];
+    matchedPoiTitles: string[];
+    matchedPoiImageUrl?: string;
+    matchedPoiImageAlt?: string;
+  };
+
+  export type SearchData = {
+    nameQuery: string;
+    districtQuery: string;
+    poiQuery: string;
+    onlyStart: boolean;
+    selectedMinLength: number | null;
+    selectedMaxLength: number | null;
   };
 
   let {
     trails = [],
     onSearch,
     noTrailsFound = false,
+    searchData = $bindable<SearchData>({
+      nameQuery: "",
+      districtQuery: "",
+      poiQuery: "",
+      onlyStart: false,
+      selectedMinLength: null,
+      selectedMaxLength: null,
+    }),
   }: {
     trails: SearchTrail[];
-    onSearch: (trails: Array<{ id: string }>) => void;
+    onSearch: (trails: SearchResult[], preserveFocus?: boolean) => void;
     noTrailsFound?: boolean;
+    searchData?: SearchData;
   } = $props();
-
-  let nameQuery = $state("");
-  let districtQuery = $state("");
-  let poiQuery = $state("");
-  let onlyStart = $state(false);
-  let selectedMinLength = $state<number | null>(null);
-  let selectedMaxLength = $state<number | null>(null);
 
   const lengthRange = $derived.by(() => {
     const lengths = trails
@@ -37,8 +57,8 @@
     };
   });
 
-  const minLength = $derived(selectedMinLength ?? lengthRange.min);
-  const maxLength = $derived(selectedMaxLength ?? lengthRange.max);
+  const minLength = $derived(searchData.selectedMinLength ?? lengthRange.min);
+  const maxLength = $derived(searchData.selectedMaxLength ?? lengthRange.max);
 
   function matchesRegex(value: string, query: string) {
     if (!query.trim()) return true;
@@ -54,62 +74,85 @@
     return values.some((value) => matchesRegex(value, query));
   }
 
-  function search() {
+  function search(preserveFocus = false) {
     const filteredTrails = trails.filter((trail) => {
 
       const trailLength = trail.length ?? 0;
-      const districts = onlyStart ? trail.startDistrict : trail.districts;
+      const districts = searchData.onlyStart ? trail.startDistrict : trail.districts;
 
       return (
-        matchesRegex(trail.title, nameQuery) &&
-        matchesAny(districts, districtQuery) &&
-        (matchesAny(trail.poiTitles, poiQuery)|| (trail.poiTitles.length ==0 && poiQuery == "")) &&
+        matchesRegex(trail.title, searchData.nameQuery) &&
+        matchesAny(districts, searchData.districtQuery) &&
+        (matchesAny(trail.poiTitles, searchData.poiQuery)|| (trail.poiTitles.length ==0 && searchData.poiQuery == "")) &&
         trailLength >= minLength &&
         trailLength <= maxLength
       );
     });
 
-    onSearch(filteredTrails.map((trail) => ({ id: trail.id })));
+    onSearch(
+      filteredTrails.map((trail) => {
+          const matchedPoiImage = searchData.poiQuery.trim()
+          ? trail.poiImages.find(
+              (poi) => matchesRegex(poi.title, searchData.poiQuery) && Boolean(poi.imageUrl),
+            )
+          : undefined;
+          console.log(matchedPoiImage)
+
+        return {
+          id: trail.id,
+          matchedDistricts: searchData.districtQuery.trim()
+            ? (searchData.onlyStart ? trail.startDistrict : trail.districts)
+                .filter((district) => matchesRegex(district, searchData.districtQuery))
+            : [],
+          matchedPoiTitles: searchData.poiQuery.trim()
+            ? trail.poiTitles.filter((title) => matchesRegex(title, searchData.poiQuery))
+            : [],
+          matchedPoiImageUrl: matchedPoiImage?.imageUrl ?? undefined,
+          matchedPoiImageAlt: matchedPoiImage?.imageAlt ?? undefined,
+        };
+      }),
+      preserveFocus,
+    );
   }
 
   function reset() {
-    nameQuery = "";
-    districtQuery = "";
-    poiQuery = "";
-    onlyStart = false;
-    selectedMinLength = null;
-    selectedMaxLength = null;
-    search();
+    searchData.nameQuery = "";
+    searchData.districtQuery = "";
+    searchData.poiQuery = "";
+    searchData.onlyStart = false;
+    searchData.selectedMinLength = null;
+    searchData.selectedMaxLength = null;
+    search(true);
   }
 
   function updateMinLength(value: number) {
-    selectedMinLength = Math.min(value, maxLength);
+    searchData.selectedMinLength = Math.min(value, maxLength);
   }
 
   function updateMaxLength(value: number) {
-    selectedMaxLength = Math.max(value, minLength);
+    searchData.selectedMaxLength = Math.max(value, minLength);
   }
 </script>
 
 <form class="search-interface" onsubmit={(event) => { event.preventDefault(); search(); }}>
   <label>
     Name
-    <input type="search" bind:value={nameQuery} placeholder="Wanderweg suchen" />
+    <input type="search" bind:value={searchData.nameQuery} placeholder="Wanderweg suchen" />
   </label>
 
   <label>
     Stadtteil
-    <input type="search" bind:value={districtQuery} placeholder="Stadtteil suchen" />
+    <input type="search" bind:value={searchData.districtQuery} placeholder="Stadtteil suchen" />
   </label>
 
   <label class="checkbox-label">
-    <input type="checkbox" bind:checked={onlyStart} />
+    <input type="checkbox" bind:checked={searchData.onlyStart} />
     Nur Anfang
   </label>
 
   <label>
     Sehenswürdigkeiten
-    <input type="search" bind:value={poiQuery} placeholder="Sehenswürdigkeit suchen" />
+    <input type="search" bind:value={searchData.poiQuery} placeholder="Sehenswürdigkeit suchen" />
   </label>
 
   <fieldset>

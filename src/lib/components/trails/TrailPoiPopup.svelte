@@ -117,39 +117,11 @@
   <div
     class="trail-popup__header"
     data-drag-handle="true"
+    role="group"
+    aria-label="POI-Fenster verschieben"
     onpointerdown={beginDrag}
   >
     <div class="trail-popup__title">{popupTitle}</div>
-    {#if showPoiNavigation}
-      <div
-        class="trail-popup__poi-nav"
-        role="navigation"
-        aria-label="POI-Auswahl"
-      >
-        <button
-          class="trail-popup__nav-button"
-          type="button"
-          aria-label="Vorheriger POI"
-          onclick={() => onSelectPoi?.(Math.max(0, activePoiIndex - 1))}
-          disabled={activePoiIndex <= 0}
-        >
-          ←
-        </button>
-        <span class="trail-popup__poi-counter"
-          >{activePoiIndex + 1}/{poiCount}</span
-        >
-        <button
-          class="trail-popup__nav-button"
-          type="button"
-          aria-label="Nächster POI"
-          onclick={() =>
-            onSelectPoi?.(Math.min(poiCount - 1, activePoiIndex + 1))}
-          disabled={activePoiIndex >= poiCount - 1}
-        >
-          →
-        </button>
-      </div>
-    {/if}
     <button
       class="trail-popup__close"
       type="button"
@@ -192,7 +164,7 @@
             type="button"
             onclick={() => onSelectPoi(activeImageIndex)}
           >
-            {imageTitlels[activeImageIndex]}({activeImageIndex +
+            Zu Sehenswürdigkeit({activeImageIndex +
               1}/{imageUrls.length})
           </button>
           <button
@@ -222,6 +194,37 @@
         />
       </div>
     {/if}
+  {/if}
+
+  {#if showPoiNavigation}
+    <div
+      class="trail-popup__poi-nav"
+      role="navigation"
+      aria-label="POI-Auswahl"
+    >
+      <button
+        class="trail-popup__nav-button"
+        type="button"
+        aria-label="Vorheriger POI"
+        onclick={() => onSelectPoi?.(Math.max(0, activePoiIndex - 1))}
+        disabled={activePoiIndex <= 0}
+      >
+        vorherige
+      </button>
+      <span class="trail-popup__poi-counter"
+        >{activePoiIndex + 1}/{poiCount}</span
+      >
+      <button
+        class="trail-popup__nav-button"
+        type="button"
+        aria-label="Nächster POI"
+        onclick={() =>
+          onSelectPoi?.(Math.min(poiCount - 1, activePoiIndex + 1))}
+        disabled={activePoiIndex >= poiCount - 1}
+      >
+        nächste
+      </button>
+    </div>
   {/if}
 
   {#if description}
@@ -269,26 +272,40 @@
   .trail-popup__poi-nav {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    margin-left: auto;
-    margin-right: 0.35rem;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.65rem 0.75rem;
   }
 
   .trail-popup__poi-counter {
+    flex: 0 0 auto;
     font-size: 0.85rem;
-    color: #64748b;
+    color: #172033;
+    font-weight: 700;
     min-width: 3rem;
     text-align: center;
   }
 
   .trail-popup__nav-button {
-    border: 1px solid #cbd5e1;
-    background: white;
-    border-radius: 999px;
-    width: 1.8rem;
-    height: 1.8rem;
+    flex: 1 1 0;
+    border: 2px solid #172033;
+    border-radius: 0.35rem;
+    padding: 0.45rem 0.7rem;
+    background: #ffffff;
+    color: #172033;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
     cursor: pointer;
-    color: #334155;
+  }
+
+  .trail-popup__nav-button:hover,
+  .trail-popup__nav-button:focus-visible {
+    background: #facc15;
+    border-color: #facc15;
+    color: #172033;
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
   }
 
   .trail-popup__nav-button:disabled {
@@ -382,32 +399,39 @@
     align-items: center;
     gap: 0.6rem;
     padding: 0.55rem 0.75rem;
-    background: #f8fafc;
   }
 
   .trail-popup__control {
-    border: 1px solid #cbd5e1;
-    background: white;
+    border: 2px solid #172033;
+    background: #ffffff;
     border-radius: 999px;
     width: 2rem;
     height: 2rem;
+    color: #172033;
+    font-weight: 800;
     cursor: pointer;
   }
 
   .trail-popup__image-counter {
-    border: 1px solid #cbd5e1;
-    background: white;
+    border: 2px solid #172033;
+    background: #ffffff;
     border-radius: 0.375rem;
     padding: 0.5rem 0.75rem;
     cursor: pointer;
     font-size: 0.875rem;
-    color: #64748b;
+    color: #172033;
+    font-weight: 800;
     transition: all 0.2s ease;
   }
 
+  .trail-popup__control:hover,
+  .trail-popup__control:focus-visible,
   .trail-popup__image-counter:hover {
-    background-color: #f8fafc;
-    border-color: #94a3b8;
+    background-color: #facc15;
+    border-color: #facc15;
+    color: #172033;
+    outline: 2px solid #172033;
+    outline-offset: 2px;
   }
 
   .trail-popup__content {

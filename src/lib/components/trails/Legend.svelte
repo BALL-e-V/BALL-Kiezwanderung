@@ -1,19 +1,35 @@
 <script lang="ts">
+  import type { LatLngBounds } from "leaflet";
+
   interface hikingTrail {
     title: string;
     id: string;
     display: boolean;
     color: string;
+    bounds: LatLngBounds;
   }
 
   let {
     trails = [],
     poiTitles = [],
-  }: { trails: hikingTrail[]; poiTitles: string[] } = $props();
+    mapBounds = null,
+    onTrailSelect,
+    onPoiSelect,
+  }: {
+    trails: hikingTrail[];
+    poiTitles: string[];
+    mapBounds?: LatLngBounds | null;
+    onTrailSelect?: (trail: { id: string }) => void;
+    onPoiSelect?: (index: number) => void;
+  } = $props();
 
   let isMinimized = $state(false);
 
-  const displayedTrails = $derived(trails.filter((trail) => trail.display));
+  const displayedTrails = $derived(
+    trails.filter(
+      (trail) => trail.display && (!mapBounds || trail.bounds.overlaps(mapBounds)),
+    ),
+  );
 </script>
 
 <div class="unfocussed-legend" class:minimized={isMinimized}>
@@ -45,13 +61,17 @@
   {#if !isMinimized}
     <div class="legend-content">
       {#each displayedTrails as trail (trail.id)}
-        <div class="legend-item">
+        <button
+          class="legend-item legend-button"
+          type="button"
+          onclick={() => onTrailSelect?.(trail)}
+        >
           <div
             class="legend-line"
             style="background-color: {trail.color}"
           ></div>
           <div class="legend-title">{trail.title}</div>
-        </div>
+        </button>
       {/each}
       <div class="legend-item">
         <div class="legend-marker start-marker"></div>
@@ -63,9 +83,14 @@
       </div>
       {#if poiTitles.length > 0}
         {#each poiTitles as title, index}
-          <div class="legend-item">
-            <div class="legend-title">{index + 1} {title}</div>
-          </div>
+          <button
+            class="legend-item legend-button"
+            type="button"
+            onclick={() => onPoiSelect?.(index)}
+          >
+            <span class="poi-number" aria-hidden="true">{index + 1}</span>
+            <div class="legend-title">{title}</div>
+          </button>
         {/each}
       {/if}
     </div>
@@ -87,9 +112,15 @@
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     max-width: 280px;
+    transition:
+      max-height 0.5s ease-in,
+      padding 0.5s ease-in,
+      gap 0.5s ease-in;
+    overflow: hidden;
   }
 
   .unfocussed-legend.minimized {
+    max-height: 2rem;
     padding: 4px;
     gap: 0;
   }
@@ -113,7 +144,7 @@
   }
 
   .minimize-button svg {
-    transition: transform 0.2s ease;
+    transition: transform 0.2s;
   }
 
   .minimize-button svg.rotated {
@@ -134,11 +165,40 @@
     color: #1f2937;
   }
 
+  .legend-button {
+    width: 100%;
+    padding: 0.25rem 0.35rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .legend-button:hover,
+  .legend-button:focus-visible {
+    background: #fef3c7;
+    outline: 2px solid #d97706;
+    outline-offset: 1px;
+  }
+
   .legend-line {
     width: 24px;
     height: 4px;
     flex-shrink: 0;
     border-radius: 2px;
+  }
+
+  .poi-number {
+    display: inline-grid;
+    place-items: center;
+    width: 1.3rem;
+    height: 1.3rem;
+    flex: 0 0 1.3rem;
+    border-radius: 50%;
+    background: #facc15;
+    color: #172033;
+    font-size: 0.75rem;
+    font-weight: 800;
   }
 
   .legend-marker {

@@ -1302,7 +1302,7 @@
     let startLng = 0;
     let endLat = 0;
     let endLng = 0;
-    let waypointString = "";
+    let waypoints:[number,number][]=[];
     if (trailUpdate && trail.length != 0) {
       districts =trailMarkers.map((marker) => ({
         city: marker.city,
@@ -1328,9 +1328,9 @@
           (trail[trail.length - 1].getLatLngs() as LatLng[]).length - 1
         ].lng as number;
         trailMarkers.forEach((m)=>{
-          waypointString += ";"+m.getLatLng().lng +","+ m.getLatLng().lat 
+          waypoints.push([m.getLatLng().lat as number, m.getLatLng().lng as number])
         })
-        waypointString = waypointString.slice(1);
+
     } else {
       bounds = map.getBounds();
     }
@@ -1350,7 +1350,7 @@
       trailUpdate: trailUpdate,
       length: length,
       published: published,
-      waypointString,
+      waypoints,
       districts,
     };
   }
@@ -1888,6 +1888,7 @@
         {poiList}
         {creatingPoi}
         {insertingWaypoint}
+        {heromaker}
       />
       {#if pathFailureVisible}
         <div class="path-failure-tooltip" role="status">{failureTooltipMessage}</div>

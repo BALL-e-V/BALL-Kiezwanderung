@@ -12,16 +12,19 @@
     LatLngBounds,
     LatLng,
     Marker,
+    CRS,
   } from "leaflet";
   import TrailPoiTooltip from "$lib/components/trails/TrailPoiTooltip.svelte";
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
   import Legend from "$lib/components/trails/Legend.svelte";
-  import SearchInterface from "$lib/components/trails/SearchInterface.svelte";
+  import RightClickMenu from "$lib/components/trails/RightClickMenu.svelte";
+  import SearchInterface, { type SearchData } from "$lib/components/trails/SearchInterface.svelte";
   import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
   import { compareTrailPosition, iconmaker } from "$lib/util";
   import { wanderwegeConfig } from "$lib/config";
   import { onMount } from "svelte";
+  import { SQLiteTransaction } from "drizzle-orm/sqlite-core";
   const {
     colors,
     tooltipSignCount,
@@ -80,14 +83,29 @@
     districts: string[];
     startDistrict: string[];
     poiTitles: string[];
+    poiImages: Array<{ title: string; imageUrl?: string | null; imageAlt?: string | null }>;
+    matchedDistricts?: string[];
+    matchedPoiTitles?: string[];
+    matchedPoiImageUrl?: string;
+    matchedPoiImageAlt?: string;
     startMarker:Marker|null;
     endMarker:Marker|null;
   }
 
   let trailList: hikingTrail[] = $state([]);
   let filteredTrails: hikingTrail[] = $state([]);
+  let mapBounds = $state<LatLngBounds | null>(null);
+  let rightClickMenu = $state<{ x: number; y: number } | null>(null);
   let displayMode = $state<"list" | "map">("list");
   let searchVisible = $state(false);
+  let searchData = $state<SearchData>({
+    nameQuery: "",
+    districtQuery: "",
+    poiQuery: "",
+    onlyStart: false,
+    selectedMinLength: null,
+    selectedMaxLength: null,
+  });
   let noTrailsFound = $state(false);
   let noResultsTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -129,22 +147,37 @@
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }
+
+  function getPoiMarkerElement(poi: pointOfInterest) {
+    return document.getElementById(poi.id) ?? poi.marker.getElement();
+  }
+
 //turn on and off pointerover/out interactions for a poi marker
   function markerHoverSwitch(poi: pointOfInterest, onOff: "on" | "off") {
     if (onOff == "on") {
       poi.marker.on("pointerover", (event: any) => {
         showtooltip({ event, poi });
-        event.originalEvent.target.style.border = "2px solid " + colors.highlight;
+        const markerElement = getPoiMarkerElement(poi);
+        if (markerElement) {
+          markerElement.style.border = "2px solid " + colors.highlight;
+        }
       });
       poi.marker.on("pointerout", (event: any) => {
         if (event.originalEvent.pointerType == "mouse") {
-          event.originalEvent.target.style.border = "1px solid black";
+          const markerElement = getPoiMarkerElement(poi);
+          if (markerElement) {
+            markerElement.style.border = "1px solid black";
+          }
           tooltipVisible = false;
         }
       });
     } else {
       poi.marker.off("pointerover");
       poi.marker.off("pointerout");
+                const markerElement = getPoiMarkerElement(poi);
+          if (markerElement) {
+            markerElement.style.border = "1px solid black";
+          }
     }
   }
   //turn on and off trail pointerover/out interactions
@@ -165,6 +198,7 @@
     } else {
       trail.trail?.off("pointerover");
       trail.trail?.off("pointerout");
+          trail.trail?.setStyle({ weight: 3 });
     }
   }
   
@@ -209,7 +243,10 @@
         } else {
           doubleTapTargetId = poi.id;
           showtooltip({ event: e, poi });
-          e.originalEvent.target.style.border = "2px solid " + colors.highlight;
+          const markerElement = getPoiMarkerElement(poi);
+          if (markerElement) {
+            markerElement.style.border = "2px solid " + colors.highlight;
+          }
           longTapTimer = setTimeout(() => {
             popupSwitch({ poi });
             clearTimeout(longTapTimer);
@@ -406,7 +443,6 @@
       const end = new LatLng(endLat, endLng);
 
       const length = Math.round((getProp(item, "length") as number)/100)/10;
-      console.log(length)
   
       const trailData = getProp(item, "trail", "geojson") || undefined;
       let trail: Polyline | undefined;
@@ -436,6 +472,9 @@
         poiTitles: Array.isArray(getProp(item, "poiTitles"))
           ? getProp(item, "poiTitles")
           : [],
+        poiImages: Array.isArray(getProp(item, "poiImages"))
+          ? getProp(item, "poiImages")
+          : [],
         loading: false,
         display: false,
       } as hikingTrail;
@@ -463,6 +502,42 @@
     displayMode = "list";
   }
 
+  function closeRightClickMenu() {
+    rightClickMenu = null;
+  }
+
+  function openRightClickMenu(event: any) {
+    if(searchVisible){
+      searchVisible = false;
+    }
+    event.originalEvent?.preventDefault();
+    const point = event.containerPoint;
+    rightClickMenu = {
+      x: point.x + 8,
+      y: point.y + 8,
+    };
+  }
+
+  function openSearchFromMenu() {
+    closeRightClickMenu();
+    searchVisible = true;
+  }
+
+  function showListFromMenu() {
+    closeRightClickMenu();
+    if(focussedTrail){
+      focusTrailSwitch(focussedTrail, "off");
+    }
+    showList();
+  }
+
+  function showAllTrailsFromMenu() {
+    closeRightClickMenu();
+    if (focussedTrail) {
+      focusTrailSwitch(focussedTrail, "off");
+    }
+  }
+
   function selectTrailFromList(trail: { id: string }) {
     const selectedTrail = trailList.find((item) => item.id === trail.id);
     if (!selectedTrail) return;
@@ -471,12 +546,49 @@
     focusTrailSwitch(selectedTrail, "on");
   }
 
-  function applyTrailSearch(nextFilteredTrails: Array<{ id: string }>) {
-    if (focussedTrail){
+  function selectTrailFromLegend(trail: { id: string }) {
+    const selectedTrail = trailList.find((item) => item.id === trail.id);
+    if (!selectedTrail) return;
+
+    if (focussedTrail) {
+      popupSwitch({ trail: selectedTrail });
+    } else {
+      focusTrailSwitch(selectedTrail, "on");
+    }
+  }
+
+  function selectPoiFromLegend(index: number) {
+    popupSwitch({ poiIndex: index });
+  }
+
+  function applyTrailSearch(nextFilteredTrails: Array<{
+    id: string;
+    matchedDistricts: string[];
+    matchedPoiTitles: string[];
+    matchedPoiImageUrl?: string;
+    matchedPoiImageAlt?: string;
+  }>, preserveFocus = false) {
+    if (focussedTrail && !preserveFocus){
       focusTrailSwitch(focussedTrail,"off")
     }
     const filteredIds = new Set(nextFilteredTrails.map((trail) => trail.id));
-    filteredTrails = trailList.filter((trail) => filteredIds.has(trail.id));
+    const searchResults = new Map(nextFilteredTrails.map((trail) => [trail.id, trail]));
+    filteredTrails = trailList
+      .filter((trail) => filteredIds.has(trail.id))
+      .map((trail) => ({
+        ...trail,
+        matchedDistricts: searchResults.get(trail.id)?.matchedDistricts ?? [],
+        matchedPoiTitles: searchResults.get(trail.id)?.matchedPoiTitles ?? [],
+        matchedPoiImageUrl: searchResults.get(trail.id)?.matchedPoiImageUrl,
+        matchedPoiImageAlt: searchResults.get(trail.id)?.matchedPoiImageAlt,
+      }));
+
+    if (preserveFocus && focussedTrail) {
+      searchVisible = false;
+      noTrailsFound = false;
+      return;
+    }
+
     trailList.forEach((trail) => {
       const shouldDisplay = filteredIds.has(trail.id);
       if (shouldDisplay !== trail.display) {
@@ -573,10 +685,12 @@
     const pois = poisByTrailId.get(trail.id);
     if (pois) {
       pois.reverse();
+      poiTitles = pois.map((poi) => poi.title);
       // Update the marker icons with new numbers
       pois.forEach((p, i) => {
         p.marker.setIcon(iconmaker({ color: "yellow", size: 2, number: i + 1, id: p.id }));
       });
+      configurePrintMap(trail);
     }
 
     // Swap start and end coordinates
@@ -620,6 +734,7 @@
       const poiElement = document.getElementById(popupData.poiId);
       if (poiElement) {
         poiElement.style.backgroundColor = "yellow";
+        poiElement.style.border = "1px solid black";
       }
     }
 
@@ -696,20 +811,26 @@
     const trailPois = focussedTrail
       ? (poisByTrailId.get(focussedTrail.id) ?? [])
       : [];
-    if (index >= 0 && index < trailPois.length) {
-      const poi = trailPois[index];
-      const element = document.getElementById(poi.id);
-      if (element) element.style.border = "2px solid " + colors.highlight;
-      if (
-        previous !== undefined &&
-        previous >= 0 &&
-        previous < trailPois.length
-      ) {
-        const prevPoi = trailPois[previous];
-        const prevElement = document.getElementById(prevPoi.id);
-        if (prevElement) prevElement.style.border = "1px solid black";
+    const imagePois = popupData.isPoiSelection
+      ? []
+      : trailPois.filter((poi) => Boolean(poi.imageUrl));
+
+      
+    if (index >= 0 && index < imagePois.length) {
+      const currentElement = getPoiMarkerElement(imagePois[index]);
+      if (currentElement) {
+        currentElement.style.border = "2px solid " + colors.highlight;
       }
     }
+
+    if (previous !== undefined && previous >= 0 && previous < imagePois.length) {
+      const previousElement = getPoiMarkerElement(imagePois[previous]);
+      if (previousElement) {
+        previousElement.style.border = "1px solid black";
+      }
+    }
+
+
   }
 
   function createPrintMap(){
@@ -734,9 +855,20 @@
 
   function configurePrintMap(trail:hikingTrail){
 
-    trailBoundsRatio =
-      trail.bounds.getNorthEast().distanceTo(trail.bounds.getNorthWest()) /
-      trail.bounds.getNorthEast().distanceTo(trail.bounds.getSouthEast());
+    mapBounds = new LatLngBounds(
+      trail.bounds.getSouthWest(),
+      new LatLng(
+        trail.bounds.getNorth() as number + (trail.bounds.getNorth() - trail.bounds.getSouth()) * 0.05,
+        trail.bounds.getEast(),
+      )
+    );
+
+        let modelingZoom = 13
+    let width = CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x
+    let height = CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y
+    trailBoundsRatio = width / height;
+
+
 
     const pixelsPerMm = 200 / 25.4;
     let printWidthMm = 100;
@@ -755,12 +887,36 @@
       printWidthMm = 287;
       printHeightMm = 100;
     }
+
+    console.log(width,height)
+    while(printWidthMm * pixelsPerMm > (2^0.5)*width && printHeightMm * pixelsPerMm > (2^0.5)*height){
+      modelingZoom++;
+      width = CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x
+      height = CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y
+    }
+    while((2^0.5)*printWidthMm * pixelsPerMm < width && (2^0.5)*printHeightMm * pixelsPerMm < height){
+      modelingZoom--;
+      width = CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x
+      height = CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y
+      
+    }
+    console.log(width,height)
+    if(trailBoundsRatio > printWidthMm / printHeightMm){
+      height =Math.round( width / (printWidthMm / printHeightMm))
+      width = Math.round(width)
+    }else{
+      width = Math.round( height * (printWidthMm / printHeightMm))
+      height = Math.round(height)
+    }
+   
+    console.log(width,height)
+
     printHikingTrail.setLatLngs(trail.trail?.getLatLngs()??[]).setStyle({color:trail.color,weight:3})
 
-    printMapElement.style.width = `${printWidthMm * pixelsPerMm}px`;
-    printMapElement.style.height = `${printHeightMm * pixelsPerMm}px`;
+    printMapElement.style.width = `${width}px`;
+    printMapElement.style.height = `${height}px`;
     printMap?.invalidateSize();
-    printMap?.fitBounds(trail.bounds)
+    printMap?.fitBounds(mapBounds)
     printMapMarkers.forEach((m)=>{
       m.remove();
       m= null as any;
@@ -828,6 +984,16 @@
     );
     tiles.addTo(map);
 
+    map.on("contextmenu", openRightClickMenu);
+    const updateMapBounds = () => {
+      mapBounds = map.getBounds();
+    };
+    map.on("moveend", updateMapBounds);
+    updateMapBounds();
+    map.on("pointerdown", () => {
+      closeRightClickMenu();
+    });
+
     map.getContainer().style.cursor = "all-scroll";
     fetchInitialTrailData();
     requestAnimationFrame(() => {
@@ -835,8 +1001,10 @@
     });
     return {
       destroy: () => {
+        map.off("contextmenu", openRightClickMenu);
         // dont litter
-        map.off("moveend");
+        map.off("moveend", updateMapBounds);
+        map.off("pointerdown");
         map.remove();
         map = null as any;
       },
@@ -849,8 +1017,19 @@
       searchVisible = !searchVisible;
     };
 
+    const closeSearchOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && !target.closest(".search-overlay")) {
+        searchVisible = false;
+      }
+    };
+
     window.addEventListener("toggle-wanderwege-search", toggleSearch);
-    return () => window.removeEventListener("toggle-wanderwege-search", toggleSearch);
+    window.addEventListener("pointerdown", closeSearchOnOutsidePointerDown);
+    return () => {
+      window.removeEventListener("toggle-wanderwege-search", toggleSearch);
+      window.removeEventListener("pointerdown", closeSearchOnOutsidePointerDown);
+    };
   });
 </script>
 
@@ -888,7 +1067,7 @@
             <button
               style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
               onpointerdown={(e) => { e.stopPropagation(); focusTrailSwitch(focussedTrail, "off"); }}
-              >Zurück</button
+              >Alle Wanderwege anzeigen</button
             >
           </div>
         {:else}
@@ -906,6 +1085,16 @@
         {/if}
       </div>
     </div>
+    {#if rightClickMenu}
+      <RightClickMenu
+        x={rightClickMenu.x}
+        y={rightClickMenu.y}
+        hasFocusedTrail={Boolean(focussedTrail)}
+        onSearch={openSearchFromMenu}
+        onList={showListFromMenu}
+        onShowAll={showAllTrailsFromMenu}
+      />
+    {/if}
     <div class="map-overlay" bind:this={mapCover}></div>
     {#if tooltipVisible}
       <TrailPoiTooltip {...tooltipData} />
@@ -920,13 +1109,20 @@
         {highlightImageMarker}
       />
     {/if}
-    <Legend trails={trailList} {poiTitles} />
+    <Legend
+      trails={trailList}
+      {poiTitles}
+      {mapBounds}
+      onTrailSelect={selectTrailFromLegend}
+      onPoiSelect={selectPoiFromLegend}
+    />
   </div>
   {#if searchVisible}
     <div class="search-overlay">
       <SearchInterface
         trails={trailList}
         onSearch={applyTrailSearch}
+        bind:searchData
         {noTrailsFound}
       />
     </div>
