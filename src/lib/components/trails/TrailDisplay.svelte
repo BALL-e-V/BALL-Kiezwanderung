@@ -109,14 +109,6 @@
     flex: 0 0 auto;
   }
 
-  .trail-display__eyebrow {
-    margin: 0 0 0.2rem;
-    color: var(--accent-muted-text, #526174);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
 
   h2,
   h3,

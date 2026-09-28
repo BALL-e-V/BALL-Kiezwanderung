@@ -61,7 +61,7 @@ export async function printTrail({
     poisByTrailId,
     fetchImageData,
 }: TrailPrintContext) {
-    const dataUrl = await domtoimage.toJpeg(printMapElement, { quality: 1, bgcolor: "white" });
+    const dataUrl = await domtoimage.toPng(printMapElement, { quality: 1, bgcolor: "white" });
     const descriptionLineHeight = printConfig.descriptionFontSize * (5 / 12);
     let doc: jsPDF;
     let pageLeftMargin = 5;
@@ -145,7 +145,7 @@ export async function printTrail({
         );
     };
 
-    doc.addImage(dataUrl, "JPEG", imgX, imgY, imgW, imgH);
+    doc.addImage(dataUrl, "PNG", imgX, imgY, imgW, imgH);
 
     doc.setTextColor(30, 30, 30);
     doc.setFont("helvetica", "bold");

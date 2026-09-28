@@ -38,8 +38,8 @@ export const wanderwegeConfig = {
     trailTitleFontSize: 18,
     poiTitleFontSize: 14,
     poiImageArea: 60 * 45,
-    startEndSize: 2,
-    poiSize: 3,
+    startEndSize: 1,
+    poiSize: 2,
     margins: {
       mapContent: 3,
       titleDescription: 8,

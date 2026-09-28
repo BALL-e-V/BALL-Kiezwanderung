@@ -20,11 +20,11 @@
   import RightClickMenu from "$lib/components/trails/RightClickMenu.svelte";
   import SearchInterface, { type SearchData } from "$lib/components/trails/SearchInterface.svelte";
   import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
+  import ImageGalery from "$lib/components/trails/ImageGalery.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
   import { compareTrailPosition, iconmaker } from "$lib/util";
   import { wanderwegeConfig } from "$lib/config";
   import { onMount } from "svelte";
-  import { SQLiteTransaction } from "drizzle-orm/sqlite-core";
   const {
     colors,
     tooltipSignCount,
@@ -57,14 +57,16 @@
     title: "",
     description: "",
     imageUrls: [] as string[],
-    imageTitlels: [] as string[],
+    imageAlts: [] as string[],
+    poiNames:[]as string[],
     length: 0,
     poiCount: 0,
     activePoiIndex: -1,
     isPoiSelection: false,
-    primaryImage: "",
     poiId: "",
   });
+
+
 
   interface hikingTrail {
     title: string;
@@ -109,6 +111,8 @@
   let noTrailsFound = $state(false);
   let noResultsTimer: ReturnType<typeof setTimeout> | null = null;
 
+  let galeryVisible = $state(false);
+
   // Store POIs by trail ID
   let poisByTrailId = new Map<string, pointOfInterest[]>();
   let focussedTrail: hikingTrail = $state(null as any);
@@ -128,7 +132,7 @@
   let printMapMarkers:Marker[]=[];
   let trailBoundsRatio:number;
   let printHikingTrail:Polyline;
-
+  
 
 
 
@@ -658,6 +662,7 @@
 
       focussedTrail = trail;
 
+
       map.fitBounds(trail.bounds);
       trailList.forEach((otherTrail) => {
         if (otherTrail.id !== trail.id && otherTrail.display) {
@@ -737,25 +742,27 @@
         poiElement.style.border = "1px solid black";
       }
     }
-
+let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id ?? "");
     if (trail) {
+      
+      popupData.imageUrls = [];
+      popupData.imageAlts = [];
+      popupData.poiNames=[],
+      poisByTrailId.get(trail.id)?.forEach((p) => {
+          popupData.imageUrls.push(p.imageUrl?? "");
+          popupData.imageAlts.push(p.imageAlt?? p.title);
+          popupData.poiNames.push(p.title);
+      });
+
       popupData.title = trail.title;
       popupData.description = trail.description ?? "";
-      popupData.imageUrls = [];
-      popupData.imageTitlels = [];
-      poisByTrailId.get(trail.id)?.forEach((p) => {
-        if (p.imageUrl) {
-          popupData.imageUrls.push(p.imageUrl);
-          popupData.imageTitlels.push(p.title);
-        }
-      });
-      popupData.primaryImage = trail.imageUrl ?? "";
       popupData.length = trail.length
         ? Math.round((trail.length * trailLengthAccuracy) / 1000) /
           trailLengthAccuracy
         : 0;
       popupData.poiCount = trailPois.length;
-      popupData.activePoiIndex = -1;
+      popupData.activePoiIndex = trailPois.findIndex((item) => item.imageUrl === trail.imageUrl);
+      activePoi =  document.getElementById(trailPois[popupData.activePoiIndex]?.id ?? "");
       popupData.isPoiSelection = false;
       popupData.poiId = "";
     } else if (poi || typeof poiIndex === "number") {
@@ -771,7 +778,6 @@
 
       popupData.title = selectedPoi.title;
       popupData.description = selectedPoi.description ?? "";
-      popupData.imageUrls = selectedPoi.imageUrl ? [selectedPoi.imageUrl] : [];
       popupData.length = 0;
       popupData.activePoiIndex = selectedIndex;
       popupData.isPoiSelection = true;
@@ -800,10 +806,19 @@
       poisByTrailId.get(focussedTrail.id)?.forEach((p) => {
         markerHoverSwitch(p, "off");
       });
+      
       popupVisible = true;
     }
     if (tooltipVisible) {
       tooltipVisible = false;
+    }
+        
+    if(activePoi) {
+      if(trail){
+        activePoi.style.border="2px solid" + colors.highlight;
+      }else{
+        activePoi.style.border = "1px solid black";
+      }
     }
   }
 
@@ -844,8 +859,6 @@
 
       {
         maxZoom: 19,
-    tileSize: 512,
-    zoomOffset: -1,
         attribution:
           '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       },
@@ -863,7 +876,7 @@
       )
     );
 
-        let modelingZoom = 13
+    let modelingZoom = 13
     let width = CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x
     let height = CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y
     trailBoundsRatio = width / height;
@@ -888,7 +901,6 @@
       printHeightMm = 100;
     }
 
-    console.log(width,height)
     while(printWidthMm * pixelsPerMm > (2^0.5)*width && printHeightMm * pixelsPerMm > (2^0.5)*height){
       modelingZoom++;
       width = CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x
@@ -900,16 +912,16 @@
       height = CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y - CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y
       
     }
-    console.log(width,height)
+
     if(trailBoundsRatio > printWidthMm / printHeightMm){
-      height =Math.round( width / (printWidthMm / printHeightMm))
-      width = Math.round(width)
+      height =Math.round( width / (printWidthMm / printHeightMm)*1.01)
+      width = Math.round(width*1.01)
     }else{
       width = Math.round( height * (printWidthMm / printHeightMm))
       height = Math.round(height)
     }
    
-    console.log(width,height)
+
 
     printHikingTrail.setLatLngs(trail.trail?.getLatLngs()??[]).setStyle({color:trail.color,weight:3})
 
@@ -1010,9 +1022,15 @@
       },
     };
   }
-  onMount(createPrintMap)
+
+  function closeGalery(galeryIndex:number){
+    galeryVisible = false
+    popupSwitch({poiIndex:galeryIndex})
+  }
+ 
 
   onMount(() => {
+    createPrintMap();
     const toggleSearch = () => {
       searchVisible = !searchVisible;
     };
@@ -1102,11 +1120,16 @@
     {#if popupVisible}
       <TrailPoiPopup
         {...popupData}
+        bind:activePoiIndex={popupData.activePoiIndex}
         onClose={(index) => {
           popupSwitch({}), highlightImageMarker(index, index);
         }}
         onSelectPoi={(index) => popupSwitch({ poiIndex: index })}
         {highlightImageMarker}
+        showGalery={() => {
+          console.log("show galery");
+          galeryVisible = true;
+        }}
       />
     {/if}
     <Legend
@@ -1136,8 +1159,19 @@
       />
     </div>
   {/if}
+    {#if galeryVisible}
+  <ImageGalery
+    imageUrls={popupData.imageUrls}
+    imageAlts={popupData.imageAlts}
+    currentSlideItem={popupData.activePoiIndex}
+    closeGalery={closeGalery}
+    poiTitles={popupData.poiNames}
+  />
+  {/if}
   </div>
+
 </div>
+
 
 <style>
   .print-map-shell {

@@ -39,7 +39,7 @@
     onMoveMarkerToGPS,
     onInsertMarkerAtGPS,
     onAddImageFromCamera,
-cameraInput
+    cameraInput
   }: Props = $props();
 
 

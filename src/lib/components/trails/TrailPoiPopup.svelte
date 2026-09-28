@@ -5,28 +5,28 @@
     title = "",
     description = "",
     imageUrls = [],
-    imageTitlels = [],
+    imageAlts = [],
     length = 0,
-    activePoiIndex = -1,
+    activePoiIndex = $bindable(-1),
     isPoiSelection = false,
     onClose,
     onSelectPoi,
     poiCount = 0,
-    primaryImage,
     highlightImageMarker,
+    showGalery,
   } = $props<{
     title?: string;
     description?: string;
     imageUrls?: string[];
-    imageTitlels?: string[];
+    imageAlts?: string[];
     length?: number;
     poiCount?: number;
     activePoiIndex?: number;
     isPoiSelection?: boolean;
-    primaryImage: string;
     onClose?: (index: number) => void;
     onSelectPoi?: (index: number) => void;
     highlightImageMarker: (index: number, previous?: number) => void;
+    showGalery: () => void;
   }>();
 
   let position = $state({ x: 24, y: 24 });
@@ -34,18 +34,11 @@
   let isDragging = $state(false);
   let isImageLoading = $state(true);
 
-  let activeImageIndex = $derived.by(() => {
-    const index =
-      imageUrls.findIndex((i: string) => i == primaryImage) < 0
-        ? 0
-        : imageUrls.findIndex((i: string) => i == primaryImage);
-    highlightImageMarker(index);
-    return index;
-  });
+
 
   let hasImages = $derived(imageUrls.length > 0);
   let hasMultipleImages = $derived(imageUrls.length > 1);
-  let activeImage = $derived(imageUrls[activeImageIndex] ?? "");
+  let activeImage = $derived(imageUrls[activePoiIndex]);
   let popupTitle = $derived(length > 0 ? `${title} · ${length} km` : title);
   let showPoiNavigation = $derived.by(() => isPoiSelection && poiCount > 1);
   let separateImageAndDescription = $derived.by(
@@ -87,21 +80,20 @@
     if (!imageUrls.length) {
       return;
     }
-    const previous = activeImageIndex;
-    activeImageIndex =
-      (activeImageIndex - 1 + imageUrls.length) % imageUrls.length;
+    const previous = activePoiIndex;
+    while(imageUrls[activePoiIndex=(activePoiIndex - 1 + imageUrls.length) % imageUrls.length]==="") 
     isImageLoading = true;
-    highlightImageMarker(activeImageIndex, previous);
+    highlightImageMarker(activePoiIndex, previous);
   }
 
   function showNextImage() {
     if (!imageUrls.length) {
       return;
     }
-    const previous = activeImageIndex;
-    activeImageIndex = (activeImageIndex + 1) % imageUrls.length;
+    const previous = activePoiIndex;
+    while(imageUrls[activePoiIndex=(activePoiIndex + 1) % imageUrls.length]==="")
     isImageLoading = true;
-    highlightImageMarker(activeImageIndex, previous);
+    highlightImageMarker(activePoiIndex, previous);
   }
 </script>
 
@@ -126,14 +118,14 @@
       class="trail-popup__close"
       type="button"
       aria-label="Popup schließen"
-      onclick={() => onClose?.(activeImageIndex)}
+      onclick={() => onClose?.(activePoiIndex)}
     >
       ×
     </button>
   </div>
 
   {#if hasImages}
-    {#if hasMultipleImages}
+    {#if !isPoiSelection}
       <div class="trail-popup__media">
         <div class="trail-popup__image-container">
           {#if isImageLoading}
@@ -141,11 +133,13 @@
               <div class="trail-popup__spinner"></div>
             </div>
           {/if}
+
           <img
             class="trail-popup__image"
             class:trail-popup__image--loaded={!isImageLoading}
+            onclick={(e)=>{e.stopPropagation();showGalery()}}
             src={activeImage}
-            alt={title}
+            alt={imageAlts[activePoiIndex]}
             onload={() => (isImageLoading = false)}
             onerror={() => (isImageLoading = false)}
           />
@@ -162,9 +156,9 @@
           <button
             class="trail-popup__image-counter"
             type="button"
-            onclick={() => onSelectPoi(activeImageIndex)}
+            onclick={() => onSelectPoi(activePoiIndex)}
           >
-            Zu Sehenswürdigkeit({activeImageIndex +
+            Zu Sehenswürdigkeit({activePoiIndex +
               1}/{imageUrls.length})
           </button>
           <button
@@ -187,7 +181,8 @@
         <img
           class="trail-popup__image trail-popup__image--single trail-popup__image--standalone"
           class:trail-popup__image--loaded={!isImageLoading}
-          src={imageUrls[0]}
+          onclick={(e)=>{e.stopPropagation();showGalery()}}
+          src={imageUrls[activePoiIndex]}
           alt={title}
           onload={() => (isImageLoading = false)}
           onerror={() => (isImageLoading = false)}
