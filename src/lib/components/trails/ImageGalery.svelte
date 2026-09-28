@@ -2,6 +2,7 @@
     import { fly } from "svelte/transition";
 
   import { onMount } from "svelte";
+  import { ConsoleLogWriter } from "drizzle-orm";
 
 
     let {
@@ -39,12 +40,13 @@
   }
 
   function handlePointerDown(event: PointerEvent) {
+
     if (!(event.target instanceof HTMLButtonElement)) {
         closeGalery(currentSlideItem);
     }
   }
 onMount(()=>{
-    window.addEventListener("pointerdown",handlePointerDown)
+    window.addEventListener("pointerdown",handlePointerDown);
     window.addEventListener("keydown", handleKeydown);
     return(()=>{
         window.removeEventListener("pointerdown",handlePointerDown)
@@ -59,8 +61,8 @@ onMount(()=>{
     <img in:fly={{duration:300, x:flyX,delay:100}} out:fly={{duration:300, x:-2*flyX, opacity:0}}  src={item} alt={imageAlts[currentSlideItem]} class="galery-image"/>
   {/each}
       <p class="image-label">{poiTitles[currentSlideItem]}</p>
-    <button class="btn" id="previous-image" onclick={(e) =>{e.stopPropagation(); prevImage()}}>{"<"}</button>
-    <button class="btn" id="next-image" onclick={(e) =>{e.stopPropagation(); nextImage()}}>{">"}</button>
+    <button class="btn" id="previous-image" onpointerdown={(e) =>{e.stopPropagation(); prevImage()}}>{"<"}</button>
+    <button class="btn" id="next-image" onpointerdown={(e) =>{e.stopPropagation(); nextImage()}}>{">"}</button>
 
 </section>
 

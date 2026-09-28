@@ -118,7 +118,7 @@
       class="trail-popup__close"
       type="button"
       aria-label="Popup schließen"
-      onclick={() => onClose?.(activePoiIndex)}
+      onpointerdown={() => onClose?.(activePoiIndex)}
     >
       ×
     </button>
@@ -137,7 +137,7 @@
           <img
             class="trail-popup__image"
             class:trail-popup__image--loaded={!isImageLoading}
-            onclick={(e)=>{e.stopPropagation();showGalery()}}
+            onpointerdown={(e)=>{e.stopPropagation();showGalery()}}
             src={activeImage}
             alt={imageAlts[activePoiIndex]}
             onload={() => (isImageLoading = false)}
@@ -148,7 +148,7 @@
           <button
             class="trail-popup__control"
             type="button"
-            onclick={showPreviousImage}
+            onpointerdown={showPreviousImage}
             aria-label="Vorheriges Bild"
           >
             ←
@@ -156,7 +156,7 @@
           <button
             class="trail-popup__image-counter"
             type="button"
-            onclick={() => onSelectPoi(activePoiIndex)}
+            onpointerdown={() => onSelectPoi(activePoiIndex)}
           >
             Zu Sehenswürdigkeit({activePoiIndex +
               1}/{imageUrls.length})
@@ -164,7 +164,7 @@
           <button
             class="trail-popup__control"
             type="button"
-            onclick={showNextImage}
+            onpointerdown={showNextImage}
             aria-label="Nächstes Bild"
           >
             →
@@ -181,7 +181,7 @@
         <img
           class="trail-popup__image trail-popup__image--single trail-popup__image--standalone"
           class:trail-popup__image--loaded={!isImageLoading}
-          onclick={(e)=>{e.stopPropagation();showGalery()}}
+          onpointerdown={(e)=>{e.stopPropagation();showGalery()}}
           src={imageUrls[activePoiIndex]}
           alt={title}
           onload={() => (isImageLoading = false)}
@@ -201,7 +201,7 @@
         class="trail-popup__nav-button"
         type="button"
         aria-label="Vorheriger POI"
-        onclick={() => onSelectPoi?.(Math.max(0, activePoiIndex - 1))}
+        onpointerdown={() => onSelectPoi?.(Math.max(0, activePoiIndex - 1))}
         disabled={activePoiIndex <= 0}
       >
         vorherige
@@ -213,7 +213,7 @@
         class="trail-popup__nav-button"
         type="button"
         aria-label="Nächster POI"
-        onclick={() =>
+        onpointerdown={() =>
           onSelectPoi?.(Math.min(poiCount - 1, activePoiIndex + 1))}
         disabled={activePoiIndex >= poiCount - 1}
       >

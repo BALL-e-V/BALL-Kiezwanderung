@@ -35,7 +35,7 @@
 <div class="unfocussed-legend" class:minimized={isMinimized}>
   <button
     class="minimize-button"
-    onclick={() => {
+    onpointerdown={() => {
       isMinimized = !isMinimized;
     }}
     aria-label={isMinimized ? "Expand legend" : "Minimize legend"}
@@ -64,7 +64,7 @@
         <button
           class="legend-item legend-button"
           type="button"
-          onclick={() => onTrailSelect?.(trail)}
+          onpointerdown={() => onTrailSelect?.(trail)}
         >
           <div
             class="legend-line"
@@ -86,7 +86,7 @@
           <button
             class="legend-item legend-button"
             type="button"
-            onclick={() => onPoiSelect?.(index)}
+            onpointerdown={() => onPoiSelect?.(index)}
           >
             <span class="poi-number" aria-hidden="true">{index + 1}</span>
             <div class="legend-title">{title}</div>

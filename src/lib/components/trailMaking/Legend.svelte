@@ -46,7 +46,7 @@
   <button
     type="button"
     class="minimize-button"
-    onclick={() => {
+    onpointerdown={() => {
       isMinimized = !isMinimized;
     }}
     aria-label={isMinimized ? "Expand legend" : "Minimize legend"}
@@ -97,7 +97,7 @@
               Sehenswürdigkeit zum bearbeiten oder verschieben anclicken
             </div>{/if}
           {#each poiList as poi, index}
-            <button type="button" class="poi-button" onclick={() => heromaker(poi)}>
+            <button type="button" class="poi-button" onpointerdown={() => heromaker(poi)}>
               {index + 1} {poi.title}
             </button>
           {/each}

@@ -67,10 +67,10 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if open}
-  <div class="modal-backdrop" onclick={onClose} role="presentation">
+  <div class="modal-backdrop" onpointerdown={onClose} role="presentation">
     <div
       class="modal-card"
-      onclick={(e) => e.stopPropagation()}
+      onpointerdown={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -84,7 +84,7 @@
           type="button"
           class="close-button"
           aria-label="Schließen"
-          onclick={onClose}
+          onpointerdown={onClose}
         >
           ✕
         </button>
@@ -113,7 +113,7 @@
                 <button
                   type="button"
                   class="button secondary photo-btn"
-                  onclick={() => cameraInput?.click()}
+                  onpointerdown={() => cameraInput?.click()}
                 >
                   📷 Foto aufnehmen
                 </button>
@@ -130,7 +130,7 @@
               <button
                 type="button"
                 class="button secondary photo-btn"
-                onclick={() => fileInput?.click()}
+                onpointerdown={() => fileInput?.click()}
               >
                 📁 Bild auswählen
               </button>
@@ -149,7 +149,7 @@
                 <button
                   type="button"
                   class="remove-photo-btn"
-                  onclick={() => {
+                  onpointerdown={() => {
                     photoBase64 = undefined;
                     photoName = undefined;
                     photoPreview = undefined;
@@ -163,7 +163,7 @@
         {/if}
 
         <div class="modal-actions">
-          <button type="button" class="button secondary" onclick={onClose}>
+          <button type="button" class="button secondary" onpointerdown={onClose}>
             Abbrechen
           </button>
           <button type="submit" class="button primary">

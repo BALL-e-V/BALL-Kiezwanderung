@@ -116,7 +116,7 @@
         type="button"
         class="button secondary sort-pill"
         class:selected={filterField === "title"}
-        onclick={() => (filterField = "title")}
+        onpointerdown={() => (filterField = "title")}
       >
         Titel
       </button>
@@ -124,7 +124,7 @@
         type="button"
         class="button secondary sort-pill"
         class:selected={filterField === "author"}
-        onclick={() => (filterField = "author")}
+        onpointerdown={() => (filterField = "author")}
       >
         Autor
       </button>
@@ -132,7 +132,7 @@
         type="button"
         class="button secondary sort-pill"
         class:selected={filterField === "date"}
-        onclick={() => (filterField = "date")}
+        onpointerdown={() => (filterField = "date")}
       >
         Datum
       </button>
@@ -144,7 +144,7 @@
           type="button"
           class:active={publishedFilter === "all"}
           aria-pressed={publishedFilter === "all"}
-          onclick={() => (publishedFilter = "all")}
+          onpointerdown={() => (publishedFilter = "all")}
         >
           Alle
         </button>
@@ -152,7 +152,7 @@
           type="button"
           class:active={publishedFilter === "published"}
           aria-pressed={publishedFilter === "published"}
-          onclick={() => (publishedFilter = "published")}
+          onpointerdown={() => (publishedFilter = "published")}
         >
           Veröffentlicht
         </button>
@@ -160,7 +160,7 @@
           type="button"
           class:active={publishedFilter === "unpublished"}
           aria-pressed={publishedFilter === "unpublished"}
-          onclick={() => (publishedFilter = "unpublished")}
+          onpointerdown={() => (publishedFilter = "unpublished")}
         >
           Unveröffentlicht
         </button>
@@ -172,15 +172,15 @@
     <table class="trail-table">
       <thead>
         <tr>
-          <th onclick={() => sortBy("title")}>Titel {sortIndicator("title")}</th
+          <th onpointerdown={() => sortBy("title")}>Titel {sortIndicator("title")}</th
           >
-          <th onclick={() => sortBy("author")}
+          <th onpointerdown={() => sortBy("author")}
             >Autor {sortIndicator("author")}</th
           >
-          <th onclick={() => sortBy("created")}
+          <th onpointerdown={() => sortBy("created")}
             >Erstellt {sortIndicator("created")}</th
           >
-          <th onclick={() => sortBy("updated")}
+          <th onpointerdown={() => sortBy("updated")}
             >Aktualisiert {sortIndicator("updated")}</th
           >
           <th>Veröffentlicht</th>
@@ -190,7 +190,7 @@
         {#each filteredTrails as trail}
           <tr
             class="clickable-row"
-            onclick={() => {
+            onpointerdown={() => {
               onSelect(trail);
             }}
           >
@@ -216,7 +216,7 @@
     {/if}
   </div>
 
-  <button type="button" onclick={onClose} class="button secondary"
+  <button type="button" onpointerdown={onClose} class="button secondary"
     >abbrechen</button
   >
 </div>

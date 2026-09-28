@@ -65,7 +65,7 @@
   let trailMarkers: TrailMarkerEntry[] = $state([]);
   //are you editing the trail or the poi
   let editing = $state("trail") as "trail" | "poi";
-  //is the onclick listener for the trailmaker active?
+  //is the onpointerdown listener for the trailmaker active?
   let makingTrail = $state(false);
   //keeping track of any async functions currently loading a piece of the trail,because some functions should wait for that to be done
   let loadingTrail = $state(0);
@@ -77,13 +77,13 @@
   let rightClickTargetIndex = $state(-1);
   //position of the right-click menu
   let menuPos = $state({ x: 0, y: 0 });
-  //is the onclick function to insert a marker active?
+  //is the onpointerdown function to insert a marker active?
   let insertingWaypoint = $state(false);
   //list of points of interest
   let poiList = $state([]) as pointOfInterest[];
   //keeping track of the poi being moved to update trailposition when saved
   let poiPositionUpdate = $state(false);
-  //keeping track if the poiCreator onclick is running
+  //keeping track if the poiCreator onpointerdown is running
   let creatingPoi = $state(false);
 
   let trailDescription = $state("");
@@ -605,7 +605,7 @@
   function poiCreatorClick(e: LeafletMouseEvent) {
     poiCreator(e.latlng);
   }
-  //function to switch the onclick for creating a new poi
+  //function to switch the onpointerdown for creating a new poi
   function poiCreatorSwitch(onOff: "on" | "off") {
     if (waitToSave) {
       clearTimeout(waitToSave);
@@ -701,7 +701,7 @@
       clearInterval(waitToSave);
       waitToSave = setTimeout(() => poiToDatabase(heroPoi), timeToSave);
   }
-  //onclick functions to add a new waypoint at the end of the trail and find the path to it
+  //onpointerdown functions to add a new waypoint at the end of the trail and find the path to it
   async function trailMaker(e: LeafletMouseEvent) {
     trail.push(
       new Polyline(
@@ -761,7 +761,7 @@
   }
 
 
-  //function to enable/disable the onclick for the previous trailmaker
+  //function to enable/disable the onpointerdown for the previous trailmaker
   function trailMakerSwitch(onOff: "on" | "off") {
     if (onOff === "off") {
       map.off("pointermove");
@@ -1107,7 +1107,7 @@
       waitToSave = setTimeout(trailToDatabase, timeToSave);
     }
   }
-  //function to switch on the onclick to add a trailmarker into the trail between 2 others and all related graphical indicators
+  //function to switch on the onpointerdown to add a trailmarker into the trail between 2 others and all related graphical indicators
   function insertSwitch(onOff: "on" | "off") {
     if (onOff === "off") {
       map.off("click");
@@ -1945,7 +1945,7 @@
       <button disabled>Einen Namen Eintragen und Speichern</button>
     {:else}
       <button
-        onclick={() => {
+        onpointerdown={() => {
           if (waitToSave) {
             //only need to save if there is unsaved changes
             if (editing === "trail") {

@@ -158,17 +158,18 @@
 
 //turn on and off pointerover/out interactions for a poi marker
   function markerHoverSwitch(poi: pointOfInterest, onOff: "on" | "off") {
+    
+          const markerElement = getPoiMarkerElement(poi);
     if (onOff == "on") {
       poi.marker.on("pointerover", (event: any) => {
         showtooltip({ event, poi });
-        const markerElement = getPoiMarkerElement(poi);
         if (markerElement) {
           markerElement.style.border = "2px solid " + colors.highlight;
         }
       });
       poi.marker.on("pointerout", (event: any) => {
+        //let the tooltip stay open for touch devices, both because you don't want to hold your fingers on the screen and for double tapping
         if (event.originalEvent.pointerType == "mouse") {
-          const markerElement = getPoiMarkerElement(poi);
           if (markerElement) {
             markerElement.style.border = "1px solid black";
           }
@@ -178,7 +179,6 @@
     } else {
       poi.marker.off("pointerover");
       poi.marker.off("pointerout");
-                const markerElement = getPoiMarkerElement(poi);
           if (markerElement) {
             markerElement.style.border = "1px solid black";
           }
@@ -209,6 +209,7 @@
   function trailDownSwitch(trail: hikingTrail, onOff: "on" | "off") {
     if (onOff == "on") {
       trail.trail?.on("pointerdown", (e: any) => {
+        //a mouse should just use a click, whereas a touch device should tap twice or long tap
         if (e.originalEvent.pointerType == "mouse") {
           focusTrailSwitch(trail, "on");
         } else if (doubleTapTargetId == trail.id) {
@@ -239,6 +240,7 @@
 
   function markerDownSwitch(poi: pointOfInterest, onOff: "on" | "off") {
     if (onOff == "on") {
+      //a mouse should just use a click, whereas a touch device should tap twice or long tap
       poi.marker.on("pointerdown", (e: any) => {
         if (e.originalEvent.pointerType == "mouse") {
           popupSwitch({ poi });
@@ -269,7 +271,7 @@
       poi.marker.off("pointerup");
     }
   }
-  //display an already loaded trail on the map or remove it
+  //display an already loaded trail on the map and add interactivity or remove it
   function displayTrailSwitch(trail: hikingTrail, onOff: "on" | "off") {
     if (onOff == "off") {
       trailHoverSwitch(trail, "off");
@@ -308,11 +310,8 @@
       console.log("choose trail or poi");
       return;
     }
-    const original = event.originalEvent ?? event;
-    const rect = map.getContainer().getBoundingClientRect();
-    tooltipData.containerHeight = rect.height;
-    tooltipData.x = (original.clientX ?? 0) - rect.left;
-    tooltipData.y = (original.clientY ?? 0) - rect.top;
+
+    //fill in either data from trail or poi
     if (trail) {
       tooltipData.title = trail.title;
       tooltipData.excerpt = trail.description?.slice(0, tooltipSignCount) ?? "";
@@ -328,6 +327,8 @@
 
       tooltipData.imageAlt = trail.imageAlt ?? "";
     }
+
+
     if (poi) {
       tooltipData.title = poi.title;
       tooltipData.excerpt = poi.description?.slice(0, tooltipSignCount) ?? "";
@@ -338,6 +339,16 @@
       tooltipData.imageAlt = poi.imageAlt ?? "";
       tooltipData.length = 0;
     }
+
+    //get the location of the mouse to place the tooltip there
+    //wait with it until data is filled out so rendered size is determined,so final location can be decided
+    const original = event.originalEvent ?? event;
+    const rect = map.getContainer().getBoundingClientRect();
+    tooltipData.containerHeight = rect.height;
+    tooltipData.x = (original.clientX ?? 0) - rect.left;
+    tooltipData.y = (original.clientY ?? 0) - rect.top;
+
+
     // decide placement: prefer right, but flip to left if not enough space
     const clientX = original.clientX ?? 0;
     const availableRight = rect.right - clientX;
@@ -347,7 +358,7 @@
 
     tooltipVisible = true;
   }
-
+//function to load and place poi when a trail is focussed and poi are not loaded
   async function loadTrailPOIs(trail: hikingTrail) {
     //stop interaction while loading
     const trailId = trail.id;
@@ -371,11 +382,13 @@
         poiInstance.description = poi.description ?? "";
         poiInstance.imageAlt = poi.imageAlt ?? "";
         poiInstance.trailPosition = [poi.position1 ?? 0, poi.position2 ?? 0];
+        //enable interacticity for the pois
         markerHoverSwitch(poiInstance, "on");
         markerDownSwitch(poiInstance, "on");
         pois.push(poiInstance);
       }
       pois.sort(compareTrailPosition);
+      //needs to happen agter sorting because of enuzmeration
       pois.forEach((p, i) => {
         p.marker.setIcon(iconmaker({ color: "yellow", size: 2, number: i + 1, id: p.id }));
         poiTitles.push(p.title);
@@ -384,14 +397,13 @@
     } catch (error) {
       console.error(`Failed to load POIs for trail ${trailId}:`, error);
     }
+    //these need to happen after pois are loaded so they are in the async function instead of the focus trail
     popupSwitch({ trail });
     configurePrintMap(trail)
     mapCover.style.display = "none";
   }
-
+//function to get and add trails to the map
   async function fetchInitialTrailData() {
-
-
     function mapToHikingTrail(item: any): hikingTrail {
       const rawDistricts = getProp(item, "districts")
         ?? [];
@@ -564,7 +576,7 @@
   function selectPoiFromLegend(index: number) {
     popupSwitch({ poiIndex: index });
   }
-
+//function to filter out trails that matched the search from SearchInterface and have only them displayed in the list or map
   function applyTrailSearch(nextFilteredTrails: Array<{
     id: string;
     matchedDistricts: string[];
@@ -572,11 +584,15 @@
     matchedPoiImageUrl?: string;
     matchedPoiImageAlt?: string;
   }>, preserveFocus = false) {
+    //when a search is applied(search clicked and not zurücksetzen) a focussed trail needs to be unfocussed to show results
     if (focussedTrail && !preserveFocus){
       focusTrailSwitch(focussedTrail,"off")
     }
+
+    //apply search results
     const filteredIds = new Set(nextFilteredTrails.map((trail) => trail.id));
     const searchResults = new Map(nextFilteredTrails.map((trail) => [trail.id, trail]));
+    //filtered trail type differs from trail to show which poi and districts were matched in the search
     filteredTrails = trailList
       .filter((trail) => filteredIds.has(trail.id))
       .map((trail) => ({
@@ -586,20 +602,21 @@
         matchedPoiImageUrl: searchResults.get(trail.id)?.matchedPoiImageUrl,
         matchedPoiImageAlt: searchResults.get(trail.id)?.matchedPoiImageAlt,
       }));
-
+    //on click of zurückseten no filter is applied if a trail is focussed, and the focus is kept
+    //needs to happen after applying a search result so the result is reset properly for zurücksetzen
     if (preserveFocus && focussedTrail) {
       searchVisible = false;
       noTrailsFound = false;
       return;
     }
-
+//adjust if a trail is displayed
     trailList.forEach((trail) => {
       const shouldDisplay = filteredIds.has(trail.id);
       if (shouldDisplay !== trail.display) {
         displayTrailSwitch(trail, shouldDisplay ? "on" : "off");
       }
     });
-
+    //displaying message for empty results
     const displayedTrails = trailList.filter((trail) => trail.display);
     if (displayedTrails.length === 0) {
       noTrailsFound = true;
@@ -612,12 +629,13 @@
       }, 3000);
       return;
     }
+    //removing the message for new searches
     if (noResultsTimer) {
       clearTimeout(noResultsTimer);
       noResultsTimer = null;
     }
     noTrailsFound = false;
-
+    //adjusting the map to siplay all results
     const displayedBounds = displayedTrails.reduce(
       (bounds, trail) => bounds.extend(trail.bounds),
       new LatLngBounds(
@@ -626,6 +644,7 @@
       ),
     );
     map.fitBounds(displayedBounds);
+
     if(displayedTrails.length == 1){
       focusTrailSwitch(displayedTrails[0],"on")
     }
@@ -633,9 +652,11 @@
   }
 
   function focusTrailSwitch(trail: hikingTrail, onOff: "on" | "off") {
+    // resetting focus specific variables
     doubleTapTargetId = "";
     poiTitles = [];
     if (onOff == "off") {
+
       focussedTrail = null as any;
       if (popupVisible) {
         popupVisible = false;
@@ -646,29 +667,27 @@
         markerDownSwitch(p, "off");
         p.marker.removeFrom(map);
       });
-      trailList.forEach((otherTrail) => {
+      //keeping previous search results
+      filteredTrails.forEach((otherTrail) => {
         if (otherTrail.id !== trail.id && !otherTrail.display) {
           displayTrailSwitch(otherTrail, "on");
         }
       });
 
-      if (map.getZoom() > initialMapZoom) {
+      if (map.getZoom() >= initialMapZoom) {
         map.setZoom(initialMapZoom);
       } else {
         map.zoomOut();
       }
     } else {
-      //if no mouse is used, turn the click handler  into a double tap to trigger this function
-
       focussedTrail = trail;
-
-
       map.fitBounds(trail.bounds);
       trailList.forEach((otherTrail) => {
         if (otherTrail.id !== trail.id && otherTrail.display) {
           displayTrailSwitch(otherTrail, "off");
         }
       });
+      //checking if poi are already loaded or need to be
       if (poisByTrailId.has(trail.id)) {
         poisByTrailId.get(trail.id)?.forEach((poi, i) => {
           poi.marker.addTo(map);
@@ -680,6 +699,7 @@
         configurePrintMap(trail)
         popupSwitch({ trail });
       } else {
+        //contains all the initialization for functionality because it need to happen after async loading
         loadTrailPOIs(trail);
       }
     }
@@ -704,8 +724,10 @@
     trail.end = tempStart;
 
     // Remove old markers
-    trail.startMarker?.removeFrom(map);
-    trail.endMarker?.removeFrom(map);
+    trail.startMarker?.remove();
+    trail.endMarker?.remove();
+    trail.startMarker=null as any;
+    trail.endMarker=null as any;
 
     // Recreate markers with swapped positions
     trail.startMarker = new Marker(trail.start, {
@@ -742,7 +764,9 @@
         poiElement.style.border = "1px solid black";
       }
     }
+
 let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id ?? "");
+
     if (trail) {
       
       popupData.imageUrls = [];
@@ -1092,8 +1116,7 @@ let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id 
           <button
             type="button"
             class="list-mode-button"
-            onpointerdown={(event) => event.stopPropagation()}
-            onclick={(event) => {
+            onpointerdown={(event) => {
               event.stopPropagation();
               showList();
             }}
@@ -1127,8 +1150,7 @@ let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id 
         onSelectPoi={(index) => popupSwitch({ poiIndex: index })}
         {highlightImageMarker}
         showGalery={() => {
-          console.log("show galery");
-          galeryVisible = true;
+          if(!galeryVisible)galeryVisible=true;
         }}
       />
     {/if}

@@ -227,15 +227,16 @@
 
 <div class="app-shell">
   <header
+    role="presentation"
     class:compact={isCompactHeader}
     class="topbar"
     bind:this={topbar}
-    onclick={() => registerColor(topbar)}
+    onpointerdown={() => registerColor(topbar)}
   >
     <div class="brand-row">
       <div
         class="brand-stack"
-        onclick={(e) => e.stopPropagation()}
+        role="presentation"
         onpointerdown={(event) => event.stopPropagation()}
       >
         <h1>
@@ -244,10 +245,6 @@
             href="/wanderwege"
             onpointerdown={(event) =>
               runAction(() => goto("/wanderwege"), event)}
-            onclick={(event) => {
-              event.preventDefault();
-              handleClick(() => goto("/wanderwege"), event);
-            }}
             onpointerup={clearLongPress}
             onpointerleave={clearLongPress}
             onpointercancel={clearLongPress}
@@ -302,17 +299,13 @@
         class:dropdown={isMobileLayout && isTouchDevice}
       >
         {#if user}
-          <div class="user-row" onclick={(e) => e.stopPropagation()}>
+          <div class="user-row" role="presentation" onclick={(e) => e.stopPropagation()}>
             {#if user && (canAccessTrail || isAdmin)}
               <button
                 type="button"
                 class="button secondary"
                 onpointerdown={(event) =>
                   runAction(() => goto("/wanderwegErstellen"), event)}
-                onclick={(event) => {
-                  event.preventDefault();
-                  handleClick(() => goto("/wanderwegErstellen"), event);
-                }}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -380,7 +373,7 @@
             </button>
           </div>
         {:else}
-          <div class="header-actions" onclick={(e) => e.stopPropagation()}>
+          <div class="header-actions" role="presentation" onclick={(e) => e.stopPropagation()}>
             {#if showLoginForm}
               <form class="login-form-inline" onsubmit={(e) => signIn(e)}>
                 <div class="login-row">
@@ -580,10 +573,6 @@
     width: auto;
     flex-wrap: nowrap;
     overflow-x: auto;
-  }
-
-  .brand-row > .user-row {
-    margin-left: auto;
   }
 
   .user-box {

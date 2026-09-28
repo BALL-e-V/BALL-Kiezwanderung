@@ -17,10 +17,10 @@
   role="menu"
   aria-label="Kartenmenü"
 >
-  <button type="button" role="menuitem" onclick={onSearch}>Suche</button>
-  <button type="button" role="menuitem" onclick={onList}>zur Liste</button>
+  <button type="button" role="menuitem" onpointerdown={onSearch}>Suche</button>
+  <button type="button" role="menuitem" onpointerdown={onList}>zur Liste</button>
   {#if hasFocusedTrail}
-    <button type="button" role="menuitem" onclick={onShowAll}>
+    <button type="button" role="menuitem" onpointerdown={onShowAll}>
       Alle Wege Anzeigen
     </button>
   {/if}

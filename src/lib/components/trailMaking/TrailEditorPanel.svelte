@@ -83,7 +83,7 @@
   <div class="action-group">
     <button
       type="button"
-      onclick={trailMakerSwitch}
+      onpointerdown={trailMakerSwitch}
       disabled={loadingTrail > 0}
       class="button secondary"
     >
@@ -96,7 +96,7 @@
     <button
       type="button"
       disabled={trail.length == 0 || loadingTrail != 0}
-      onclick={saveTrail}
+      onpointerdown={saveTrail}
       class="button primary"
     >
       Speichern
@@ -108,7 +108,7 @@
       <p>Wirklich Löschen?</p>
       <button
         type="button"
-        onclick={() => {
+        onpointerdown={() => {
           confirmDeleteTrail();
           deleteQuery = false;
         }}
@@ -118,7 +118,7 @@
       </button>
       <button
         type="button"
-        onclick={() => (deleteQuery = false)}
+        onpointerdown={() => (deleteQuery = false)}
         class="button secondary"
       >
         Abbrechen
@@ -127,7 +127,7 @@
       <button
         type="button"
         disabled={trailId == "" || loadingTrail != 0}
-        onclick={() => (deleteQuery = true)}
+        onpointerdown={() => (deleteQuery = true)}
         class="button secondary"
       >
         Wanderweg löschen
@@ -137,7 +137,7 @@
     <button
       type="button"
       disabled={loadingTrail != 0}
-      onclick={() => {
+      onpointerdown={() => {
         saveTrail();
         loadTrailQuery = true;
       }}
@@ -149,7 +149,7 @@
     <button
       type="button"
       disabled={loadingTrail != 0}
-      onclick={() => {
+      onpointerdown={() => {
         if (trailId != "" || trail.length > 0 || trailDescription != "") {
           saveTrail();
         }

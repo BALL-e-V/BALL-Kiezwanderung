@@ -26,7 +26,7 @@
     <div>
       <h2>Ausgewählte Wege</h2>
     </div>
-    <button type="button" class="trail-display__map-button" onclick={onMapMode}>
+    <button type="button" class="trail-display__map-button" onpointerdown={onMapMode}>
       Zur Karte wechseln.
     </button>
   </header>
@@ -37,7 +37,7 @@
         <button
           type="button"
           class="trail-card"
-          onclick={() => onSelectTrail(trail)}
+          onpointerdown={() => onSelectTrail(trail)}
           aria-label={`${trail.title} auf der Karte anzeigen`}
         >
           {#if trail.matchedDistricts?.length}

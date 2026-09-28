@@ -98,7 +98,7 @@
           type="button"
           class="context-menu-button"
           disabled={isUploading || !canAddImage}
-          onclick={() => cameraInput?.click()}
+          onpointerdown={() => cameraInput?.click()}
         >
           {isUploading
             ? "Bild wird gespeichert..."
@@ -112,7 +112,7 @@
         <button
           type="button"
           class="context-menu-button"
-          onclick={onContinueTrail}
+          onpointerdown={onContinueTrail}
         >
           ▶️ Wanderweg {markerCount > 0 ? "fortsetzen" : "starten"}
         </button>
@@ -120,13 +120,13 @@
           <button
             type="button"
             class="context-menu-button"
-            onclick={onCreatePoi}
+            onpointerdown={onCreatePoi}
           >
             📍 Neue Sehenswürdigkeit
           </button>
         {/if}
     {:else if target === "polyline"}
-      <button type="button" class="context-menu-button" onclick={() => insertSwitch("on")}>
+      <button type="button" class="context-menu-button" onpointerdown={() => insertSwitch("on")}>
         ➕ Wegpunkt manuell einfügen
       </button>
 
@@ -134,7 +134,7 @@
         <button
           type="button"
           class="context-menu-button gps-action"
-          onclick={() => onInsertMarkerAtGPS(targetIndex)}
+          onpointerdown={() => onInsertMarkerAtGPS(targetIndex)}
         >
           📍 Wegpunkt an aktuellem Standort einfügen
         </button>
@@ -143,7 +143,7 @@
       <button
         type="button"
         class="context-menu-button danger"
-        onclick={() => onDeleteWaypoint(targetIndex)}
+        onpointerdown={() => onDeleteWaypoint(targetIndex)}
       >
         🗑️ Wegpunkt entfernen
       </button>
@@ -152,7 +152,7 @@
         <button
           type="button"
           class="context-menu-button gps-action"
-          onclick={() => onMoveMarkerToGPS(targetIndex)}
+          onpointerdown={() => onMoveMarkerToGPS(targetIndex)}
         >
           📍 Auf aktuellen Standort verschieben
         </button>
@@ -162,7 +162,7 @@
         <button
           type="button"
           class="context-menu-button"
-          onclick={() => {
+          onpointerdown={() => {
             targetIndex--;
             insertSwitch("on");
           }}
@@ -174,7 +174,7 @@
           <button
             type="button"
             class="context-menu-button gps-action"
-            onclick={() => onInsertMarkerAtGPS(targetIndex - 1)}
+            onpointerdown={() => onInsertMarkerAtGPS(targetIndex - 1)}
           >
             📍 Wegpunkt vor diesem (GPS)
           </button>
@@ -185,7 +185,7 @@
         <button
           type="button"
           class="context-menu-button"
-          onclick={onContinueTrail}
+          onpointerdown={onContinueTrail}
         >
           ▶️ Wanderweg fortsetzen
         </button>
@@ -193,7 +193,7 @@
         <button
           type="button"
           class="context-menu-button"
-          onclick={() => insertSwitch("on")}
+          onpointerdown={() => insertSwitch("on")}
         >
           ➕ Wegpunkt nach diesem einfügen
         </button>
@@ -202,7 +202,7 @@
           <button
             type="button"
             class="context-menu-button gps-action"
-            onclick={() => onInsertMarkerAtGPS(targetIndex)}
+            onpointerdown={() => onInsertMarkerAtGPS(targetIndex)}
           >
             📍 Wegpunkt nach diesem (GPS)
           </button>

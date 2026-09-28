@@ -52,7 +52,7 @@
       <button
         type="button"
         class="button danger cancel-btn"
-        onclick={onCancelAction}
+        onpointerdown={onCancelAction}
       >
         ✕ Abbrechen
       </button>
@@ -65,7 +65,7 @@
         type="button"
         class="gps-main-btn waypoint-btn"
         disabled={isLoading}
-        onclick={onAddWaypointGPS}
+        onpointerdown={onAddWaypointGPS}
         aria-label="Wegpunkt an aktuellem Standort setzen"
       >
         <span class="btn-icon">📍</span>
@@ -79,7 +79,7 @@
         type="button"
         class="gps-main-btn poi-btn"
         disabled={isLoading}
-        onclick={onAddPoiGPS}
+        onpointerdown={onAddPoiGPS}
         aria-label="Sehenswürdigkeit an aktuellem Standort erstellen"
       >
         <span class="btn-icon">📸</span>
@@ -97,7 +97,7 @@
         type="button"
         class="button secondary quick-btn"
         disabled={isLoading}
-        onclick={onCenterUserLocation}
+        onpointerdown={onCenterUserLocation}
         title="Karte auf aktuellen Standort zentrieren"
       >
         🎯 Mein Standort
@@ -108,7 +108,7 @@
       type="button"
       class="button secondary quick-btn mode-btn"
       disabled={isLoading}
-      onclick={onToggleMode}
+      onpointerdown={onToggleMode}
     >
       🔀 {editing === "trail" ? "Zu POIs" : "Zum Weg"}
     </button>
@@ -117,7 +117,7 @@
       type="button"
       class="button primary quick-btn save-btn"
       disabled={isLoading || !hasUnsavedChanges}
-      onclick={onSave}
+      onpointerdown={onSave}
     >
       {#if isLoading}
         ⏳ Lädt...

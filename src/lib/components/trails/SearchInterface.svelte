@@ -187,7 +187,7 @@
 
   <div class="actions">
     <button type="submit">Suchen</button>
-    <button type="button" onclick={reset}>Zurücksetzen</button>
+    <button type="button" onpointerdown={reset}>Zurücksetzen</button>
   </div>
 </form>
 

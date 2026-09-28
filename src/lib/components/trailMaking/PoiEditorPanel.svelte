@@ -149,7 +149,7 @@
     <button
       type="button"
       class="button secondary"
-      onclick={() => (showPoiEditor = false)}
+      onpointerdown={() => (showPoiEditor = false)}
       >Sehenswürdigkeiten Liste Anzeigen
     </button>
   </div>
@@ -179,7 +179,7 @@
         type="button"
         class="button secondary camera-action-btn"
         disabled={poiList[heroPoi].id == ""}
-        onclick={() => cameraInput?.click()}
+        onpointerdown={() => cameraInput?.click()}
       >
         📷 Foto aufnehmen (Kamera)
       </button>
@@ -229,7 +229,7 @@
       class="button primary-action"
       disabled={(heroPoi >= 0 && poiList[heroPoi]?.id === primaryPoi) ||
         loadingTrail > 0}
-      onclick={() => onSetPrimaryPoi(poiList[heroPoi].id)}
+      onpointerdown={() => onSetPrimaryPoi(poiList[heroPoi].id)}
     >
       {heroPoi >= 0 && poiList[heroPoi]?.id === primaryPoi
         ? "Titelbild"
@@ -238,7 +238,7 @@
     <button
       type="button"
       class="button primary"
-      onclick={() => onSaveNow(heroPoi)}
+      onpointerdown={() => onSaveNow(heroPoi)}
     >
       Speichern
     </button>
@@ -248,7 +248,7 @@
     <button
       type="button"
       class="button danger"
-      onclick={() => {
+      onpointerdown={() => {
         onDelete(poiList[heroPoi]);
         deleteQuery = false;
       }}
@@ -258,7 +258,7 @@
     <button
       type="button"
       class="button secondary"
-      onclick={() => (deleteQuery = false)}
+      onpointerdown={() => (deleteQuery = false)}
     >
       Abbrechen
     </button>
@@ -266,7 +266,7 @@
     <button
       type="button"
       class="button secondary"
-      onclick={() => (deleteQuery = true)}
+      onpointerdown={() => (deleteQuery = true)}
     >
       Sehenswürdigkeit löschen
     </button>
@@ -278,7 +278,7 @@
         <button
           type="button"
           class="button secondary sort-pill"
-          onclick={() => sortBy("trailPosition")}
+          onpointerdown={() => sortBy("trailPosition")}
         >
           Der Reihenfolge nach sortieren {sortIndicator("trailPosition")}
         </button>
@@ -292,16 +292,16 @@
         <table class="poi-table">
           <thead>
             <tr>
-              <th onclick={() => sortBy("name")}
+              <th onpointerdown={() => sortBy("name")}
                 >Titel {sortIndicator("name")}</th
               >
-              <th onclick={() => sortBy("author")}
+              <th onpointerdown={() => sortBy("author")}
                 >Autor {sortIndicator("author")}</th
               >
-              <th onclick={() => sortBy("created")}
+              <th onpointerdown={() => sortBy("created")}
                 >Erstellt {sortIndicator("created")}</th
               >
-              <th onclick={() => sortBy("edited")}
+              <th onpointerdown={() => sortBy("edited")}
                 >Geändert {sortIndicator("edited")}</th
               >
             </tr>
@@ -310,7 +310,7 @@
             {#each sortedPoiList as poi}
               <tr
                 class="poi-row"
-                onclick={() => {
+                onpointerdown={() => {
                   onSelect(poi);
                   showPoiEditor = true;
                 }}
@@ -329,7 +329,7 @@
 {/if}
 <button
   type="button"
-  onclick={() => {
+  onpointerdown={() => {
     onCreate();
   }}
   class="button primary"
