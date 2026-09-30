@@ -8,7 +8,7 @@ const MAPBOX_MONTHLY_LIMIT = 99000;
 const MAPBOX_REQUEST_LOG_RETENTION_MONTHS = 3;
 
 //expected data usage for saving reuqests is below ~50mb/month at maximum request usage
-export async function checkMapboxCounter(requestUrl: string) {
+export async function checkMapboxCounter(requestUrls: string[]) {
     const cleanupThreshold = new Date();
     cleanupThreshold.setMonth(cleanupThreshold.getMonth() - MAPBOX_REQUEST_LOG_RETENTION_MONTHS);
     cleanupThreshold.setDate(1);
@@ -54,25 +54,27 @@ export async function checkMapboxCounter(requestUrl: string) {
 
     const usageCount = Number(currentMonthRequests[0]?.count ?? 0);
 
-    if (usageCount >= MAPBOX_MONTHLY_LIMIT) {
+    if (usageCount + requestUrls.length >= MAPBOX_MONTHLY_LIMIT) {
         throw new Error("pathfinding api usage expired for the month");
     }
+    let date = new Date();
+    let values = requestUrls.map((url,i)=>{
+        return{requestUrl:url,createdAt:new Date(date.getTime()+i)}
+    })
 
-    await db.insert(mapboxRequestLog).values({
-        requestUrl,
-        createdAt: new Date(),
-    });
+ 
+    await db.insert(mapboxRequestLog).values(values);
 }
 
-export async function getDirections(waypointString: string) {
+export async function getDirections(waypointString: string,reverseString:string) {
     const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${waypointString}?steps=true&language=de-DE&access_token=${env.MAPBOX_TOKEN}`;
+    const url2 =`https://api.mapbox.com/directions/v5/mapbox/walking/${reverseString}?steps=true&language=de-DE&access_token=${env.MAPBOX_TOKEN}`;
+    await checkMapboxCounter([url,url2]);
 
-    await checkMapboxCounter(url);
-
-    let response;
+   let response,reverseResponse
     try {
-        response = await fetch(url);
-    } finally {
-        return response?.json();
+    [response,reverseResponse] = await Promise.all([ (await fetch(url)).json(),(await fetch(url2)).json()]);
+    } catch(e){throw e}finally {
+        return [response,reverseResponse]
     }
 }

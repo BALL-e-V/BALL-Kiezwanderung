@@ -1,7 +1,9 @@
-import { int, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+
+import { int, mysqlTable, text, timestamp, varchar,serial, } from "drizzle-orm/mysql-core";
 
 export const mapboxRequestLog = mysqlTable("mapbox_request_log", {
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull().primaryKey(),
+    index: serial().primaryKey(),
+    createdAt: timestamp("created_at", { fsp: 3 }).notNull(),
     requestUrl: text("request_url").notNull(),
 });
 

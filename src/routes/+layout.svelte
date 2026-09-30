@@ -233,11 +233,9 @@
     bind:this={topbar}
     onpointerdown={() => registerColor(topbar)}
   >
-    <div class="brand-row">
+    <div class="brand-row" role="presentation" onpointerdown={(event) => event.stopPropagation()}>
       <div
         class="brand-stack"
-        role="presentation"
-        onpointerdown={(event) => event.stopPropagation()}
       >
         <h1>
           <a
@@ -297,6 +295,7 @@
         class="header-panel"
         id="main-menu"
         class:dropdown={isMobileLayout && isTouchDevice}
+         role="presentation" onpointerdown={(event) => event.stopPropagation()}
       >
         {#if user}
           <div class="user-row" role="presentation" onclick={(e) => e.stopPropagation()}>
@@ -436,13 +435,9 @@
               </button>
               <a
                 class="button secondary"
-                href="/signup"
+                href="/user/signup"
                 onpointerdown={(event) =>
-                  runAction(() => goto("/signup"), event)}
-                onclick={(event) => {
-                  event.preventDefault();
-                  handleClick(() => goto("/signup"), event);
-                }}
+                  runAction(() => goto("/user/signup"), event)}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}

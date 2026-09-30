@@ -114,7 +114,7 @@
           class="context-menu-button"
           onpointerdown={onContinueTrail}
         >
-          ▶️ Wanderweg {markerCount > 0 ? "fortsetzen" : "starten"}
+          ▶️ Wanderweg fortsetzen{markerCount > 0 ? "fortsetzen" : "starten"}
         </button>
         {#if trailStarted}
           <button
@@ -140,6 +140,16 @@
         </button>
       {/if}
     {:else if target === "marker"}
+    
+      {#if canContinueTrail}
+        <button
+          type="button"
+          class="context-menu-button"
+          onpointerdown={onContinueTrail}
+        >
+          ▶️ Wanderweg fortsetzen
+        </button>
+      {/if}
       <button
         type="button"
         class="context-menu-button danger"
@@ -181,15 +191,7 @@
         {/if}
       {/if}
 
-      {#if canContinueTrail}
-        <button
-          type="button"
-          class="context-menu-button"
-          onpointerdown={onContinueTrail}
-        >
-          ▶️ Wanderweg fortsetzen
-        </button>
-      {:else if canInsertAfter}
+      {#if canInsertAfter}
         <button
           type="button"
           class="context-menu-button"

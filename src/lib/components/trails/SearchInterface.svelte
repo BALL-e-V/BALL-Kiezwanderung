@@ -96,7 +96,6 @@
               (poi) => matchesRegex(poi.title, searchData.poiQuery) && Boolean(poi.imageUrl),
             )
           : undefined;
-          console.log(matchedPoiImage)
 
         return {
           id: trail.id,

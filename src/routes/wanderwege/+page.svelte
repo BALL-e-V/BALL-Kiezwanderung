@@ -656,7 +656,6 @@
     doubleTapTargetId = "";
     poiTitles = [];
     if (onOff == "off") {
-
       focussedTrail = null as any;
       if (popupVisible) {
         popupVisible = false;
@@ -682,7 +681,7 @@
     } else {
       focussedTrail = trail;
       map.fitBounds(trail.bounds);
-      trailList.forEach((otherTrail) => {
+      filteredTrails.forEach((otherTrail) => {
         if (otherTrail.id !== trail.id && otherTrail.display) {
           displayTrailSwitch(otherTrail, "off");
         }
@@ -1084,8 +1083,8 @@ let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id 
   <div class="map-container" class:map-visible={displayMode === "map"}>
     <div id="map" use:createMap>
       <div class="leaflet-top leaflet-right">
-        {#if focussedTrail}
           <div style="display: flex; gap: 8px; align-items: center;">
+        {#if focussedTrail}
              <button
               type="button"
               class="print-button"
@@ -1106,12 +1105,14 @@ let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id 
               onpointerdown={(e) => { e.stopPropagation(); reverseTrail(focussedTrail); }}
               >Umkehren</button
             >
+          {/if}
+            {#if focussedTrail && filteredTrails.length > 1}
             <button
               style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
               onpointerdown={(e) => { e.stopPropagation(); focusTrailSwitch(focussedTrail, "off"); }}
               >Alle Wanderwege anzeigen</button
             >
-          </div>
+         
         {:else}
           <button
             type="button"
@@ -1124,6 +1125,7 @@ let activePoi = document.getElementById(trailPois[popupData.activePoiIndex]?.id 
             Zur Liste wechseln
           </button>
         {/if}
+         </div>
       </div>
     </div>
     {#if rightClickMenu}

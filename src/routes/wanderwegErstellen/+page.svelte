@@ -466,8 +466,8 @@
         clearTimeout(waitToSave);
 
         try {
-          const response = await getPath(latlngsToDataobject([prevLatLng, latlng]));
-          newPoly.setLatLngs(responseToLatlngs(response, trailResolution));
+          const response = await getPath([latlngsToDataobject([prevLatLng, latlng])]);
+          newPoly.setLatLngs(responseToLatlngs(response[0], trailResolution));
         } catch (err) {
           console.error("addWaypointAtGPS getPath failed:", err);
           showFailureTooltip("Wegfindung fehlgeschlagen");
@@ -730,10 +730,10 @@
       //api call for pathfinding the route
       try {
         response = await getPath(
-          latlngsToDataobject([
+          [latlngsToDataobject([
             trailMarkers[trailPosition].getLatLng(),
             e.latlng,
-          ]),
+          ])],
         );
       } catch (err) {
         console.log("trailMaker() failed to get a path:", err);
@@ -748,7 +748,7 @@
       ) {
         //making the new piece of trail
         trail[trailPosition].setLatLngs(
-          responseToLatlngs(response, trailResolution),
+          responseToLatlngs(response[0], trailResolution),
         );
         await populateTrailMarkerLocationInfo(trailMarkers[trailPosition + 1]);
       } // else discarding the response
@@ -892,7 +892,7 @@
       //turn markers black and make them unmovable while processing
       let response;
       try {
-        response = await getPath(latlngsToDataobject([curLatlng, nextLatlng]));
+        response = await getPath([latlngsToDataobject([curLatlng, nextLatlng])]);
       } catch (err) {
         console.log("moveTrail() failed to get a path", err);
         showFailureTooltip("wegfindung fehlgeschlagen");
@@ -908,7 +908,7 @@
         nextLatlng == trailMarkers[next].getLatLng()
       ) {
         // turn coordinates into latlngs and the changed part of the trail
-        trail[0].setLatLngs(responseToLatlngs(response, trailResolution));
+        trail[0].setLatLngs(responseToLatlngs(response[0], trailResolution));
         await populateTrailMarkerLocationInfo(trailMarkers[current]);
       } // else discard the response
     } else if (next >= trailMarkers.length) {
@@ -923,7 +923,7 @@
       let response;
 
       try {
-        response = await getPath(latlngsToDataobject([preLatlng, curLatlng]));
+        response = await getPath([latlngsToDataobject([preLatlng, curLatlng])]);
       } catch (err) {
         console.log("moveTrail() failed to get a path", err);
         showFailureTooltip("wegfindung fehlgeschlagen");
@@ -942,7 +942,7 @@
       ) {
         // turn coordinates into latlngs and the changed part of the trail
         trail[previous].setLatLngs(
-          responseToLatlngs(response, trailResolution),
+          responseToLatlngs(response[0], trailResolution),
         );
         await populateTrailMarkerLocationInfo(trailMarkers[current]);
       } //else discard the response
@@ -957,13 +957,12 @@
       trail[previous].setLatLngs([preLatlng, curLatlng]);
       trail[current].setLatLngs([curLatlng, nextLatlng]);
       // since mapbox only returns 1 array for any number of coordinates and there isn't a way in the api to mark where
-      let part1;
-      let part2;
+      let response
       try {
-        [part1, part2] = await Promise.all([
-          getPath(latlngsToDataobject([preLatlng, curLatlng])),
-          getPath(latlngsToDataobject([curLatlng, nextLatlng])),
-        ]);
+        response = await getPath([
+          latlngsToDataobject([preLatlng, curLatlng]),
+          latlngsToDataobject([curLatlng, nextLatlng]),
+        ])
       } catch (err) {
         console.log("moveTrail() failed to get a path" + err);
         showFailureTooltip("wegfindung fehlgeschlagen");
@@ -982,7 +981,7 @@
         curLatlng == trailMarkers[current].getLatLng() &&
         preLatlng == trailMarkers[previous].getLatLng()
       ) {
-        trail[previous].setLatLngs(responseToLatlngs(part1, trailResolution));
+        trail[previous].setLatLngs(responseToLatlngs(response[0], trailResolution));
         await populateTrailMarkerLocationInfo(trailMarkers[current]);
       }
       if (
@@ -990,7 +989,7 @@
         curLatlng == trailMarkers[current].getLatLng() &&
         nextLatlng == trailMarkers[next].getLatLng()
       ) {
-        trail[current].setLatLngs(responseToLatlngs(part2, trailResolution));
+        trail[current].setLatLngs(responseToLatlngs(response[1], trailResolution));
         await populateTrailMarkerLocationInfo(trailMarkers[current]);
       } // else discarding responses
     }
@@ -1075,7 +1074,7 @@
       let response;
 
       try {
-        response = await getPath(latlngsToDataobject([startLatlng, endLatlng]));
+        response = await getPath([latlngsToDataobject([startLatlng, endLatlng])]);
       } catch (err) {
         console.log("deleteWaypoint() failed to get a path", err);
         showFailureTooltip("wegfindung fehlgeschlagen");
@@ -1097,7 +1096,7 @@
         endLatlng == trailMarkers[rightClickTargetIndex].getLatLng()
       ) {
         trail[rightClickTargetIndex - 1].setLatLngs(
-          responseToLatlngs(response, trailResolution),
+          responseToLatlngs(response[0], trailResolution),
         );
       } //else discarding the response
     }
@@ -1215,10 +1214,9 @@
     let part1;
     let part2;
     try {
-      [part1, part2] = await Promise.all([
-        getPath(latlngsToDataobject([startLatlng, midLatlng])),
-        getPath(latlngsToDataobject([midLatlng, endLatlng])),
-
+      [part1, part2] = await getPath([
+        latlngsToDataobject([startLatlng, midLatlng]),
+        latlngsToDataobject([midLatlng, endLatlng]),
       ]);
     } catch (err) {
       console.log("insertWaypoint() failed to get a path", err);
@@ -1858,14 +1856,12 @@
         e.preventDefault();
         if (makingTrail) {
           trailMakerSwitch("off");
-        }
-        if (insertingWaypoint) {
+        }else if (insertingWaypoint) {
           insertSwitch("off");
-        }
-        if (creatingPoi) {
+        }else if (creatingPoi) {
           poiCreatorSwitch("off");
-        }
-        rightClickContextMenu(e);
+        }else{
+        rightClickContextMenu(e);}
       }}
     >
       <div class="street-search-overlay">

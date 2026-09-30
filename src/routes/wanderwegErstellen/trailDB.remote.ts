@@ -227,15 +227,17 @@ async function formatDirections(waypoints:[number,number][]) {
     const waypointString = waypoints.map((point) => `${point[1]},${point[0]}`).join(";");
     const reverseWaypointString = waypoints.map((point) => `${point[1]},${point[0]}`).reverse().join(";");
 
-    const response= await getDirections(waypointString);
-    const reverseResponse = await getDirections(reverseWaypointString);
+    const [response,reverseResponse]= await getDirections(waypointString,reverseWaypointString);
     const directions = (response?.routes ?? [])
         .flatMap((route:any) => route.legs ?? [])
         .flatMap((leg:any) => leg.steps ?? [])
-        .map((step:any) => step.maneuver?.instruction)
-        .filter((instruction:any): instruction is string => {
-            if (typeof instruction !== "string") return false;
-            const trimmed = instruction.trim();
+        .map((step:any) => {
+            if(step.maneuver){
+                return{instruction:step.maneuver.instruction,location:step.maneuver.location}
+            }
+        }).filter((t:{instruction:string,location:[number,number]})=> {
+            if (typeof t.instruction !== "string") return false;
+            const trimmed = t.instruction.trim();
             return trimmed.length > 0 &&
                 trimmed !== "Sie haben Ihr Ziel erreicht." &&
                 !trimmed.startsWith("Das Ziel befindet");
@@ -243,10 +245,13 @@ async function formatDirections(waypoints:[number,number][]) {
     const reverseDirections = (reverseResponse?.routes ?? [])
         .flatMap((route:any) => route.legs ?? [])
         .flatMap((leg:any) => leg.steps ?? [])
-        .map((step:any) => step.maneuver?.instruction)
-        .filter((instruction:any): instruction is string => {
-            if (typeof instruction !== "string") return false;
-            const trimmed = instruction.trim();
+        .map((step:any) => {
+            if(step.maneuver){
+                return{instruction:step.maneuver.instruction,location:step.maneuver.location}
+            }
+        }).filter((t:{instruction:string,location:[number,number]})=> {
+            if (typeof t.instruction !== "string") return false;
+            const trimmed = t.instruction.trim();
             return trimmed.length > 0 &&
                 trimmed !== "Sie haben Ihr Ziel erreicht." &&
                 !trimmed.startsWith("Das Ziel befindet");
