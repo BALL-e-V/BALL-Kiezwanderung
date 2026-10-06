@@ -30,9 +30,15 @@ export type TrailPrintContext = {
         title: string;
         description?: string | null;
     };
+    directions: string[];
     trailBoundsRatio: number;
     poisByTrailId: Map<string, Array<{ id: string; title?: string; description?: string | null; imageUrl?: string | null; lat?: number; lng?: number }>>;
     fetchImageData: (imageUrl: string) => Promise<string | null>;
+    descriptionFontSize: number;
+    poiImageArea: number;
+    displayDirections: boolean;
+    onlyDirections: boolean;
+    directionsMarkerFrequency: number;
 };
 
 export async function fetchImageData(imageUrl: string) {
@@ -57,12 +63,19 @@ export async function fetchImageData(imageUrl: string) {
 export async function printTrail({
     printMapElement,
     focussedTrail,
+    directions,
     trailBoundsRatio,
     poisByTrailId,
     fetchImageData,
+    descriptionFontSize,
+    poiImageArea,
+    displayDirections,
+    onlyDirections,
+    directionsMarkerFrequency,
 }: TrailPrintContext) {
+    const printOnlyDirections = onlyDirections && displayDirections;
     const dataUrl = await domtoimage.toPng(printMapElement, { quality: 1, bgcolor: "white" });
-    const descriptionLineHeight = printConfig.descriptionFontSize * (5 / 12);
+    const descriptionLineHeight = descriptionFontSize * (5 / 12);
     let doc: jsPDF;
     let pageLeftMargin = 5;
     let pageTopMargin = 5;
@@ -86,7 +99,7 @@ export async function printTrail({
         imgY = pageTopMargin;
         imgW = 100;
         imgH = 287;
-        textX = imgX + imgW + 10;
+        textX = imgX + imgW + 5;
         textY = imgY;
         textWidth = Math.max(50, pageWidth - textX - 5);
     } else if (trailBoundsRatio < 1) {
@@ -99,7 +112,7 @@ export async function printTrail({
         imgY = pageTopMargin;
         imgW = 140;
         imgH = 185;
-        textX = imgX + imgW + 10;
+        textX = imgX + imgW + 5;
         textY = imgY;
         textWidth = Math.max(50, pageWidth - textX - 5);
     } else if (trailBoundsRatio < 3) {
@@ -155,7 +168,7 @@ export async function printTrail({
     doc.text(titleLines, textX, textY + 7);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(printConfig.descriptionFontSize);
+    doc.setFontSize(descriptionFontSize);
 
     const descriptionStartY = textY + titleHeight + printConfig.margins.titleDescription;
     const firstPageBottomMargin = 5;
@@ -188,73 +201,305 @@ export async function printTrail({
         return { firstPageLines, remainingSourceLines };
     };
 
-    const { firstPageLines, remainingSourceLines } = splitFirstPageText(
-        descriptionText,
-        textWidth,
-        firstPageLineLimit,
-    );
-    doc.text(firstPageLines, textX, descriptionStartY);
-    let nextContentY = descriptionStartY + firstPageLines.length * descriptionLineHeight + printConfig.margins.contentBlock;
-
-    if (remainingSourceLines.some((line) => line.trim())) {
-        addContinuationNotice(textX);
+    let nextContentY: number;
+    if (displayDirections) {
+        const instructions = directions.map((instruction) => instruction.trim()).filter(Boolean);
+        type InstructionSpan = { text: string; bold: boolean; instructionIndex: number };
+        type InstructionBlock = { lines: InstructionSpan[][]; startInstruction: number };
         const continuationTextWidth = doc.internal.pageSize.getWidth() - pageLeftMargin - continuationRightMargin;
+        const layoutInstructionBlocks = (width: number, startInstructionIndex: number): InstructionBlock[] => {
+            const lines: InstructionSpan[][] = [[]];
+            let lineWidth = 0;
+            let blockLineCount = 1;
+            const startLine = () => {
+                lines.push([]);
+                blockLineCount += 1;
+                lineWidth = 0;
+            };
+            const startBlock = () => {
+                while (blockLineCount < 5) {
+                    lines.push([]);
+                    blockLineCount += 1;
+                }
+                while (blockLineCount > 5 && blockLineCount % 5 !== 0) {
+                    lines.push([]);
+                    blockLineCount += 1;
+                }
+                lines.push([]);
+                blockLineCount = 1;
+                lineWidth = 0;
+            };
+            const appendText = (text: string, bold: boolean, instructionIndex: number) => {
+                if (!text) return;
+                doc.setFont("helvetica", bold ? "bold" : "normal");
+                const width = doc.getTextWidth(text);
+                const line = lines[lines.length - 1];
+                const previousSpan = line[line.length - 1];
+                if (previousSpan?.bold === bold && previousSpan.instructionIndex === instructionIndex) {
+                    previousSpan.text += text;
+                } else {
+                    line.push({ text, bold, instructionIndex });
+                }
+                lineWidth += width;
+            };
 
-        const addContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
+            const appendInstruction = (instruction: string, bold: boolean, instructionIndex: number) => {
+                if (blockLineCount > 5) startBlock();
+
+                if (lines[lines.length - 1].length > 0) {
+                    doc.setFont("helvetica", bold ? "bold" : "normal");
+                    const separator = "   ";
+                    if (lineWidth + doc.getTextWidth(separator) <= width) {
+                        appendText(separator, bold, instructionIndex);
+                    } else {
+                        startLine();
+                    }
+                }
+
+                for (const word of instruction.split(/\s+/).filter(Boolean)) {
+                    doc.setFont("helvetica", bold ? "bold" : "normal");
+                    if (lines[lines.length - 1].length > 0 && lineWidth + doc.getTextWidth(` ${word}`) > width) {
+                        startLine();
+                    }
+
+                    let remainingWord = word;
+                    let needsSpace = lines[lines.length - 1].length > 0;
+                    while (remainingWord.length > 0) {
+                        doc.setFont("helvetica", bold ? "bold" : "normal");
+                        const availableWidth = width - lineWidth - (needsSpace ? doc.getTextWidth(" ") : 0);
+                        let fittingCharacters = 0;
+                        for (let count = 1; count <= remainingWord.length; count++) {
+                            if (doc.getTextWidth(remainingWord.slice(0, count)) > availableWidth) break;
+                            fittingCharacters = count;
+                        }
+                        if (fittingCharacters === 0) {
+                            startLine();
+                            needsSpace = false;
+                            continue;
+                        }
+                        appendText(`${needsSpace ? " " : ""}${remainingWord.slice(0, fittingCharacters)}`, bold, instructionIndex);
+                        remainingWord = remainingWord.slice(fittingCharacters);
+                        needsSpace = false;
+                        if (remainingWord.length > 0) startLine();
+                    }
+                }
+            };
+
+            instructions.slice(startInstructionIndex).forEach((instruction, relativeIndex) => {
+                const instructionIndex = startInstructionIndex + relativeIndex;
+                const bold = directionsMarkerFrequency > 0 &&
+                    (instructionIndex + 1) % directionsMarkerFrequency === 0;
+                doc.setFont("helvetica", bold ? "bold" : "normal");
+                if (blockLineCount > 5) startBlock();
+
+                const previousLines = lines.map((line) => line.map((span) => ({ ...span })));
+                const previousLineWidth = lineWidth;
+                const previousBlockLineCount = blockLineCount;
+                const blockWasNotEmpty = lines.slice(-blockLineCount).some((line) => line.length > 0);
+                appendInstruction(instruction, bold, instructionIndex);
+
+                if (
+                    blockWasNotEmpty &&
+                    blockLineCount > 5 &&
+                    doc.splitTextToSize(instruction, width).length <= 5
+                ) {
+                    lines.splice(0, lines.length, ...previousLines);
+                    lineWidth = previousLineWidth;
+                    blockLineCount = previousBlockLineCount;
+                    startBlock();
+                    appendInstruction(instruction, bold, instructionIndex);
+                }
+            });
+
+            while (lines.length > 0 && lines[lines.length - 1].length === 0) lines.pop();
+            const blocks: InstructionBlock[] = [];
+            for (let index = 0; index < lines.length; index += 5) {
+                const blockLines = lines.slice(index, index + 5);
+                const startInstruction = blockLines.flat().at(0)?.instructionIndex ?? startInstructionIndex;
+                blocks.push({ lines: blockLines, startInstruction });
+            }
+            return blocks;
+        };
+
+        const startContinuationPage = () => {
             addContinuationNotice(textX);
             doc.addPage();
-            let currentY = topMargin;
             doc.setTextColor(30, 30, 30);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(printConfig.trailTitleFontSize);
-            const titleLines = doc.splitTextToSize(titleText, textWidth);
-            doc.text(titleLines, leftMargin, currentY + 7);
+            const continuationTitleLines = doc.splitTextToSize(titleText, continuationTextWidth);
+            doc.text(continuationTitleLines, pageLeftMargin, pageTopMargin + 7);
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(printConfig.descriptionFontSize);
-            currentY += titleLines.length * 7 + printConfig.margins.continuationTitleDescription;
-            return currentY;
+            doc.setFontSize(descriptionFontSize);
+            return pageTopMargin + continuationTitleLines.length * 7 + printConfig.margins.continuationTitleDescription;
         };
 
-        const splitContinuationText = (sourceLines: string[], width: number, lineLimit: number) => {
-            const textLines = sourceLines.flatMap((line) =>
-                line ? doc.splitTextToSize(line, width) : [""],
-            );
-            const pages: string[][] = [];
-            let remaining = textLines;
-
-            while (remaining.length > 0) {
-                pages.push(remaining.slice(0, lineLimit));
-                remaining = remaining.slice(lineLimit);
-            }
-
-            return pages;
-        };
-
-        const drawContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
-            let currentY = addContinuationPage(leftMargin, topMargin, textWidth);
-            const maxLines = Math.max(1, Math.floor((doc.internal.pageSize.getHeight() - currentY - continuationBottomMargin) / descriptionLineHeight) + 1);
-            const continuationPages = splitContinuationText(remainingSourceLines, textWidth, maxLines);
-
-            continuationPages.forEach((chunk, index) => {
-                doc.text(chunk, leftMargin, currentY);
-
-                if (index < continuationPages.length - 1) {
-                    currentY = addContinuationPage(leftMargin, topMargin, textWidth);
-                }
+        let currentY = descriptionStartY;
+        const drawBlock = (block: InstructionBlock, x: number, y: number) => {
+            block.lines.forEach((line) => {
+                let currentX = x;
+                line.forEach((span) => {
+                    doc.setFont("helvetica", span.bold ? "bold" : "normal");
+                    doc.setFontSize(descriptionFontSize);
+                    doc.text(span.text, currentX, y);
+                    currentX += doc.getTextWidth(span.text);
+                });
+                y += descriptionLineHeight;
             });
-            return currentY + (continuationPages.at(-1)?.length ?? 0) * descriptionLineHeight + printConfig.margins.contentBlock;
+            return y;
         };
 
-        nextContentY = drawContinuationPage(
-            pageLeftMargin,
-            pageTopMargin,
-            continuationTextWidth,
+        const firstPageBlocks = layoutInstructionBlocks(textWidth, 0);
+        let overflowInstructionIndex: number | null = null;
+        for (let blockIndex = 0; blockIndex < firstPageBlocks.length; blockIndex++) {
+            const block = firstPageBlocks[blockIndex];
+            const blockHeight = block.lines.length * descriptionLineHeight;
+            if (currentY + blockHeight > pageHeight - firstPageBottomMargin) {
+                overflowInstructionIndex = block.startInstruction;
+                break;
+            }
+            currentY = drawBlock(block, textX, currentY);
+            if (blockIndex < firstPageBlocks.length - 1) currentY += descriptionLineHeight * (2 / 3);
+        }
+
+        if (overflowInstructionIndex !== null) {
+            currentY = startContinuationPage();
+            const continuationBlocks = layoutInstructionBlocks(continuationTextWidth, overflowInstructionIndex);
+            for (let blockIndex = 0; blockIndex < continuationBlocks.length; blockIndex++) {
+                const block = continuationBlocks[blockIndex];
+                const blockHeight = block.lines.length * descriptionLineHeight;
+                if (currentY + blockHeight > pageHeight - continuationBottomMargin) {
+                    currentY = startContinuationPage();
+                }
+                currentY = drawBlock(block, pageLeftMargin, currentY);
+                if (blockIndex < continuationBlocks.length - 1) currentY += descriptionLineHeight * (2 / 3);
+            }
+        } else if (!printOnlyDirections) {
+            doc.addPage();
+            currentY = pageTopMargin;
+        }
+
+        if (printOnlyDirections) {
+            nextContentY = currentY;
+        } else {
+            currentY += printConfig.margins.contentBlock;
+            const descriptionPageWidth = doc.internal.pageSize.getWidth() - pageLeftMargin - continuationRightMargin;
+            const descriptionLines = descriptionText
+                ? doc.splitTextToSize(descriptionText, descriptionPageWidth)
+                : doc.splitTextToSize("Keine Beschreibung verfügbar.", descriptionPageWidth);
+            let descriptionLineIndex = 0;
+            let descriptionPageY = currentY;
+
+            while (descriptionLineIndex < descriptionLines.length) {
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(printConfig.trailTitleFontSize);
+                const descriptionTitleLines = doc.splitTextToSize(titleText, descriptionPageWidth);
+                const descriptionTitleHeight =
+                    descriptionTitleLines.length * 7 + printConfig.margins.continuationTitleDescription;
+                if (
+                    descriptionLineIndex > 0 ||
+                    descriptionPageY + descriptionTitleHeight + descriptionLineHeight >
+                        pageHeight - continuationBottomMargin
+                ) {
+                    addContinuationNotice(pageLeftMargin);
+                    doc.addPage();
+                    descriptionPageY = pageTopMargin;
+                }
+
+                doc.setTextColor(30, 30, 30);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(printConfig.trailTitleFontSize);
+                doc.text(descriptionTitleLines, pageLeftMargin, descriptionPageY + 7);
+                descriptionPageY += descriptionTitleLines.length * 7 + printConfig.margins.continuationTitleDescription;
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(descriptionFontSize);
+                const descriptionPageLineLimit = Math.max(
+                    1,
+                    Math.floor((pageHeight - descriptionPageY - continuationBottomMargin) / descriptionLineHeight) + 1,
+                );
+                const pageDescriptionLines = descriptionLines.slice(
+                    descriptionLineIndex,
+                    descriptionLineIndex + descriptionPageLineLimit,
+                );
+                doc.text(pageDescriptionLines, pageLeftMargin, descriptionPageY);
+                descriptionLineIndex += pageDescriptionLines.length;
+                descriptionPageY += pageDescriptionLines.length * descriptionLineHeight;
+            }
+            nextContentY = descriptionPageY + printConfig.margins.contentBlock;
+        }
+    } else {
+        const { firstPageLines, remainingSourceLines } = splitFirstPageText(
+            descriptionText,
+            textWidth,
+            firstPageLineLimit,
         );
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(descriptionFontSize);
+        doc.text(firstPageLines, textX, descriptionStartY);
+        nextContentY = descriptionStartY + firstPageLines.length * descriptionLineHeight + printConfig.margins.contentBlock;
+
+        if (remainingSourceLines.some((line) => line.trim())) {
+            addContinuationNotice(textX);
+            const continuationTextWidth = doc.internal.pageSize.getWidth() - pageLeftMargin - continuationRightMargin;
+
+            const addContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
+                addContinuationNotice(textX);
+                doc.addPage();
+                let currentY = topMargin;
+                doc.setTextColor(30, 30, 30);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(printConfig.trailTitleFontSize);
+                const continuationTitleLines = doc.splitTextToSize(titleText, textWidth);
+                doc.text(continuationTitleLines, leftMargin, currentY + 7);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(descriptionFontSize);
+                currentY += continuationTitleLines.length * 7 + printConfig.margins.continuationTitleDescription;
+                return currentY;
+            };
+
+            const splitContinuationText = (sourceLines: string[], width: number, lineLimit: number) => {
+                const textLines = sourceLines.flatMap((line) =>
+                    line ? doc.splitTextToSize(line, width) : [""],
+                );
+                const pages: string[][] = [];
+                let remaining = textLines;
+
+                while (remaining.length > 0) {
+                    pages.push(remaining.slice(0, lineLimit));
+                    remaining = remaining.slice(lineLimit);
+                }
+
+                return pages;
+            };
+
+            const drawContinuationPage = (leftMargin: number, topMargin: number, textWidth: number) => {
+                let currentY = addContinuationPage(leftMargin, topMargin, textWidth);
+                const maxLines = Math.max(1, Math.floor((doc.internal.pageSize.getHeight() - currentY - continuationBottomMargin) / descriptionLineHeight) + 1);
+                const continuationPages = splitContinuationText(remainingSourceLines, textWidth, maxLines);
+
+                continuationPages.forEach((chunk, index) => {
+                    doc.text(chunk, leftMargin, currentY);
+
+                    if (index < continuationPages.length - 1) {
+                        currentY = addContinuationPage(leftMargin, topMargin, textWidth);
+                    }
+                });
+                return currentY + (continuationPages.at(-1)?.length ?? 0) * descriptionLineHeight + printConfig.margins.contentBlock;
+            };
+
+            nextContentY = drawContinuationPage(
+                pageLeftMargin,
+                pageTopMargin,
+                continuationTextWidth,
+            );
+        }
     }
 
-    const trailPois = poisByTrailId.get(focussedTrail.id) ?? [];
-    const poiLineHeight = printConfig.descriptionFontSize * (5 / 12);
-    const poiImageArea = printConfig.poiImageArea;
+    const trailPois = printOnlyDirections
+        ? []
+        : poisByTrailId.get(focussedTrail.id) ?? [];
+    const poiLineHeight = descriptionFontSize * (5 / 12);
     const poiRightMargin = pageWidth - (textX + textWidth);
     const poiBottomMargin = firstPageBottomMargin;
     let poiY = Math.max(nextContentY, pageTopMargin);
@@ -303,7 +548,7 @@ export async function printTrail({
         doc.text(poiTitleLines, sideTextX, textY + 6);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(printConfig.descriptionFontSize);
+        doc.setFontSize(descriptionFontSize);
         const poiDescriptionStartY = textY + poiTitleLines.length * printConfig.poiTitleFontSize * (5 / 12) + descriptionLineHeight + printConfig.margins.poiDescription;
         const sideLineLimit = Math.max(
             0,
@@ -346,7 +591,7 @@ export async function printTrail({
             doc.addPage();
             currentY = pageTopMargin;
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(printConfig.descriptionFontSize);
+            doc.setFontSize(descriptionFontSize);
         }
         while (remainingFullWidthLines.length > 0) {
             const fullWidthLineLimit = Math.max(
@@ -362,7 +607,7 @@ export async function printTrail({
                 doc.addPage();
                 currentY = pageTopMargin;
                 doc.setFont("helvetica", "normal");
-                doc.setFontSize(printConfig.descriptionFontSize);
+                doc.setFontSize(descriptionFontSize);
             }
         }
         poiY = fullWidthLines.length > 0

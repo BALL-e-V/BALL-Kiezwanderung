@@ -21,12 +21,21 @@
   let isTouchDevice = $state(false);
   let isMobileLayout = $state(false);
   let isMenuOpen = $state(false);
+  let isTrailFocused = $state(false);
   let longPressTimer: number | null = null;
   let suppressNextClick = false;
   let topbar: HTMLElement | null = null;
   let isWanderwegePage = $derived($page.url.pathname === "/wanderwege");
 
-  onMount(() => mountHandler());
+  onMount(() => {
+    const syncTrailFocus = (event: Event) => {
+      isTrailFocused = (event as CustomEvent<boolean>).detail;
+    };
+    window.addEventListener("wanderwege-trail-focus", syncTrailFocus);
+    void mountHandler();
+    return () =>
+      window.removeEventListener("wanderwege-trail-focus", syncTrailFocus);
+  });
 
   async function mountHandler() {
     const response = await authClient.getSession();
@@ -40,17 +49,12 @@
     const syncLayoutFlags = () => {
       isMobileLayout = mobileQuery.matches;
       isTouchDevice = touchQuery.matches || navigator.maxTouchPoints > 0;
-
-      if (!isMobileLayout || !isTouchDevice) {
-        isMenuOpen = true;
-      } else {
-        isMenuOpen = false;
-      }
     };
 
     syncLayoutFlags();
     mobileQuery.addEventListener("change", syncLayoutFlags);
     touchQuery.addEventListener("change", syncLayoutFlags);
+
   }
 
   let isCompactHeader = $derived.by(
@@ -166,10 +170,6 @@
   }
 
   function toggleMenu() {
-    if (!isMobileLayout || !isTouchDevice) {
-      return;
-    }
-
     isMenuOpen = !isMenuOpen;
     if (isMenuOpen) {
       clearLongPress();
@@ -233,7 +233,7 @@
     bind:this={topbar}
     onpointerdown={() => registerColor(topbar)}
   >
-    <div class="brand-row" role="presentation" onpointerdown={(event) => event.stopPropagation()}>
+    <div class="brand-row" role="presentation">
       <div
         class="brand-stack"
       >
@@ -241,8 +241,8 @@
           <a
             class="button secondary"
             href="/wanderwege"
-            onpointerdown={(event) =>
-              runAction(() => goto("/wanderwege"), event)}
+            onpointerdown={(event) =>{event.stopPropagation();
+              runAction(() => goto("/wanderwege"), event)}}
             onpointerup={clearLongPress}
             onpointerleave={clearLongPress}
             onpointercancel={clearLongPress}
@@ -255,9 +255,9 @@
       {#if isWanderwegePage}
         <button
           type="button"
-          class="button secondary"
+          class="button secondary search-toggle"
           aria-label="Suche öffnen oder schließen"
-          onclick={(event) => {
+          onpointerdown={(event) => {
             event.stopPropagation();
             toggleWanderwegeSearch();
           }}
@@ -266,45 +266,47 @@
         </button>
       {/if}
 
-      {#if isMobileLayout && isTouchDevice}
-        <button
-          type="button"
-          class="menu-toggle"
-          aria-label="Menü öffnen"
-          aria-expanded={isMenuOpen}
-          aria-controls="main-menu"
-          onpointerdown={(event) => {
-            event.stopPropagation();
-            beginLongPress(() => toggleMenu(), event);
-          }}
-          onpointerup={clearLongPress}
-          onpointerleave={clearLongPress}
-          onpointercancel={clearLongPress}
-          onclick={(event) => {
-            event.stopPropagation();
-            handleClick(() => toggleMenu(), event);
-          }}
-        >
-          ☰
-        </button>
-      {/if}
+      <button
+        type="button"
+        class="menu-toggle"
+        aria-label={isMenuOpen ? "Menü schließen" : "Menü öffnen"}
+        aria-expanded={isMenuOpen}
+        aria-controls="main-menu"
+        onpointerdown={(event) => {
+          event.stopPropagation();
+          toggleMenu();
+        }}
+      >
+        Menü
+      </button>
     </div>
 
-    {#if !isMobileLayout || isMenuOpen}
+    {#if isMenuOpen}
       <div
-        class="header-panel"
+        class="header-panel dropdown"
         id="main-menu"
-        class:dropdown={isMobileLayout && isTouchDevice}
-         role="presentation" onpointerdown={(event) => event.stopPropagation()}
       >
+        {#if isWanderwegePage && isTrailFocused}
+          <button
+            type="button"
+            class="button primary"
+            onpointerdown={(event) => {
+              event.stopPropagation();
+              isMenuOpen = false;
+              window.dispatchEvent(new CustomEvent("open-wanderwege-print-options"));
+            }}
+          >
+            PDF erzeugen
+          </button>
+        {/if}
         {#if user}
-          <div class="user-row" role="presentation" onclick={(e) => e.stopPropagation()}>
+          <div class="user-row">
             {#if user && (canAccessTrail || isAdmin)}
               <button
                 type="button"
                 class="button secondary"
-                onpointerdown={(event) =>
-                  runAction(() => goto("/wanderwegErstellen"), event)}
+                onpointerdown={(event) =>{event.stopPropagation();
+                  runAction(() => goto("/wanderwegErstellen"), event)}}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -317,12 +319,9 @@
               <button
                 type="button"
                 class="button primary"
-                onpointerdown={(event) =>
-                  runAction(() => goto("/user/admin"), event)}
-                onclick={(event) => {
-                  event.preventDefault();
-                  handleClick(() => goto("/user/admin"), event);
-                }}
+                onpointerdown={(event) =>{event.stopPropagation();
+                  runAction(() => goto("/user/admin"), event)}}
+
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -334,12 +333,8 @@
             <a
               class="user-box"
               href="/user/editUser"
-              onpointerdown={(event) =>
-                runAction(() => goto("/user/editUser"), event)}
-              onclick={(event) => {
-                event.preventDefault();
-                handleClick(() => goto("/user/editUser"), event);
-              }}
+              onpointerdown={(event) =>{event.stopPropagation();
+                runAction(() => goto("/user/editUser"), event)}}
               onpointerup={clearLongPress}
               onpointerleave={clearLongPress}
               onpointercancel={clearLongPress}
@@ -359,11 +354,8 @@
             <button
               type="button"
               class="button secondary"
-              onpointerdown={(event) => runAction(() => void signOut(), event)}
-              onclick={(event) => {
-                event.preventDefault();
-                handleClick(() => void signOut(), event);
-              }}
+              onpointerdown={(event) => {event.stopPropagation();runAction(() => void signOut(), event)}}
+
               onpointerup={clearLongPress}
               onpointerleave={clearLongPress}
               onpointercancel={clearLongPress}
@@ -372,9 +364,9 @@
             </button>
           </div>
         {:else}
-          <div class="header-actions" role="presentation" onclick={(e) => e.stopPropagation()}>
+          <div class="header-actions">
             {#if showLoginForm}
-              <form class="login-form-inline" onsubmit={(e) => signIn(e)}>
+              <form class="login-form-inline" role="presentation" onsubmit={(e) => signIn(e)} onpointerdown={(e) => e.stopPropagation()}>
                 <div class="login-row">
                   <label>
                     Email
@@ -421,12 +413,9 @@
               <button
                 type="button"
                 class="button primary"
-                onpointerdown={(event) =>
-                  runAction(() => (showLoginForm = true), event)}
-                onclick={(event) => {
-                  event.preventDefault();
-                  handleClick(() => (showLoginForm = true), event);
-                }}
+                onpointerdown={(event) =>{event.stopPropagation();
+                  runAction(() => (showLoginForm = true), event)}}
+
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -436,8 +425,8 @@
               <a
                 class="button secondary"
                 href="/user/signup"
-                onpointerdown={(event) =>
-                  runAction(() => goto("/user/signup"), event)}
+                onpointerdown={(event) =>{event.stopPropagation();
+                  runAction(() => goto("/user/signup"), event)}}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -504,6 +493,13 @@
     min-width: 0;
   }
 
+  .search-toggle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
   .brand-stack {
     display: flex;
     align-items: center;
@@ -521,9 +517,10 @@
     background: var(--accent-surface);
     color: var(--accent-900);
     border-radius: 999px;
-    width: clamp(2.2rem, 6vmin, 2.8rem);
-    height: clamp(2.2rem, 6vmin, 2.8rem);
-    font-size: clamp(1rem, 2.4vmin, 1.2rem);
+    min-height: clamp(2.2rem, 6vmin, 2.8rem);
+    padding: 0.45rem 0.9rem;
+    font-size: clamp(0.9rem, 2.2vmin, 1rem);
+    font-weight: 700;
     cursor: pointer;
   }
 
@@ -536,18 +533,21 @@
     flex-shrink: 0;
   }
 
-  /* Dropdown presentation for mobile/touch when menu is toggled */
+  /* Dropdown presentation for the menu on every screen size */
   .header-panel.dropdown {
     position: absolute;
     top: 100%;
-    left: 0;
-    right: 0;
+    right: clamp(0.95rem, 3vmin, 1.25rem);
     display: flex;
     flex-direction: column;
+    align-items: stretch;
+    width: max-content;
+    max-width: calc(100vw - 2rem);
     gap: clamp(0.45rem, 1.6vmin, 0.75rem);
     padding: clamp(0.6rem, 2vmin, 0.9rem);
     background: var(--accent-surface);
-    border-top: 1px solid var(--accent-border);
+    border: 1px solid var(--accent-border);
+    border-radius: 0 0 0.8rem 0.8rem;
     box-shadow: 0 0.6rem 1.2rem rgba(15, 23, 42, 0.08);
     z-index: 5000;
   }

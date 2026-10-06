@@ -6,9 +6,10 @@
     onSearch: () => void;
     onList: () => void;
     onShowAll: () => void;
+    isOnlyResult:boolean
   }
 
-  let { x, y, hasFocusedTrail, onSearch, onList, onShowAll }: Props = $props();
+  let { x, y, hasFocusedTrail, onSearch, onList, onShowAll,isOnlyResult }: Props = $props();
 </script>
 
 <div
@@ -19,7 +20,7 @@
 >
   <button type="button" role="menuitem" onpointerdown={onSearch}>Suche</button>
   <button type="button" role="menuitem" onpointerdown={onList}>zur Liste</button>
-  {#if hasFocusedTrail}
+  {#if hasFocusedTrail && !isOnlyResult}
     <button type="button" role="menuitem" onpointerdown={onShowAll}>
       Alle Wege Anzeigen
     </button>

@@ -6,15 +6,16 @@
     allTrailPoiRealations,
     allPoi,
     deletePoi,
-    allTrails,trailDirection,
+    allTrails,
+    trailDirection,
   } from "./register.remote";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import Asdf from "./asdf.svelte";
-  import Thing from "./thing.svelte"
+  import Thing from "./thing.svelte";
 
   const session = authClient.useSession();
-  let displayThing =$state(false);
+  let displayThing = $state(false);
 
   async function deleteDeprecatedPoi() {
     const relationships = await allTrailPoiRealations();
@@ -106,9 +107,9 @@
   }
 </script>
 
-<button onclick={()=>displayThing=!displayThing}>thing</button>
+<button onclick={() => (displayThing = !displayThing)}>thing</button>
 {#if displayThing}
-<Thing/>
+  <Thing />
 {/if}
 <h1 bind:this={reg}>Register</h1>
 <Asdf {registerColor} {reg}></Asdf>
@@ -167,19 +168,9 @@
   </div>
 </div>
 <button onclick={deleteDeprecatedPoi}>Delete deprecated POI</button>
-{#each await allTrailPoiRealations() as relation}
-  <p>
-    {relation.trailId}+" "+{relation.poiId}+" "+{relation.poiTitle}
-  </p>
-{/each}
-
-{#each await allPoi() as poi}
-  <p>
-    {poi.id}+" "+{poi.title}
-  </p>
-{/each}
 
 {#each await allTrails() as trail}
-  <button onclick={async()=>console.log(await trailDirection(trail.id))}>{trail.title}</button>
-
+  <button onclick={async () => console.log(await trailDirection(trail.id))}
+    >{trail.title}</button
+  >
 {/each}

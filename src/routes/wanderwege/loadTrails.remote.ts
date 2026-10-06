@@ -2,7 +2,7 @@ import { command } from "$app/server";
 import * as v from "valibot";
 import { hikingTrails, trailsToPoi, poi } from '$lib/server/db/trails.schema';
 import { db } from "$lib/server/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 
 
@@ -73,25 +73,35 @@ export const initialLoadTrails = command(
         return trails.map(addPoiTitles);
     }
 )
-//load the pois for a trail that got zoomed in on
-export const getTrailPOIs = command(v.string(), async (trailId) => {
-    try {
-        const pois = await db.select({
-            title:poi.title,
-            imageUrl:poi.imageUrl,
-            description:poi.description,
-            lat:poi.latitude,
-            lng:poi.longitude,
-            imageAlt:poi.imageAlt,
-            id:poi.id,
-            position1:trailsToPoi.position1,
-            position2:trailsToPoi.position2,
-        })
-            .from(trailsToPoi)
-            .leftJoin(poi, eq(trailsToPoi.poiId, poi.id))
-            .where(eq(trailsToPoi.trailId, trailId))
-        return pois
-    } catch (error) {
-         throw error
-    }
-})
+export const getTrailData = command(v.string(), async (trailId) => {
+    const rows = await db.select({
+        poiId: trailsToPoi.poiId,
+        title: poi.title,
+        imageUrl: poi.imageUrl,
+        description: poi.description,
+        lat: poi.latitude,
+        lng: poi.longitude,
+        imageAlt: poi.imageAlt,
+        id: poi.id,
+        position1: trailsToPoi.position1,
+        position2: trailsToPoi.position2,
+        directions: hikingTrails.directions,
+        reverseDirections: hikingTrails.reverseDirections,
+    })
+        .from(hikingTrails)
+        .leftJoin(trailsToPoi, eq(trailsToPoi.trailId, hikingTrails.id))
+        .leftJoin(poi, eq(trailsToPoi.poiId, poi.id))
+        .where(and(
+            eq(hikingTrails.id, trailId),
+            eq(hikingTrails.published, true),
+        ));
+
+    const trail = rows[0];
+    return {
+        pois: rows
+            .filter((row) => row.poiId !== null)
+            .map(({ poiId, directions, reverseDirections, ...poiData }) => poiData),
+        directions: trail?.directions ?? null,
+        reverseDirections: trail?.reverseDirections ?? null,
+    };
+});

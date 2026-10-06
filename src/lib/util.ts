@@ -37,6 +37,40 @@ export function iconmaker({color,size,number,id}:{color:string, size: number, nu
     });
 }
 
+export function crossmaker({ color, size }: { color: string; size: number }) {
+    const html = `
+      <span style="
+        display: block;
+        position: relative;
+        width: ${size}rem;
+        height: ${size}rem;
+      ">
+        <span style="
+          position: absolute;
+          left: 42.5%;
+          top: 0;
+          width: 15%;
+          height: 100%;
+          background-color: ${color};
+        "></span>
+        <span style="
+          position: absolute;
+          left: 0;
+          top: 42.5%;
+          width: 100%;
+          height: 15%;
+          background-color: ${color};
+        "></span>
+      </span>`;
+
+    return new DivIcon({
+        className: "my-custom-cross",
+        iconSize: [size * 16, size * 16],
+        iconAnchor: [size * 8, size * 8],
+        html,
+    });
+}
+
  export function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
