@@ -3,10 +3,14 @@
     id: string;
     title: string;
     districts: string[];
-    startDistrict: string[];
+    startDistricts: string[];
     poiTitles: string[];
-    poiImages: Array<{ title: string; imageUrl?: string | null; imageAlt?: string | null }>;
-    length?: number;
+    poiImages: Array<{
+      title: string;
+      imageUrl?: string | null;
+      imageAlt?: string | null;
+    }>;
+    length: number | null;
   };
 
   type SearchResult = {
@@ -40,7 +44,7 @@
     }),
   }: {
     trails: SearchTrail[];
-    onSearch: (trails: SearchResult[], preserveFocus?: boolean) => void;
+    onSearch: (trails: SearchResult[]) => void;
     noTrailsFound?: boolean;
     searchData?: SearchData;
   } = $props();
@@ -48,12 +52,15 @@
   const lengthRange = $derived.by(() => {
     const lengths = trails
       .map((trail) => trail.length)
-      .filter((length): length is number => typeof length === "number" && Number.isFinite(length));
+      .filter(
+        (length): length is number =>
+          typeof length === "number" && Number.isFinite(length),
+      );
 
     if (lengths.length === 0) return { min: 0, max: 0 };
     return {
       min: Math.min(...lengths),
-      max:Math.max(...lengths)
+      max: Math.max(...lengths),
     };
   });
 
@@ -74,43 +81,56 @@
     return values.some((value) => matchesRegex(value, query));
   }
 
-  function search(preserveFocus = false) {
+  function search() {
     const filteredTrails = trails.filter((trail) => {
-
       const trailLength = trail.length ?? 0;
-      const districts = searchData.onlyStart ? trail.startDistrict : trail.districts;
+      const districts = searchData.onlyStart
+        ? trail.startDistricts
+        : trail.districts;
+      const hasNameQuery = Boolean(searchData.nameQuery.trim());
+      const hasDistrictQuery = Boolean(searchData.districtQuery.trim());
+      const hasPoiQuery = Boolean(searchData.poiQuery.trim());
+      const hasCategoryQuery = hasNameQuery || hasDistrictQuery || hasPoiQuery;
+      const matchesCategory =
+        !hasCategoryQuery ||
+        (hasNameQuery && matchesRegex(trail.title, searchData.nameQuery)) ||
+        (hasDistrictQuery && matchesAny(districts, searchData.districtQuery)) ||
+        (hasPoiQuery && matchesAny(trail.poiTitles, searchData.poiQuery));
 
       return (
-        matchesRegex(trail.title, searchData.nameQuery) &&
-        matchesAny(districts, searchData.districtQuery) &&
-        (matchesAny(trail.poiTitles, searchData.poiQuery)|| (trail.poiTitles.length ==0 && searchData.poiQuery == "")) &&
-        trailLength >= minLength &&
-        trailLength <= maxLength
+        matchesCategory && trailLength >= minLength && trailLength <= maxLength
       );
     });
 
     onSearch(
       filteredTrails.map((trail) => {
-          const matchedPoiImage = searchData.poiQuery.trim()
+        const matchedPoiImage = searchData.poiQuery.trim()
           ? trail.poiImages.find(
-              (poi) => matchesRegex(poi.title, searchData.poiQuery) && Boolean(poi.imageUrl),
+              (poi) =>
+                matchesRegex(poi.title, searchData.poiQuery) &&
+                Boolean(poi.imageUrl),
             )
           : undefined;
 
         return {
           id: trail.id,
           matchedDistricts: searchData.districtQuery.trim()
-            ? (searchData.onlyStart ? trail.startDistrict : trail.districts)
-                .filter((district) => matchesRegex(district, searchData.districtQuery))
+            ? (searchData.onlyStart
+                ? trail.startDistricts
+                : trail.districts
+              ).filter((district) =>
+                matchesRegex(district, searchData.districtQuery),
+              )
             : [],
           matchedPoiTitles: searchData.poiQuery.trim()
-            ? trail.poiTitles.filter((title) => matchesRegex(title, searchData.poiQuery))
+            ? trail.poiTitles.filter((title) =>
+                matchesRegex(title, searchData.poiQuery),
+              )
             : [],
           matchedPoiImageUrl: matchedPoiImage?.imageUrl ?? undefined,
           matchedPoiImageAlt: matchedPoiImage?.imageAlt ?? undefined,
         };
       }),
-      preserveFocus,
     );
   }
 
@@ -121,7 +141,6 @@
     searchData.onlyStart = false;
     searchData.selectedMinLength = null;
     searchData.selectedMaxLength = null;
-    search(true);
   }
 
   function updateMinLength(value: number) {
@@ -131,17 +150,35 @@
   function updateMaxLength(value: number) {
     searchData.selectedMaxLength = Math.max(value, minLength);
   }
+
+  function formatLength(lengthInMeters: number) {
+    return (Math.round(lengthInMeters / 100) / 10).toFixed(1);
+  }
 </script>
 
-<form class="search-interface" onsubmit={(event) => { event.preventDefault(); search(); }}>
+<form
+  class="search-interface"
+  onsubmit={(event) => {
+    event.preventDefault();
+    search();
+  }}
+>
   <label>
     Name
-    <input type="search" bind:value={searchData.nameQuery} placeholder="Wanderweg suchen" />
+    <input
+      type="search"
+      bind:value={searchData.nameQuery}
+      placeholder="Wanderweg suchen"
+    />
   </label>
 
   <label>
     Stadtteil
-    <input type="search" bind:value={searchData.districtQuery} placeholder="Stadtteil suchen" />
+    <input
+      type="search"
+      bind:value={searchData.districtQuery}
+      placeholder="Stadtteil suchen"
+    />
   </label>
 
   <label class="checkbox-label">
@@ -151,14 +188,18 @@
 
   <label>
     Sehenswürdigkeiten
-    <input type="search" bind:value={searchData.poiQuery} placeholder="Sehenswürdigkeit suchen" />
+    <input
+      type="search"
+      bind:value={searchData.poiQuery}
+      placeholder="Sehenswürdigkeit suchen"
+    />
   </label>
 
   <fieldset>
     <legend>Länge</legend>
     <div class="range-values">
-      <span>{minLength} km</span>
-      <span>{maxLength} km</span>
+      <span>{formatLength(minLength)} km</span>
+      <span>{formatLength(maxLength)} km</span>
     </div>
     <input
       type="range"

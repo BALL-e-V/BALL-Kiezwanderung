@@ -1,12 +1,14 @@
 <script lang="ts">
   import type { LatLngBounds } from "leaflet";
 
-  interface hikingTrail {
-    title: string;
-    id: string;
+  interface FilteredTrail {
+    data: {
+      title: string;
+      id: string;
+      bounds: LatLngBounds;
+    };
     display: boolean;
     color: string;
-    bounds: LatLngBounds;
   }
 
   let {
@@ -16,10 +18,10 @@
     onTrailSelect,
     onPoiSelect,
   }: {
-    trails: hikingTrail[];
+    trails: FilteredTrail[];
     poiTitles: string[];
     mapBounds?: LatLngBounds | null;
-    onTrailSelect?: (trail: { id: string }) => void;
+    onTrailSelect?: (trail: { data: { id: string } }) => void;
     onPoiSelect?: (index: number) => void;
   } = $props();
 
@@ -27,7 +29,9 @@
 
   const displayedTrails = $derived(
     trails.filter(
-      (trail) => trail.display && (!mapBounds || trail.bounds.overlaps(mapBounds)),
+      (trail) =>
+        trail.display &&
+        (!mapBounds || trail.data.bounds.overlaps(mapBounds)),
     ),
   );
 </script>
@@ -60,7 +64,7 @@
 
   {#if !isMinimized}
     <div class="legend-content">
-      {#each displayedTrails as trail (trail.id)}
+      {#each displayedTrails as trail (trail.data.id)}
         <button
           class="legend-item legend-button"
           type="button"
@@ -70,7 +74,7 @@
             class="legend-line"
             style="background-color: {trail.color}"
           ></div>
-          <div class="legend-title">{trail.title}</div>
+          <div class="legend-title">{trail.data.title}</div>
         </button>
       {/each}
       <div class="legend-item">

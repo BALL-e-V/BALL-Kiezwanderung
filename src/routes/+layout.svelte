@@ -26,6 +26,8 @@
   let suppressNextClick = false;
   let topbar: HTMLElement | null = null;
   let isWanderwegePage = $derived($page.url.pathname === "/wanderwege");
+  let wanderwegeSearchQuery = $state("");
+  let wanderwegeSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
     const syncTrailFocus = (event: Event) => {
@@ -54,7 +56,6 @@
     syncLayoutFlags();
     mobileQuery.addEventListener("change", syncLayoutFlags);
     touchQuery.addEventListener("change", syncLayoutFlags);
-
   }
 
   let isCompactHeader = $derived.by(
@@ -223,6 +224,20 @@
   function toggleWanderwegeSearch() {
     window.dispatchEvent(new CustomEvent("toggle-wanderwege-search"));
   }
+
+  function updateWanderwegeSearch(event: Event) {
+    wanderwegeSearchQuery = (event.currentTarget as HTMLInputElement).value;
+    if (wanderwegeSearchTimer) clearTimeout(wanderwegeSearchTimer);
+    wanderwegeSearchTimer = setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-global-search", {
+          detail: wanderwegeSearchQuery,
+        }),
+      );
+      clearTimeout(wanderwegeSearchTimer!);
+      wanderwegeSearchTimer = null;
+    }, 1000);
+  }
 </script>
 
 <div class="app-shell">
@@ -233,37 +248,62 @@
     bind:this={topbar}
     onpointerdown={() => registerColor(topbar)}
   >
-    <div class="brand-row" role="presentation">
-      <div
-        class="brand-stack"
-      >
+    <div
+      class="brand-row"
+      class:has-search={isWanderwegePage}
+      role="presentation"
+    >
+      <div class="brand-stack">
         <h1>
           <a
             class="button secondary"
             href="/wanderwege"
-            onpointerdown={(event) =>{event.stopPropagation();
-              runAction(() => goto("/wanderwege"), event)}}
+            onpointerdown={(event) => {
+              event.stopPropagation();
+              runAction(() => goto("/wanderwege"), event);
+            }}
             onpointerup={clearLongPress}
             onpointerleave={clearLongPress}
             onpointercancel={clearLongPress}
           >
-            Kiezwanderung
+            𖠿
           </a>
         </h1>
       </div>
 
       {#if isWanderwegePage}
-        <button
-          type="button"
-          class="button secondary search-toggle"
-          aria-label="Suche öffnen oder schließen"
-          onpointerdown={(event) => {
-            event.stopPropagation();
-            toggleWanderwegeSearch();
-          }}
-        >
-          Suche
-        </button>
+        <div class="search-group">
+          <input
+            class="topbar-search"
+            type="search"
+            aria-label="Wanderwege suchen"
+            placeholder="suchen"
+            value={wanderwegeSearchQuery}
+            oninput={updateWanderwegeSearch}
+            onpointerdown={(event) => event.stopPropagation()}
+          />
+          <button
+            type="button"
+            class="button secondary search-toggle"
+            aria-label="Suche öffnen oder schließen"
+            onpointerdown={(event) => {
+              event.stopPropagation();
+              toggleWanderwegeSearch();
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 5h16l-6.5 7.5v5l-3 1v-6L4 5z" />
+            </svg>
+          </button>
+        </div>
       {/if}
 
       <button
@@ -277,15 +317,12 @@
           toggleMenu();
         }}
       >
-        Menü
+        ☰
       </button>
     </div>
 
     {#if isMenuOpen}
-      <div
-        class="header-panel dropdown"
-        id="main-menu"
-      >
+      <div class="header-panel dropdown" id="main-menu">
         {#if isWanderwegePage && isTrailFocused}
           <button
             type="button"
@@ -293,10 +330,12 @@
             onpointerdown={(event) => {
               event.stopPropagation();
               isMenuOpen = false;
-              window.dispatchEvent(new CustomEvent("open-wanderwege-print-options"));
+              window.dispatchEvent(
+                new CustomEvent("open-wanderwege-print-options"),
+              );
             }}
           >
-            PDF erzeugen
+            Drucken
           </button>
         {/if}
         {#if user}
@@ -305,8 +344,10 @@
               <button
                 type="button"
                 class="button secondary"
-                onpointerdown={(event) =>{event.stopPropagation();
-                  runAction(() => goto("/wanderwegErstellen"), event)}}
+                onpointerdown={(event) => {
+                  event.stopPropagation();
+                  runAction(() => goto("/wanderwegErstellen"), event);
+                }}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -319,9 +360,10 @@
               <button
                 type="button"
                 class="button primary"
-                onpointerdown={(event) =>{event.stopPropagation();
-                  runAction(() => goto("/user/admin"), event)}}
-
+                onpointerdown={(event) => {
+                  event.stopPropagation();
+                  runAction(() => goto("/user/admin"), event);
+                }}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -333,8 +375,10 @@
             <a
               class="user-box"
               href="/user/editUser"
-              onpointerdown={(event) =>{event.stopPropagation();
-                runAction(() => goto("/user/editUser"), event)}}
+              onpointerdown={(event) => {
+                event.stopPropagation();
+                runAction(() => goto("/user/editUser"), event);
+              }}
               onpointerup={clearLongPress}
               onpointerleave={clearLongPress}
               onpointercancel={clearLongPress}
@@ -354,8 +398,10 @@
             <button
               type="button"
               class="button secondary"
-              onpointerdown={(event) => {event.stopPropagation();runAction(() => void signOut(), event)}}
-
+              onpointerdown={(event) => {
+                event.stopPropagation();
+                runAction(() => void signOut(), event);
+              }}
               onpointerup={clearLongPress}
               onpointerleave={clearLongPress}
               onpointercancel={clearLongPress}
@@ -366,7 +412,12 @@
         {:else}
           <div class="header-actions">
             {#if showLoginForm}
-              <form class="login-form-inline" role="presentation" onsubmit={(e) => signIn(e)} onpointerdown={(e) => e.stopPropagation()}>
+              <form
+                class="login-form-inline"
+                role="presentation"
+                onsubmit={(e) => signIn(e)}
+                onpointerdown={(e) => e.stopPropagation()}
+              >
                 <div class="login-row">
                   <label>
                     Email
@@ -413,9 +464,10 @@
               <button
                 type="button"
                 class="button primary"
-                onpointerdown={(event) =>{event.stopPropagation();
-                  runAction(() => (showLoginForm = true), event)}}
-
+                onpointerdown={(event) => {
+                  event.stopPropagation();
+                  runAction(() => (showLoginForm = true), event);
+                }}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -425,8 +477,10 @@
               <a
                 class="button secondary"
                 href="/user/signup"
-                onpointerdown={(event) =>{event.stopPropagation();
-                  runAction(() => goto("/user/signup"), event)}}
+                onpointerdown={(event) => {
+                  event.stopPropagation();
+                  runAction(() => goto("/user/signup"), event);
+                }}
                 onpointerup={clearLongPress}
                 onpointerleave={clearLongPress}
                 onpointercancel={clearLongPress}
@@ -493,11 +547,56 @@
     min-width: 0;
   }
 
+  .brand-row.has-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .search-group {
+    display: flex;
+    align-items: center;
+    justify-self: center;
+    width: min(100%, 27.2rem);
+    min-width: 0;
+    gap: 0.4rem;
+  }
+
+  .topbar-search {
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--accent-border);
+    border-radius: 999px;
+    background: var(--accent-surface);
+    color: var(--accent-900);
+    font: inherit;
+  }
+
+  .topbar-search:focus {
+    outline: 2px solid var(--accent-600);
+    outline-offset: 2px;
+  }
+
   .search-toggle {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.8rem;
+    min-height: 2.8rem;
+    padding: 0.6rem;
+  }
+
+  .button.search-toggle {
+    width: 2.8rem;
+    min-width: 2.8rem;
+    padding: 0.6rem;
+  }
+
+  .search-toggle svg {
+    width: 1.25rem;
+    height: 1.25rem;
   }
 
   .brand-stack {

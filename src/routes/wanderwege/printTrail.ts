@@ -26,9 +26,11 @@ export type TrailPrintConfig = {
 export type TrailPrintContext = {
     printMapElement: HTMLDivElement;
     focussedTrail: {
-        id: string;
-        title: string;
-        description?: string | null;
+        data: {
+            id: string;
+            title: string;
+            description?: string | null;
+        };
     };
     directions: string[];
     trailBoundsRatio: number;
@@ -143,8 +145,8 @@ export async function printTrail({
         textWidth = pageWidth - pageLeftMargin * 2;
     }
 
-    const titleText = (focussedTrail.title || "Wanderweg").trim();
-    const descriptionText = (focussedTrail.description || "Keine Beschreibung verfügbar.").trim();
+    const titleText = (focussedTrail.data.title || "Wanderweg").trim();
+    const descriptionText = (focussedTrail.data.description || "Keine Beschreibung verfügbar.").trim();
     const continuationRightMargin = 5;
     const continuationBottomMargin = 5;
     const addContinuationNotice = (noticeX = textX) => {
@@ -498,7 +500,7 @@ export async function printTrail({
 
     const trailPois = printOnlyDirections
         ? []
-        : poisByTrailId.get(focussedTrail.id) ?? [];
+        : poisByTrailId.get(focussedTrail.data.id) ?? [];
     const poiLineHeight = descriptionFontSize * (5 / 12);
     const poiRightMargin = pageWidth - (textX + textWidth);
     const poiBottomMargin = firstPageBottomMargin;
@@ -615,5 +617,5 @@ export async function printTrail({
             : imageY + poiBlockHeight + printConfig.margins.contentBlock;
     }
 
-    doc.save(`${focussedTrail.title || "wanderweg"}.pdf`);
+    doc.save(`${focussedTrail.data.title || "wanderweg"}.pdf`);
 }

@@ -1,11 +1,13 @@
 <script lang="ts">
   type Trail = {
-    id: string;
-    title: string;
-    description?: string;
-    imageUrl?: string;
-    imageAlt?: string;
-    length?: number;
+    data: {
+      id: string;
+      title: string;
+      description?: string;
+      imageUrl?: string | null;
+      imageAlt?: string | null;
+      length: number | null;
+    };
     matchedDistricts?: string[];
     matchedPoiTitles?: string[];
     matchedPoiImageUrl?: string;
@@ -14,7 +16,7 @@
 
   interface Props {
     trails: Trail[];
-    onSelectTrail: (trail: Trail) => void;
+    onSelectTrail: (trail: { data: { id: string } }) => void;
     onMapMode: () => void;
   }
 
@@ -33,12 +35,12 @@
 
   {#if trails.length > 0}
     <div class="trail-display__list">
-      {#each trails as trail (trail.id)}
+      {#each trails as trail (trail.data.id)}
         <button
           type="button"
           class="trail-card"
           onpointerdown={() => onSelectTrail(trail)}
-          aria-label={`${trail.title} auf der Karte anzeigen`}
+          aria-label={`${trail.data.title} auf der Karte anzeigen`}
         >
           {#if trail.matchedDistricts?.length}
             <div class="trail-card__match-row" aria-label="Passende Stadtteile">
@@ -55,10 +57,10 @@
             </div>
           {/if}
           <div class="trail-card__image-frame">
-            {#if trail.matchedPoiImageUrl || trail.imageUrl}
+            {#if trail.matchedPoiImageUrl || trail.data.imageUrl}
               <img
-                src={trail.matchedPoiImageUrl || trail.imageUrl}
-                alt={trail.matchedPoiImageAlt || trail.imageAlt || trail.title}
+                src={trail.matchedPoiImageUrl || trail.data.imageUrl}
+                alt={trail.matchedPoiImageAlt || trail.data.imageAlt || trail.data.title}
                 class="trail-card__image"
               />
             {:else}
@@ -69,13 +71,15 @@
           </div>
           <div class="trail-card__content">
             <div class="trail-card__title-row">
-              <h3>{trail.title}</h3>
-              {#if trail.length !== undefined}
-                <span class="trail-card__length">{trail.length} km</span>
+              <h3>{trail.data.title}</h3>
+              {#if trail.data.length !== null}
+                <span class="trail-card__length">
+                  {Math.round(trail.data.length / 100) / 10} km
+                </span>
               {/if}
             </div>
             <p class="trail-card__description">
-              {trail.description || "Keine Beschreibung vorhanden."}
+              {trail.data.description || "Keine Beschreibung vorhanden."}
             </p>
           </div>
         </button>
