@@ -1,4 +1,8 @@
 <script lang="ts">
+  import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
+
+  type TrailSort = "name" | "length";
+
   type Trail = {
     data: {
       id: string;
@@ -16,19 +20,68 @@
 
   interface Props {
     trails: Trail[];
+    pageNumber: number;
+    pageCount: number;
+    totalItems: number;
+    sortBy: TrailSort | null;
+    sortAscending: boolean;
     onSelectTrail: (trail: { data: { id: string } }) => void;
     onMapMode: () => void;
+    onPageChange: (targetPage: number) => void;
+    onSort: (sortBy: TrailSort) => void;
   }
 
-  let { trails = [], onSelectTrail, onMapMode }: Props = $props();
+  let {
+    trails = [],
+    pageNumber,
+    pageCount,
+    totalItems,
+    sortBy,
+    sortAscending,
+    onSelectTrail,
+    onMapMode,
+    onPageChange,
+    onSort,
+  }: Props = $props();
 </script>
 
 <section class="trail-display" aria-label="Gefilterte Wanderwege">
   <header class="trail-display__header">
-    <div>
+    <div class="trail-display__heading">
       <h2>Ausgewählte Wege</h2>
     </div>
-    <button type="button" class="trail-display__map-button" onpointerdown={onMapMode}>
+    <div class="trail-display__controls" aria-label="Wege sortieren und Seitenwechsel">
+      <button
+        type="button"
+        class="trail-display__sort-button"
+        class:active={sortBy === "name"}
+        aria-pressed={sortBy === "name"}
+        onclick={() => onSort("name")}
+      >
+        Name{sortBy === "name" ? (sortAscending ? " ↑" : " ↓") : ""}
+      </button>
+      <button
+        type="button"
+        class="trail-display__sort-button"
+        class:active={sortBy === "length"}
+        aria-pressed={sortBy === "length"}
+        onclick={() => onSort("length")}
+      >
+        Länge{sortBy === "length" ? (sortAscending ? " ↑" : " ↓") : ""}
+      </button>
+      <PageNavigation
+        {pageNumber}
+        {pageCount}
+        {totalItems}
+        onPageChange={onPageChange}
+        showPageSelect
+      />
+    </div>
+    <button
+      type="button"
+      class="trail-display__map-button"
+      onpointerdown={onMapMode}
+    >
       Zur Karte wechseln.
     </button>
   </header>
@@ -39,28 +92,42 @@
         <button
           type="button"
           class="trail-card"
+          class:trail-card--with-matches={trail.matchedDistricts?.length ||
+            trail.matchedPoiTitles?.length}
           onpointerdown={() => onSelectTrail(trail)}
           aria-label={`${trail.data.title} auf der Karte anzeigen`}
         >
-          {#if trail.matchedDistricts?.length}
-            <div class="trail-card__match-row" aria-label="Passende Stadtteile">
-              {#each trail.matchedDistricts as district}
-                <span>{district}</span>
-              {/each}
-            </div>
-          {/if}
-          {#if trail.matchedPoiTitles?.length}
-            <div class="trail-card__match-row" aria-label="Passende Sehenswürdigkeiten">
-              {#each trail.matchedPoiTitles as poiTitle}
-                <span>{poiTitle}</span>
-              {/each}
+          {#if trail.matchedDistricts?.length || trail.matchedPoiTitles?.length}
+            <div class="trail-card__matches">
+              {#if trail.matchedDistricts?.length}
+                <div
+                  class="trail-card__match-row"
+                  aria-label="Passende Stadtteile"
+                >
+                  {#each trail.matchedDistricts as district}
+                    <span>{district}</span>
+                  {/each}
+                </div>
+              {/if}
+              {#if trail.matchedPoiTitles?.length}
+                <div
+                  class="trail-card__match-row"
+                  aria-label="Passende Sehenswürdigkeiten"
+                >
+                  {#each trail.matchedPoiTitles as poiTitle}
+                    <span>{poiTitle}</span>
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
           <div class="trail-card__image-frame">
             {#if trail.matchedPoiImageUrl || trail.data.imageUrl}
               <img
                 src={trail.matchedPoiImageUrl || trail.data.imageUrl}
-                alt={trail.matchedPoiImageAlt || trail.data.imageAlt || trail.data.title}
+                alt={trail.matchedPoiImageAlt ||
+                  trail.data.imageAlt ||
+                  trail.data.title}
                 class="trail-card__image"
               />
             {:else}
@@ -106,13 +173,45 @@
   }
 
   .trail-display__header {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
     gap: 1rem;
     flex: 0 0 auto;
   }
 
+  .trail-display__heading {
+    justify-self: start;
+  }
+
+  .trail-display__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    justify-self: center;
+  }
+
+  .trail-display__sort-button {
+    min-height: 2rem;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--accent-border, #b8c1cf);
+    border-radius: 0.4rem;
+    background: var(--accent-surface, #fff);
+    color: var(--accent-900, #263244);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .trail-display__sort-button:hover,
+  .trail-display__sort-button:focus-visible,
+  .trail-display__sort-button.active {
+    background: var(--accent-100, #e8f0ef);
+    outline: 2px solid var(--accent-400, #70a7a0);
+    outline-offset: 1px;
+  }
 
   h2,
   h3,
@@ -127,6 +226,7 @@
 
   .trail-display__map-button {
     flex: 0 0 auto;
+    justify-self: end;
     border: 1px solid var(--accent-border, #b8c1cf);
     border-radius: 0.45rem;
     padding: 0.65rem 0.85rem;
@@ -158,6 +258,7 @@
     display: grid;
     grid-template-columns: minmax(14rem, 50%) minmax(0, 1fr);
     gap: 0.9rem;
+    row-gap: 0;
     align-items: stretch;
     min-width: 0;
     min-height: 18rem;
@@ -186,15 +287,36 @@
     background: var(--accent-100, #e8f0ef);
   }
 
+  .trail-card--with-matches {
+    height: 18rem;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .trail-card--with-matches .trail-card__image-frame {
+    min-height: 0;
+  }
+
+  .trail-card--with-matches .trail-card__image,
+  .trail-card--with-matches .trail-card__image-placeholder {
+    min-height: 0;
+  }
+
+  .trail-card__matches {
+    display: flex;
+    flex-direction: column;
+    grid-column: 1 / -1;
+    gap: 0.48rem;
+    padding: 0.48rem 0.75rem;
+  }
+
   .trail-card__match-row {
     display: flex;
     flex-wrap: wrap;
-    grid-column: 1 / -1;
     gap: 0.35rem 0.5rem;
-    padding: 0.65rem 0.75rem 0;
     color: var(--accent-muted-text, #526174);
     font-size: 0.8rem;
     font-weight: 700;
+    line-height: 1.2;
   }
 
   .trail-card__image,
@@ -219,6 +341,7 @@
   .trail-card__content {
     display: flex;
     min-width: 0;
+    min-height: 0;
     flex-direction: column;
     gap: 0.55rem;
     padding: 1rem 1rem 1rem 0;
@@ -251,14 +374,11 @@
 
   .trail-card__description {
     flex: 1 1 auto;
-    display: -webkit-box;
+    min-height: 0;
     overflow: hidden;
     color: var(--accent-muted-text, #526174);
     font-size: 0.9rem;
     line-height: 1.45;
-    -webkit-box-orient: vertical;
-    line-clamp: 4;
-    -webkit-line-clamp: 4;
   }
 
   .trail-display__empty {
@@ -270,8 +390,13 @@
 
   @media (max-width: 560px) {
     .trail-display__header {
+      display: flex;
       align-items: stretch;
       flex-direction: column;
+    }
+
+    .trail-display__controls {
+      justify-content: center;
     }
 
     .trail-display__map-button {
@@ -289,10 +414,18 @@
       height: auto;
     }
 
+    .trail-card--with-matches {
+      height: auto;
+    }
+
     .trail-card__image-frame {
       order: 2;
       flex: 0 0 15rem;
       height: 15rem;
+    }
+
+    .trail-card--with-matches .trail-card__image-frame {
+      flex-basis: 15rem;
     }
 
     .trail-card__image-frame,
@@ -318,8 +451,6 @@
     .trail-card__description {
       order: 3;
       padding: 0.75rem;
-      line-clamp: 5;
-      -webkit-line-clamp: 5;
     }
   }
 </style>

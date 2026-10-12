@@ -18,6 +18,7 @@
   import SearchInterface, {
     type SearchData,
   } from "$lib/components/trails/SearchInterface.svelte";
+  import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
   import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
   import ImageGalery from "$lib/components/trails/ImageGalery.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
@@ -45,6 +46,8 @@
     excerpt: "",
     imageUrl: "",
     length: 0,
+    matchedDistricts: [] as string[],
+    matchedPoiTitles: [] as string[],
     placement: <"left" | "right">"right",
     containerHeight: 500,
     imageAlt: "",
@@ -105,6 +108,9 @@
     reversed: boolean;
   }
 
+  type TrailSort = "name" | "length";
+  const trailsPerPage = 10;
+
   let hikingTrailList: hikingTrail[] = $state([]);
   let filteredTrailList: filteredTrail[] = $state([]);
   let mapBounds = $state<LatLngBounds | null>(null);
@@ -157,6 +163,19 @@
   let directionsMarkerFrequency = $state<number>(5);
   let directionMarkerSize = $state("1.5");
 
+  let pageNumber = $state(0);
+  let sortBy = $state<TrailSort | null>(null);
+  let sortAscending = $state(true);
+  const pageCount = $derived(
+    Math.ceil(filteredTrailList.length / trailsPerPage),
+  );
+  const displayedPageTrails = $derived.by(() =>
+    filteredTrailList.slice(
+      pageNumber * trailsPerPage,
+      (pageNumber + 1) * trailsPerPage,
+    ),
+  );
+
   function trailColor(i: number) {
     return colors.trailPalette[i % colors.trailPalette.length];
   }
@@ -204,6 +223,113 @@
       }
     }
   }
+
+  function pageDisplaySwitch(page: number, onOff: "on" | "off") {
+    if (onOff == "on") {
+      for (
+        let i = trailsPerPage * page;
+        i < Math.min(trailsPerPage * (page + 1), filteredTrailList.length);
+        i++
+      ) {
+        displayTrailSwitch(filteredTrailList[i], "on");
+      }
+    } else {
+      for (
+        let i = trailsPerPage * page;
+        i < Math.min(trailsPerPage * (page + 1), filteredTrailList.length);
+        i++
+      ) {
+        displayTrailSwitch(filteredTrailList[i], "off");
+      }
+    }
+  }
+
+  function changePage(targetPage: number) {
+    if (
+      !Number.isInteger(targetPage) ||
+      targetPage < 0 ||
+      targetPage >= pageCount ||
+      targetPage === pageNumber
+    ) {
+      return;
+    }
+    pageDisplaySwitch(pageNumber, "off");
+    pageDisplaySwitch(targetPage, "on");
+
+    pageNumber = targetPage;
+    fitCurrentPageBounds();
+  }
+
+  function fitCurrentPageBounds() {
+    const pageTrails = filteredTrailList.slice(
+      pageNumber * trailsPerPage,
+      (pageNumber + 1) * trailsPerPage,
+    );
+    const firstTrail = pageTrails[0];
+    if (!map || !firstTrail) return;
+
+    const pageBounds = pageTrails
+      .slice(1)
+      .reduce(
+        (bounds, trail) => bounds.extend(trail.data.bounds),
+        new LatLngBounds(
+          firstTrail.data.bounds.getSouthWest(),
+          firstTrail.data.bounds.getNorthEast(),
+        ),
+      );
+    map.fitBounds(pageBounds);
+  }
+
+  function compareTrailNames(a: filteredTrail, b: filteredTrail) {
+    return (
+      a.data.title.localeCompare(b.data.title, "de", {
+        sensitivity: "base",
+      }) || a.data.id.localeCompare(b.data.id)
+    );
+  }
+
+  function sortTrails(
+    trails: filteredTrail[],
+    criterion: TrailSort,
+    ascending: boolean,
+  ) {
+    const direction = ascending ? 1 : -1;
+    return [...trails].sort((a, b) => {
+      if (criterion === "name") {
+        return direction * compareTrailNames(a, b);
+      }
+
+      if (a.data.length === null && b.data.length !== null) return 1;
+      if (a.data.length !== null && b.data.length === null) return -1;
+      if (a.data.length !== null && b.data.length !== null) {
+        const lengthDifference = a.data.length - b.data.length;
+        if (lengthDifference !== 0) return direction * lengthDifference;
+      }
+      return compareTrailNames(a, b);
+    });
+  }
+
+  function sortFilteredTrails(criterion: TrailSort) {
+    const ascending = sortBy === criterion ? !sortAscending : true;
+    sortBy = criterion;
+    sortAscending = ascending;
+    pageDisplaySwitch(pageNumber, "off");
+    if (focussedTrail) {
+      focusTrailSwitch(focussedTrail, "off");
+    }
+    filteredTrailList.forEach((trail) => {
+      if (trail.display) displayTrailSwitch(trail, "off");
+    });
+
+    filteredTrailList = sortTrails(filteredTrailList, criterion, ascending);
+    pageNumber = Math.min(
+      pageNumber,
+      Math.max(0, Math.ceil(filteredTrailList.length / trailsPerPage) - 1),
+    );
+    pageDisplaySwitch(pageNumber, "on");
+    fitCurrentPageBounds();
+  }
+
   //turn on and off trail pointerover/out interactions
   function trailHoverSwitch(trail: filteredTrail, onOff: "on" | "off") {
     if (onOff == "on") {
@@ -267,6 +393,17 @@
         } else if (doubleTapTargetId == poi.id) {
           popupSwitch({ poi });
         } else {
+          if (
+            poisByTrailId
+              .get(focussedTrail.data.id)
+              ?.find((p) => p.id == doubleTapTargetId)
+          ) {
+            const markerElement =
+              document.getElementById(doubleTapTargetId) ?? undefined;
+            if (markerElement) {
+              markerElement.style.border = "1px solid black";
+            }
+          }
           doubleTapTargetId = poi.id;
           showtooltip({ event: e, poi });
           const markerElement = getPoiMarkerElement(poi);
@@ -346,6 +483,8 @@
         : 0;
 
       tooltipData.imageAlt = trail.data.imageAlt ?? "";
+      tooltipData.matchedDistricts = trail.matchedDistricts ?? [];
+      tooltipData.matchedPoiTitles = trail.matchedPoiTitles ?? [];
     }
 
     if (poi) {
@@ -357,6 +496,8 @@
       tooltipData.imageUrl = poi.imageUrl ?? "";
       tooltipData.imageAlt = poi.imageAlt ?? "";
       tooltipData.length = 0;
+      tooltipData.matchedDistricts = [];
+      tooltipData.matchedPoiTitles = [];
     }
 
     //get the location of the mouse to place the tooltip there
@@ -582,8 +723,10 @@
         const trail = createFilteredTrail(hikingTrailList[index], index);
         trail.data.polyline?.setStyle({ color: trail.color });
         filteredTrailList.push(trail);
-        displayTrailSwitch(trail, "on");
       }
+      pageNumber = 0;
+      pageDisplaySwitch(pageNumber, "on");
+      fitCurrentPageBounds();
     }
 
     mapCover.style.display = "none";
@@ -716,12 +859,9 @@
     if (focussedTrail) {
       focusTrailSwitch(focussedTrail, "off");
     }
-    filteredTrailList.forEach((trail) => {
-      if (trail.display) {
-        displayTrailSwitch(trail, "off");
-      }
-    });
+    pageDisplaySwitch(pageNumber, "off");
     filteredTrailList = [];
+    pageNumber = 0;
     nextFilteredTrails.forEach((filteredTrail, i) => {
       const trail = hikingTrailList.find(
         (item) => item.id === filteredTrail.id,
@@ -744,13 +884,15 @@
         filteredTrailList.push(newFilteredTrail);
       }
     });
+    if (sortBy) {
+      filteredTrailList = sortTrails(filteredTrailList, sortBy, sortAscending);
+    }
 
     //on click of zurückseten no filter is applied if a trail is focussed, and the focus is kept
     //needs to happen after applying a search result so the result is reset properly for zurücksetzen
 
-    filteredTrailList.forEach((trail) => {
-      if (!trail.display) displayTrailSwitch(trail, "on");
-    });
+    pageDisplaySwitch(pageNumber, "on");
+    fitCurrentPageBounds();
     //displaying message for empty results
     const displayedTrails = filteredTrailList.filter((trail) => trail.display);
     if (displayedTrails.length === 0) {
@@ -771,14 +913,6 @@
     }
     noTrailsFound = false;
     //adjusting the map to siplay all results
-    const displayedBounds = displayedTrails.reduce(
-      (bounds, trail) => bounds.extend(trail.data.bounds),
-      new LatLngBounds(
-        displayedTrails[0].data.bounds.getSouthWest(),
-        displayedTrails[0].data.bounds.getNorthEast(),
-      ),
-    );
-    map.fitBounds(displayedBounds);
 
     if (displayedTrails.length == 1) {
       focusTrailSwitch(displayedTrails[0], "on");
@@ -788,9 +922,11 @@
   //function to display a single selected trail with its pois and all information
   function focusTrailSwitch(trail: filteredTrail, onOff: "on" | "off") {
     // resetting focus specific variables
+
     doubleTapTargetId = "";
     poiTitles = [];
     if (onOff == "off") {
+      printOptionsVisible = false;
       focussedTrail = null as any;
       if (popupVisible) {
         popupVisible = false;
@@ -801,12 +937,17 @@
         markerDownSwitch(p, "off");
         p.marker.remove();
       });
-      //keeping previous search results
-      filteredTrailList.forEach((otherTrail) => {
-        if (otherTrail.data.id !== trail.data.id && !otherTrail.display) {
+      for (
+        let i = trailsPerPage * pageNumber;
+        i <
+        Math.min(trailsPerPage * (pageNumber + 1), filteredTrailList.length);
+        i++
+      ) {
+        const otherTrail = filteredTrailList[i];
+        if (otherTrail.data.id !== trail.data.id) {
           displayTrailSwitch(otherTrail, "on");
         }
-      });
+      }
 
       if (map.getZoom() <= initialMapZoom) {
         map.setZoom(initialMapZoom);
@@ -819,12 +960,17 @@
       map.fitBounds(trail.data.bounds);
 
       //remove the other trails from the map
-      filteredTrailList.forEach((otherTrail) => {
-        console.log("otherTrail", otherTrail.data.title, otherTrail.display);
-        if (otherTrail.data.id !== trail.data.id && otherTrail.display) {
+      for (
+        let i = trailsPerPage * pageNumber;
+        i <
+        Math.min(trailsPerPage * (pageNumber + 1), filteredTrailList.length);
+        i++
+      ) {
+        const otherTrail = filteredTrailList[i];
+        if (otherTrail.data.id !== trail.data.id) {
           displayTrailSwitch(otherTrail, "off");
         }
-      });
+      }
       //checking if poi are already loaded or need to be
       if (poisByTrailId.has(trail.data.id)) {
         poisByTrailId.get(trail.data.id)?.forEach((poi, i) => {
@@ -843,6 +989,11 @@
         loadTrailData(trail);
       }
     }
+    window.dispatchEvent(
+      new CustomEvent("wanderwege-trail-focus", {
+        detail: Boolean(focussedTrail),
+      }),
+    );
   }
   //can walk the other direction
   function reverseTrail(trail: filteredTrail) {
@@ -1323,7 +1474,6 @@
         searchVisible = false;
       }
     };
-
     window.addEventListener("toggle-wanderwege-search", toggleSearch);
     window.addEventListener("wanderwege-global-search", handleGlobalSearch);
     window.addEventListener("open-wanderwege-print-options", openPrintOptions);
@@ -1343,17 +1493,6 @@
         closeSearchOnOutsidePointerDown,
       );
     };
-  });
-
-  $effect(() => {
-    if (!focussedTrail) {
-      printOptionsVisible = false;
-    }
-    window.dispatchEvent(
-      new CustomEvent("wanderwege-trail-focus", {
-        detail: Boolean(focussedTrail),
-      }),
-    );
   });
 </script>
 
@@ -1429,12 +1568,28 @@
         />
       {/if}
       <Legend
-        trails={filteredTrailList}
+        trails={displayedPageTrails}
         {poiTitles}
         {mapBounds}
+        {pageNumber}
+        {pageCount}
+        totalItems={filteredTrailList.length}
         onTrailSelect={selectTrailFromLegend}
         onPoiSelect={selectPoiFromLegend}
+        onPageChange={changePage}
       />
+      {#if !focussedTrail && pageCount > 1}
+        <div class="map-page-navigation">
+          <PageNavigation
+            {pageNumber}
+            {pageCount}
+            totalItems={filteredTrailList.length}
+            onPageChange={changePage}
+            variant="map"
+            showPageSelect
+          />
+        </div>
+      {/if}
     </div>
     {#if searchVisible}
       <div class="search-overlay">
@@ -1449,9 +1604,16 @@
     {#if displayMode === "list"}
       <div class="trail-display-viewport">
         <TrailDisplay
-          trails={filteredTrailList}
+          trails={displayedPageTrails}
+          {pageNumber}
+          {pageCount}
+          totalItems={filteredTrailList.length}
+          {sortBy}
+          {sortAscending}
           onSelectTrail={selectTrailFromList}
           onMapMode={showMap}
+          onPageChange={changePage}
+          onSort={sortFilteredTrails}
         />
       </div>
     {/if}
@@ -1629,6 +1791,15 @@
 
   .map-container.map-visible {
     visibility: visible;
+    pointer-events: auto;
+  }
+
+  .map-page-navigation {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    z-index: 500;
+    transform: translateX(-50%);
     pointer-events: auto;
   }
 

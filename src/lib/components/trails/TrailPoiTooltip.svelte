@@ -7,6 +7,8 @@
     imageUrl,
     imageAlt,
     length,
+    matchedDistricts = [],
+    matchedPoiTitles = [],
     placement,
     containerHeight = 500,
     offsetX = 12,
@@ -20,8 +22,10 @@
     const imageHeight = imageUrl ? 140 : 0;
     const titleHeight = 18;
     const excerptHeight = excerpt ? 34 : 0;
+    const matchRows =
+      Number(matchedDistricts.length > 0) + Number(matchedPoiTitles.length > 0);
 
-    return baseHeight + imageHeight + titleHeight + excerptHeight;
+    return baseHeight + imageHeight + titleHeight + excerptHeight + matchRows * 20;
   });
 
   const resolvedY = $derived.by(() => {
@@ -70,6 +74,20 @@
     <div class="trail-tooltip__title">
       {length > 0 ? title + " " + length + "km" : title}
     </div>
+    {#if matchedDistricts.length > 0}
+      <div class="trail-tooltip__match-row" aria-label="Passende Stadtteile">
+        {#each matchedDistricts as district}
+          <span>{district}</span>
+        {/each}
+      </div>
+    {/if}
+    {#if matchedPoiTitles.length > 0}
+      <div class="trail-tooltip__match-row" aria-label="Passende Sehenswürdigkeiten">
+        {#each matchedPoiTitles as poiTitle}
+          <span>{poiTitle}</span>
+        {/each}
+      </div>
+    {/if}
     <div class="trail-tooltip__excerpt">{excerpt}</div>
   </div>
 </div>
@@ -102,7 +120,16 @@
 
   .trail-tooltip__title {
     font-weight: 700;
-    margin-bottom: 0.25rem;
+  }
+
+  .trail-tooltip__match-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.1rem 0.5rem;
+    color: #d8d8d8;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.2;
   }
 
   .trail-tooltip__image-container {
@@ -157,6 +184,9 @@
   }
 
   .trail-tooltip__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
     min-width: 0;
     width: 100%;
     overflow-wrap: anywhere;
@@ -209,8 +239,5 @@
       overflow: hidden;
     }
 
-    .trail-tooltip__title {
-      margin-bottom: 0.25rem;
-    }
   }
 </style>

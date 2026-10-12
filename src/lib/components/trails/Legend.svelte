@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
   import type { LatLngBounds } from "leaflet";
 
   interface FilteredTrail {
@@ -15,14 +16,22 @@
     trails = [],
     poiTitles = [],
     mapBounds = null,
+    pageNumber,
+    pageCount,
+    totalItems,
     onTrailSelect,
     onPoiSelect,
+    onPageChange,
   }: {
     trails: FilteredTrail[];
     poiTitles: string[];
     mapBounds?: LatLngBounds | null;
+    pageNumber: number;
+    pageCount: number;
+    totalItems: number;
     onTrailSelect?: (trail: { data: { id: string } }) => void;
     onPoiSelect?: (index: number) => void;
+    onPageChange: (targetPage: number) => void;
   } = $props();
 
   let isMinimized = $state(false);
@@ -97,6 +106,13 @@
           </button>
         {/each}
       {/if}
+      <PageNavigation
+        {pageNumber}
+        {pageCount}
+        {totalItems}
+        onPageChange={onPageChange}
+        variant="map"
+      />
     </div>
   {/if}
 </div>
