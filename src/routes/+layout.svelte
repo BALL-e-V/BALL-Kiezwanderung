@@ -22,6 +22,10 @@
   let isMobileLayout = $state(false);
   let isMenuOpen = $state(false);
   let isTrailFocused = $state(false);
+  let isNavigationOptionsOpen = $state(false);
+  let navigationInstructions = $state(false);
+  let navigationDistances = $state(false);
+  let navigationTracking = $state(false);
   let longPressTimer: number | null = null;
   let suppressNextClick = false;
   let topbar: HTMLElement | null = null;
@@ -32,11 +36,30 @@
   onMount(() => {
     const syncTrailFocus = (event: Event) => {
       isTrailFocused = (event as CustomEvent<boolean>).detail;
+      if (!isTrailFocused) {
+        isNavigationOptionsOpen = false;
+        navigationInstructions = false;
+        navigationDistances = false;
+        navigationTracking = false;
+        dispatchNavigationSettings();
+      }
+    };
+    const syncNavigationTracking = (event: Event) => {
+      navigationTracking = (event as CustomEvent<boolean>).detail;
     };
     window.addEventListener("wanderwege-trail-focus", syncTrailFocus);
+    window.addEventListener(
+      "wanderwege-navigation-tracking-state",
+      syncNavigationTracking,
+    );
     void mountHandler();
-    return () =>
+    return () => {
       window.removeEventListener("wanderwege-trail-focus", syncTrailFocus);
+      window.removeEventListener(
+        "wanderwege-navigation-tracking-state",
+        syncNavigationTracking,
+      );
+    };
   });
 
   async function mountHandler() {
@@ -175,6 +198,18 @@
     if (isMenuOpen) {
       clearLongPress();
     }
+  }
+
+  function dispatchNavigationSettings() {
+    window.dispatchEvent(
+      new CustomEvent("wanderwege-navigation-settings", {
+        detail: {
+          instructions: navigationInstructions,
+          distances: navigationDistances,
+          tracking: navigationTracking,
+        },
+      }),
+    );
   }
 
   async function signIn(e: SubmitEvent) {
@@ -324,6 +359,53 @@
     {#if isMenuOpen}
       <div class="header-panel dropdown" id="main-menu">
         {#if isWanderwegePage && isTrailFocused}
+          <button
+            type="button"
+            class="button secondary"
+            aria-expanded={isNavigationOptionsOpen}
+            aria-controls="navigation-options"
+            onpointerdown={(event) => {
+              event.stopPropagation();
+              isNavigationOptionsOpen = !isNavigationOptionsOpen;
+            }}
+          >
+            Navigation
+          </button>
+          {#if isNavigationOptionsOpen}
+            <div
+              class="navigation-options"
+              id="navigation-options"
+              role="group"
+              aria-label="Navigationseinstellungen"
+              onpointerdown={(event) => event.stopPropagation()}
+            >
+              <label>
+                <input
+                  type="checkbox"
+                  bind:checked={navigationInstructions}
+                  onchange={dispatchNavigationSettings}
+                />
+                Wegbeschreibung anzeigen
+              </label>
+              <label class:disabled={!navigationInstructions}>
+                <input
+                  type="checkbox"
+                  bind:checked={navigationDistances}
+                  disabled={!navigationInstructions}
+                  onchange={dispatchNavigationSettings}
+                />
+                Distanzen anzeigen
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  bind:checked={navigationTracking}
+                  onchange={dispatchNavigationSettings}
+                />
+                Standort verfolgen
+              </label>
+            </div>
+          {/if}
           <button
             type="button"
             class="button primary"
@@ -649,6 +731,34 @@
     border-radius: 0 0 0.8rem 0.8rem;
     box-shadow: 0 0.6rem 1.2rem rgba(15, 23, 42, 0.08);
     z-index: 5000;
+  }
+
+  .navigation-options {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.75rem;
+    border: 1px solid var(--accent-border);
+    border-radius: 0.6rem;
+    background: var(--accent-muted);
+  }
+
+  .navigation-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--accent-text);
+    font-size: 0.9rem;
+  }
+
+  .navigation-options label.disabled {
+    color: var(--accent-muted-text);
+  }
+
+  .navigation-options input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--accent-600);
   }
 
   .header-panel.dropdown .header-actions,

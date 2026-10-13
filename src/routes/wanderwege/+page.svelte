@@ -10,6 +10,7 @@
     LatLng,
     Marker,
     CRS,
+    DivIcon,
   } from "leaflet";
   import TrailPoiTooltip from "$lib/components/trails/TrailPoiTooltip.svelte";
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
@@ -19,6 +20,8 @@
     type SearchData,
   } from "$lib/components/trails/SearchInterface.svelte";
   import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
+  import NavigationPanel from "$lib/components/trails/NavigationPanel.svelte";
+  import PrintOptions from "$lib/components/trails/PrintOptions.svelte";
   import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
   import ImageGalery from "$lib/components/trails/ImageGalery.svelte";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
@@ -38,6 +41,7 @@
 
   let map: LeafletMap;
   let tooltipVisible = $state(false);
+  let mobileTooltipHeight = $state(0);
 
   let tooltipData = $state({
     x: 0,
@@ -69,6 +73,11 @@
   });
 
   type TrailDirections = { location: LatLng; instruction: string }[];
+  type NavigationSettings = {
+    instructions: boolean;
+    distances: boolean;
+    tracking: boolean;
+  };
 
   interface hikingTrail {
     title: string;
@@ -135,6 +144,74 @@
   let poisByTrailId = new Map<string, pointOfInterest[]>();
   let focussedTrail: filteredTrail = $state(null as any);
   let poiTitles: string[] = $state([]);
+  let navigationInstructionsEnabled = $state(false);
+  let navigationDistancesEnabled = $state(false);
+  let navigationTrackingEnabled = $state(false);
+  let navigationCurrentIndex = $state(0);
+  let navigationLocation = $state<LatLng | null>(null);
+  let navigationError = $state("");
+  let navigationErrorTimer: ReturnType<typeof setTimeout> | null = null;
+  let navigationWatchId: number | null = null;
+  let navigationMarker: Marker | null = null;
+  let navigationWasNearDirection = false;
+  let navigationLastPoiId = "";
+  let currentDirectionMarker: Marker = new Marker([0, 0], {
+    icon: crossmaker({ color: "black", size: 1 }),
+  });
+  const navigationDirections = $derived.by(() => {
+    if (!focussedTrail) return [];
+    return (
+      (focussedTrail.reversed
+        ? focussedTrail.data.reverseDirections
+        : focussedTrail.data.directions) ?? []
+    );
+  });
+
+  function clearNavigationError() {
+    if (navigationErrorTimer) {
+      clearTimeout(navigationErrorTimer);
+      navigationErrorTimer = null;
+    }
+    navigationError = "";
+  }
+
+  function showNavigationError(message: string) {
+    clearNavigationError();
+    navigationError = message;
+    navigationErrorTimer = setTimeout(() => {
+      navigationError = "";
+      navigationErrorTimer = null;
+    }, 5000);
+  }
+
+  $effect(() => {
+    if (!tooltipVisible || !navigationInstructionsEnabled) {
+      mobileTooltipHeight = 0;
+      return;
+    }
+
+    const tooltip = document.querySelector<HTMLElement>(".trail-tooltip");
+    if (!tooltip) {
+      mobileTooltipHeight = 0;
+      return;
+    }
+
+    const updateTooltipHeight = () => {
+      mobileTooltipHeight = window.matchMedia("(max-width: 640px)").matches
+        ? Math.ceil(tooltip.getBoundingClientRect().height)
+        : 0;
+    };
+
+    updateTooltipHeight();
+    const observer = new ResizeObserver(updateTooltipHeight);
+    observer.observe(tooltip);
+    window.addEventListener("resize", updateTooltipHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateTooltipHeight);
+    };
+  });
 
   //variables for keeping track of user doubletapping if no mouse is used
   let doubleTapTargetId: string = "";
@@ -926,6 +1003,7 @@
     doubleTapTargetId = "";
     poiTitles = [];
     if (onOff == "off") {
+      stopNavigationTracking();
       printOptionsVisible = false;
       focussedTrail = null as any;
       if (popupVisible) {
@@ -955,6 +1033,11 @@
         map.zoomOut();
       }
     } else {
+      if (focussedTrail?.data.id !== trail.data.id) {
+        navigationCurrentIndex = 0;
+        navigationWasNearDirection = false;
+        navigationLastPoiId = "";
+      }
       focussedTrail = trail;
       //load directions, check in the function if its needet
       map.fitBounds(trail.data.bounds);
@@ -997,6 +1080,8 @@
   }
   //can walk the other direction
   function reverseTrail(trail: filteredTrail) {
+    navigationCurrentIndex = 0;
+    navigationWasNearDirection = false;
     // Reverse the POIs for this trail
     const pois = poisByTrailId.get(trail.data.id);
     if (pois) {
@@ -1145,6 +1230,173 @@
         activePoi.style.border = "1px solid black";
       }
     }
+  }
+
+  function navigationDistance(index: number): number | null {
+    const direction = navigationDirections[index];
+    if (!direction || !focussedTrail) return null;
+
+    if (navigationTrackingEnabled && navigationLocation) {
+      return Math.round(navigationLocation.distanceTo(direction.location));
+    }
+
+    return Math.round(
+      index === 0
+        ? focussedTrail.data.start.distanceTo(direction.location)
+        : navigationDirections[index - 1].location.distanceTo(
+            direction.location,
+          ),
+    );
+  }
+
+  function stopNavigationTracking() {
+    if (navigationWatchId !== null) {
+      navigator.geolocation.clearWatch(navigationWatchId);
+      navigationWatchId = null;
+    }
+    navigationMarker?.remove();
+    navigationMarker = null;
+    navigationLocation = null;
+    navigationWasNearDirection = false;
+    navigationLastPoiId = "";
+  }
+
+  function handleNavigationPosition(position: GeolocationPosition) {
+    if (!navigationTrackingEnabled || !focussedTrail) return;
+
+    const location = new LatLng(
+      position.coords.latitude,
+      position.coords.longitude,
+    );
+    navigationLocation = location;
+
+    if (!navigationMarker) {
+      const icon = new DivIcon({
+        className: "navigation-location-icon",
+        html: '<svg viewBox="0 0 32 32" role="img" aria-label="Dein Standort"><circle cx="16" cy="16" r="15" fill="white" stroke="#1769aa" stroke-width="2"/><circle cx="16" cy="10" r="4" fill="#1769aa"/><path d="M9 25c.5-5 2.8-8 7-8s6.5 3 7 8z" fill="#1769aa"/></svg>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+      navigationMarker = new Marker(location, { icon }).addTo(map);
+    } else {
+      navigationMarker.setLatLng(location);
+    }
+
+    if (focussedTrail) {
+      let closestDirectionIndex = -1;
+      let closestDirectionDistance = Number.POSITIVE_INFINITY;
+      navigationDirections.forEach((direction, index) => {
+        const distance = location.distanceTo(direction.location);
+        if (distance < closestDirectionDistance) {
+          closestDirectionDistance = distance;
+          closestDirectionIndex = index;
+        }
+      });
+
+      if (closestDirectionDistance <= 20) {
+        navigationCurrentIndex = closestDirectionIndex;
+        navigationWasNearDirection = true;
+        currentDirectionMarker.setLatLng(
+          navigationDirections[navigationCurrentIndex].location,
+        );
+      } else if (navigationWasNearDirection) {
+        navigationCurrentIndex = Math.min(
+          navigationCurrentIndex + 1,
+          Math.max(0, navigationDirections.length - 1),
+        );
+        navigationWasNearDirection = false;
+        currentDirectionMarker.setLatLng(
+          navigationDirections[navigationCurrentIndex].location,
+        );
+      }
+      const trailPois = poisByTrailId.get(focussedTrail.data.id) ?? [];
+      let closestPoi: pointOfInterest | null = null;
+      let closestPoiDistance = Number.POSITIVE_INFINITY;
+      for (const poi of trailPois) {
+        const distance = location.distanceTo(poi.marker.getLatLng());
+        if (distance < closestPoiDistance) {
+          closestPoi = poi;
+          closestPoiDistance = distance;
+        }
+      }
+
+      if (closestPoi && closestPoiDistance <= 50) {
+        if (closestPoi.id !== navigationLastPoiId) {
+          navigationLastPoiId = closestPoi.id;
+          popupSwitch({ poi: closestPoi });
+        }
+      } else {
+        navigationLastPoiId = "";
+      }
+    }
+  }
+
+  function handleNavigationPositionError(error: GeolocationPositionError) {
+    if (!navigationTrackingEnabled) return;
+
+    showNavigationError(
+      `Standort konnte nicht ermittelt werden: ${error.message}`,
+    );
+    navigationTrackingEnabled = false;
+    stopNavigationTracking();
+    window.dispatchEvent(
+      new CustomEvent("wanderwege-navigation-tracking-state", {
+        detail: false,
+      }),
+    );
+  }
+
+  function startNavigationTracking() {
+    clearNavigationError();
+    if (!("geolocation" in navigator)) {
+      showNavigationError("Dieses Gerät unterstützt keine Standortermittlung.");
+      navigationTrackingEnabled = false;
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-navigation-tracking-state", {
+          detail: false,
+        }),
+      );
+      return;
+    }
+
+    navigationWatchId = navigator.geolocation.watchPosition(
+      handleNavigationPosition,
+      handleNavigationPositionError,
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+  }
+
+  function handleNavigationSettings(event: Event) {
+    const settings = (event as CustomEvent<NavigationSettings>).detail;
+    const wasTracking = navigationTrackingEnabled;
+    navigationInstructionsEnabled = settings.instructions;
+    navigationDistancesEnabled = settings.distances;
+    navigationTrackingEnabled = settings.tracking;
+    if (navigationInstructionsEnabled) {
+      currentDirectionMarker
+        ?.addTo(map)
+        .setLatLng(navigationDirections[navigationCurrentIndex].location);
+    } else {
+      currentDirectionMarker?.remove();
+    }
+
+    if (settings.tracking && !wasTracking) {
+      startNavigationTracking();
+    } else if (!settings.tracking && wasTracking) {
+      clearNavigationError();
+      stopNavigationTracking();
+    }
+  }
+
+  function changeNavigationIndex(index: number) {
+    navigationCurrentIndex = Math.max(
+      0,
+      Math.min(index, navigationDirections.length - 1),
+    );
+    navigationWasNearDirection = false;
+    currentDirectionMarker.setLatLng(
+      navigationDirections[navigationCurrentIndex].location,
+    );
   }
 
   function highlightImageMarker(index: number, previous?: number) {
@@ -1477,8 +1729,14 @@
     window.addEventListener("toggle-wanderwege-search", toggleSearch);
     window.addEventListener("wanderwege-global-search", handleGlobalSearch);
     window.addEventListener("open-wanderwege-print-options", openPrintOptions);
+    window.addEventListener(
+      "wanderwege-navigation-settings",
+      handleNavigationSettings,
+    );
     window.addEventListener("pointerdown", closeSearchOnOutsidePointerDown);
     return () => {
+      stopNavigationTracking();
+      clearNavigationError();
       window.removeEventListener("toggle-wanderwege-search", toggleSearch);
       window.removeEventListener(
         "wanderwege-global-search",
@@ -1487,6 +1745,10 @@
       window.removeEventListener(
         "open-wanderwege-print-options",
         openPrintOptions,
+      );
+      window.removeEventListener(
+        "wanderwege-navigation-settings",
+        handleNavigationSettings,
       );
       window.removeEventListener(
         "pointerdown",
@@ -1590,6 +1852,21 @@
           />
         </div>
       {/if}
+      {#if focussedTrail && navigationInstructionsEnabled}
+        <NavigationPanel
+          directions={navigationDirections}
+          currentIndex={navigationCurrentIndex}
+          distancesEnabled={navigationDistancesEnabled}
+          trackingEnabled={navigationTrackingEnabled}
+          error={navigationError}
+          {mobileTooltipHeight}
+          distanceForDirection={navigationDistance}
+          onIndexChange={changeNavigationIndex}
+        />
+      {/if}
+      {#if focussedTrail && navigationError && !navigationInstructionsEnabled}
+        <p class="navigation-error-toast" role="status">{navigationError}</p>
+      {/if}
     </div>
     {#if searchVisible}
       <div class="search-overlay">
@@ -1629,134 +1906,19 @@
   </div>
 </div>
 {#if focussedTrail && printOptionsVisible}
-  <div
-    class="print-options-overlay"
-    role="dialog"
-    aria-modal="true"
-    aria-label="PDF-Druckoptionen"
-    tabindex="-1"
-    onpointerdown={(event) => {
-      if (event.target === event.currentTarget) printOptionsVisible = false;
-    }}
-    onkeydown={(event) => {
-      if (event.key === "Escape") printOptionsVisible = false;
-    }}
-  >
-    <form
-      class="print-options"
-      onpointerdown={(event) => event.stopPropagation()}
-      onsubmit={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        printTrailWrapper();
-      }}
-    >
-      <div class="print-options-header">
-        <h2>PDF erzeugen</h2>
-        <button
-          type="button"
-          class="print-options-close"
-          aria-label="Druckoptionen schließen"
-          onpointerdown={(event) => {
-            event.stopPropagation();
-            printOptionsVisible = false;
-          }}
-        >
-          ×
-        </button>
-      </div>
-      <label>
-        Schriftgröße Beschreibung
-        <input
-          type="number"
-          min="6"
-          max="36"
-          step="1"
-          required
-          bind:value={descriptionFontSize}
-        />
-      </label>
-      <label>
-        Bildgröße
-        <select bind:value={poiImageSize}>
-          <option value="small">klein</option>
-          <option value="large">groß</option>
-        </select>
-      </label>
-      <label class="print-checkbox">
-        <input type="checkbox" bind:checked={displayDirections} />
-        Wegbeschreibung
-      </label>
-      <label class="print-checkbox" class:disabled={!displayDirections}>
-        <input
-          type="checkbox"
-          bind:checked={showDirectionDistance}
-          disabled={!displayDirections}
-        />
-        Distanzen
-      </label>
-      <label class="print-checkbox" class:disabled={!displayDirections}>
-        <input
-          type="checkbox"
-          bind:checked={onlyDirections}
-          disabled={!displayDirections}
-        />
-        Nur Wegbeschreibung
-      </label>
-      <label class="print-checkbox" class:disabled={!displayDirections}>
-        <input
-          type="checkbox"
-          bind:checked={markDirections}
-          disabled={!displayDirections}
-          onchange={() => {
-            if (markDirections) {
-              directionsMarkerFrequency = 5;
-            } else {
-              directionsMarkerFrequency = 0;
-            }
-          }}
-        />
-        <span class:disabled={!displayDirections || !markDirections}>
-          Jede
-          <input
-            class="frequency-input"
-            type="number"
-            min="1"
-            max="20"
-            step="1"
-            required={displayDirections && markDirections}
-            bind:value={directionsMarkerFrequency}
-            disabled={!displayDirections || !markDirections}
-          />
-          Anweisung markieren
-        </span>
-      </label>
-      <label class:disabled={!displayDirections || !markDirections}>
-        Markierungsgröße
-        <select
-          bind:value={directionMarkerSize}
-          disabled={!displayDirections || !markDirections}
-        >
-          <option value="1">klein</option>
-          <option value="1.5" selected>mittelgroß</option>
-          <option value="2">groß</option>
-        </select>
-      </label>
-      <button
-        type="submit"
-        class="print-button"
-        disabled={isPrinting}
-        aria-label={isPrinting ? "PDF wird vorbereitet" : "PDF erzeugen"}
-        aria-busy={isPrinting}
-      >
-        {#if isPrinting}
-          <span class="print-spinner" aria-hidden="true"></span>
-        {:else}
-          Drucken
-        {/if}
-      </button>
-    </form>
-  </div>
+  <PrintOptions
+    bind:descriptionFontSize
+    bind:poiImageSize
+    bind:displayDirections
+    bind:showDirectionDistance
+    bind:onlyDirections
+    bind:markDirections
+    bind:directionsMarkerFrequency
+    bind:directionMarkerSize
+    {isPrinting}
+    onClose={() => (printOptionsVisible = false)}
+    onPrint={printTrailWrapper}
+  />
 {/if}
 
 <style>
@@ -1801,6 +1963,23 @@
     z-index: 500;
     transform: translateX(-50%);
     pointer-events: auto;
+  }
+
+  .navigation-error-toast {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1100;
+    max-width: min(32rem, calc(100% - 2rem));
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid #b42318;
+    border-radius: 8px;
+    background: var(--accent-surface);
+    color: #b42318;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
+    pointer-events: none;
   }
 
   .viewport-shell {
@@ -1866,140 +2045,6 @@
     height: 100%;
   }
 
-  .print-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    min-height: 36px;
-    padding: 8px 16px;
-    border: 0;
-    border-radius: 8px;
-    background: var(--accent-600);
-    color: white;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: filter 0.2s ease;
-  }
-
-  .print-button:hover:not(:disabled) {
-    filter: brightness(0.95);
-  }
-
-  .print-options {
-    display: grid;
-    gap: 16px;
-    width: min(100%, 28rem);
-    max-height: calc(100dvh - 2rem);
-    overflow-y: auto;
-    box-sizing: border-box;
-    padding: 20px;
-    border: 1px solid var(--accent-border);
-    border-radius: 16px;
-    background: var(--accent-surface);
-    color: var(--accent-text);
-    font-size: 0.95rem;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-    pointer-events: auto;
-  }
-
-  .print-options-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 6000;
-    display: grid;
-    place-items: center;
-    padding: 1rem;
-    background: rgba(15, 23, 42, 0.45);
-  }
-
-  .print-options-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .print-options-header h2 {
-    margin: 0;
-    color: var(--accent-900);
-    font-size: 1.25rem;
-  }
-
-  .print-options-close {
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    width: 2.25rem;
-    height: 2.25rem;
-    border: 1px solid var(--accent-border);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--accent-muted-text);
-    font-size: 1.5rem;
-    cursor: pointer;
-  }
-
-  .print-options label {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    color: var(--accent-text);
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  .print-options .print-checkbox {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    font-weight: 500;
-  }
-
-  .print-options label.disabled,
-  .print-options .disabled {
-    color: var(--accent-muted-text);
-  }
-
-  .print-options input[type="number"],
-  .print-options select {
-    box-sizing: border-box;
-    width: 100%;
-    min-height: 42px;
-    padding: 10px 12px;
-    border: 1px solid var(--accent-border);
-    border-radius: 8px;
-    background: var(--accent-surface);
-    color: var(--accent-text);
-    font: inherit;
-  }
-
-  .print-options select:disabled,
-  .print-options select:disabled option {
-    color: var(--accent-muted-text);
-  }
-
-  .print-options input[type="checkbox"] {
-    width: 1rem;
-    height: 1rem;
-    margin: 0;
-    accent-color: var(--accent-600);
-  }
-
-  .print-options input:focus,
-  .print-options select:focus {
-    outline: 2px solid var(--accent-600);
-    outline-offset: 1px;
-  }
-
-  .print-options .frequency-input {
-    width: 4rem;
-    min-height: 36px;
-    padding: 6px 8px;
-  }
-
   .list-mode-button {
     pointer-events: auto;
     padding: 8px 16px;
@@ -2011,27 +2056,6 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .print-button:disabled {
-    opacity: 0.7;
-    cursor: wait;
-  }
-
-  .print-spinner {
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(51, 51, 51, 0.25);
-    border-top-color: #333;
-    border-radius: 50%;
-    display: inline-block;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 
   :global(.content-area) {
