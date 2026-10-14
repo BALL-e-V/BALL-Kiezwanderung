@@ -1,38 +1,19 @@
 <script lang="ts">
   import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
-  import type { LatLngBounds } from "leaflet";
-
-  interface FilteredTrail {
-    data: {
-      title: string;
-      id: string;
-      bounds: LatLngBounds;
-    };
-    display: boolean;
-    color: string;
-  }
+  import type { LegendProps } from "./types";
 
   let {
     trails = [],
     poiTitles = [],
-    mapBounds = null,
+    printMapBounds = null,
     pageNumber,
     pageCount,
     totalItems,
     onTrailSelect,
     onPoiSelect,
     onPageChange,
-  }: {
-    trails: FilteredTrail[];
-    poiTitles: string[];
-    mapBounds?: LatLngBounds | null;
-    pageNumber: number;
-    pageCount: number;
-    totalItems: number;
-    onTrailSelect?: (trail: { data: { id: string } }) => void;
-    onPoiSelect?: (index: number) => void;
-    onPageChange: (targetPage: number) => void;
-  } = $props();
+    focussedTrail,
+  }: LegendProps = $props();
 
   let isMinimized = $state(false);
 
@@ -40,7 +21,7 @@
     trails.filter(
       (trail) =>
         trail.display &&
-        (!mapBounds || trail.data.bounds.overlaps(mapBounds)),
+        (!printMapBounds || trail.data.bounds.overlaps(printMapBounds)),
     ),
   );
 </script>
@@ -68,16 +49,16 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       />
-    </svg>{isMinimized? "":"schliessen"}
+    </svg>{isMinimized ? "" : "schliessen"}
   </button>
 
   {#if !isMinimized}
     <div class="legend-content">
-      {#each displayedTrails as trail (trail.data.id)}
+      {#each displayedTrails as trail, index}
         <button
           class="legend-item legend-button"
           type="button"
-          onpointerdown={() => onTrailSelect?.(trail)}
+          onpointerdown={() => onTrailSelect?.(index)}
         >
           <div
             class="legend-line"
@@ -86,14 +67,7 @@
           <div class="legend-title">{trail.data.title}</div>
         </button>
       {/each}
-      <div class="legend-item">
-        <div class="legend-marker start-marker"></div>
-        <div class="legend-title">Anfang eines Wanderwegs</div>
-      </div>
-      <div class="legend-item">
-        <div class="legend-marker end-marker"></div>
-        <div class="legend-title">Ende eines Wanderwegs</div>
-      </div>
+
       {#if poiTitles.length > 0}
         {#each poiTitles as title, index}
           <button
@@ -105,14 +79,24 @@
             <div class="legend-title">{title}</div>
           </button>
         {/each}
+        <div class="legend-item">
+          <div class="legend-marker start-marker"></div>
+          <div class="legend-title">Anfang eines Wanderwegs</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-marker end-marker"></div>
+          <div class="legend-title">Ende eines Wanderwegs</div>
+        </div>
       {/if}
-      <PageNavigation
-        {pageNumber}
-        {pageCount}
-        {totalItems}
-        onPageChange={onPageChange}
-        variant="map"
-      />
+      {#if !focussedTrail}
+        <PageNavigation
+          {pageNumber}
+          {pageCount}
+          {totalItems}
+          {onPageChange}
+          variant="map"
+        />
+      {/if}
     </div>
   {/if}
 </div>

@@ -1,12 +1,5 @@
 <script lang="ts">
-  interface Props {
-    pageNumber: number;
-    pageCount: number;
-    totalItems: number;
-    onPageChange: (targetPage: number) => void;
-    variant?: "default" | "map";
-    showPageSelect?: boolean;
-  }
+  import type { PageNavigationProps } from "./types";
 
   let {
     pageNumber,
@@ -15,7 +8,7 @@
     onPageChange,
     variant = "default",
     showPageSelect = false,
-  }: Props = $props();
+  }: PageNavigationProps = $props();
 
   const firstItem = $derived(pageNumber * 10 + 1);
   const lastItem = $derived(Math.min((pageNumber + 1) * 10, totalItems));

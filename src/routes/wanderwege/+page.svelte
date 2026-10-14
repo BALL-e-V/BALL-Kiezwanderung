@@ -16,18 +16,28 @@
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
   import Legend from "$lib/components/trails/Legend.svelte";
   import RightClickMenu from "$lib/components/trails/RightClickMenu.svelte";
-  import SearchInterface, {
-    type SearchData,
-  } from "$lib/components/trails/SearchInterface.svelte";
+  import SearchInterface from "$lib/components/trails/SearchInterface.svelte";
   import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
   import NavigationPanel from "$lib/components/trails/NavigationPanel.svelte";
   import PrintOptions from "$lib/components/trails/PrintOptions.svelte";
   import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
   import ImageGalery from "$lib/components/trails/ImageGalery.svelte";
+  import type {
+    FilteredTrail,
+    HikingTrail,
+    NavigationSettings,
+    SearchData,
+    TrailSort,
+  } from "$lib/components/trails/types";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
   import { compareTrailPosition, crossmaker, iconmaker } from "$lib/util";
+  import {
+    toLeafletDirections,
+    mapToHikingTrail,
+  } from "./dataStructuringFunctions";
   import { wanderwegeConfig } from "$lib/config";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+
   const {
     colors,
     tooltipSignCount,
@@ -40,9 +50,58 @@
   } = wanderwegeConfig;
 
   let map: LeafletMap;
-  let tooltipVisible = $state(false);
-  let mobileTooltipHeight = $state(0);
 
+  //storing all the data for specific uses
+  //all the trails retrieved from database(maybe need partial trails in the future)
+  let hikingTrailList: HikingTrail[] = $state([]);
+  //filtered search results to select displayed trails from via pagination
+  let filteredTrailList: FilteredTrail[] = $state([]);
+  //point of interest for any specific trail
+  let poisByTrailId = new Map<string, pointOfInterest[]>();
+  //selected trail where all the information is dispalyed
+  let focussedTrail: FilteredTrail = $state(null as any);
+
+  //list of poititles to be displayed in the legend
+  let poiTitles: string[] = $state([]);
+  let displayMode = $state<"list" | "map">("list");
+  let galeryVisible = $state(false);
+  //variables for keeping track of user doubletapping if no mouse is used
+  let doubleTapTargetId: string = "";
+  let longTapTimer: ReturnType<typeof setTimeout> = null as any;
+
+  const trailsPerPage = 10;
+  let pageNumber = $state(0);
+  let sortBy = $state<TrailSort | null>(null);
+  let sortAscending = $state(true);
+  const pageCount = $derived(
+    Math.ceil(filteredTrailList.length / trailsPerPage),
+  );
+  const displayedPageTrails = $derived.by(() =>
+    filteredTrailList.slice(
+      pageNumber * trailsPerPage,
+      (pageNumber + 1) * trailsPerPage,
+    ),
+  );
+
+  let searchVisible = $state(false);
+  let searchData = $state<SearchData>({
+    nameQuery: "",
+    districtQuery: "",
+    poiQuery: "",
+    onlyStart: false,
+    selectedMinLength: null,
+    selectedMaxLength: null,
+  });
+  let wanderwegeSearchQuery = "";
+  let noTrailsFound = $state(false);
+  let noResultsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let tooltipVisible = $state(false);
+  //to avoid collisions with navigationpanel
+  let measuredMobileTooltipHeight = $state(0);
+  let mobileTooltipHeight = $derived(
+    tooltipVisible ? measuredMobileTooltipHeight : 0,
+  );
   let tooltipData = $state({
     x: 0,
     y: 0,
@@ -58,7 +117,6 @@
   });
 
   let popupVisible = $state(false);
-
   let popupData = $state({
     title: "",
     description: "",
@@ -72,78 +130,8 @@
     poiId: "",
   });
 
-  type TrailDirections = { location: LatLng; instruction: string }[];
-  type NavigationSettings = {
-    instructions: boolean;
-    distances: boolean;
-    tracking: boolean;
-  };
-
-  interface hikingTrail {
-    title: string;
-    id: string;
-    imageUrl?: string;
-    imageAlt?: string;
-    description?: string;
-    districts: string[];
-    startDistricts: string[];
-    length: number | null;
-    bounds: LatLngBounds;
-    start: LatLng;
-    end: LatLng;
-    trail: LatLng[][];
-    polyline?: Polyline;
-    startMarker: Marker;
-    endMarker: Marker;
-    directions?: TrailDirections;
-    reverseDirections?: TrailDirections;
-    poiTitles: string[];
-    poiImages: Array<{
-      title: string;
-      imageUrl?: string | null;
-      imageAlt?: string | null;
-    }>;
-  }
-
-  interface filteredTrail {
-    data: hikingTrail;
-    display: boolean;
-    color: string;
-    loading: boolean;
-    matchedDistricts?: string[];
-    matchedPoiTitles?: string[];
-    matchedPoiImageUrl?: string;
-    matchedPoiImageAlt?: string;
-    reversed: boolean;
-  }
-
-  type TrailSort = "name" | "length";
-  const trailsPerPage = 10;
-
-  let hikingTrailList: hikingTrail[] = $state([]);
-  let filteredTrailList: filteredTrail[] = $state([]);
-  let mapBounds = $state<LatLngBounds | null>(null);
   let rightClickMenu = $state<{ x: number; y: number } | null>(null);
-  let displayMode = $state<"list" | "map">("list");
-  let searchVisible = $state(false);
-  let searchData = $state<SearchData>({
-    nameQuery: "",
-    districtQuery: "",
-    poiQuery: "",
-    onlyStart: false,
-    selectedMinLength: null,
-    selectedMaxLength: null,
-  });
-  let wanderwegeSearchQuery = "";
-  let noTrailsFound = $state(false);
-  let noResultsTimer: ReturnType<typeof setTimeout> | null = null;
 
-  let galeryVisible = $state(false);
-
-  // Store POIs by trail ID
-  let poisByTrailId = new Map<string, pointOfInterest[]>();
-  let focussedTrail: filteredTrail = $state(null as any);
-  let poiTitles: string[] = $state([]);
   let navigationInstructionsEnabled = $state(false);
   let navigationDistancesEnabled = $state(false);
   let navigationTrackingEnabled = $state(false);
@@ -158,6 +146,7 @@
   let currentDirectionMarker: Marker = new Marker([0, 0], {
     icon: crossmaker({ color: "black", size: 1 }),
   });
+
   const navigationDirections = $derived.by(() => {
     if (!focussedTrail) return [];
     return (
@@ -167,106 +156,36 @@
     );
   });
 
-  function clearNavigationError() {
-    if (navigationErrorTimer) {
-      clearTimeout(navigationErrorTimer);
-      navigationErrorTimer = null;
-    }
-    navigationError = "";
-  }
-
-  function showNavigationError(message: string) {
-    clearNavigationError();
-    navigationError = message;
-    navigationErrorTimer = setTimeout(() => {
-      navigationError = "";
-      navigationErrorTimer = null;
-    }, 5000);
-  }
-
-  $effect(() => {
-    if (!tooltipVisible || !navigationInstructionsEnabled) {
-      mobileTooltipHeight = 0;
-      return;
-    }
-
-    const tooltip = document.querySelector<HTMLElement>(".trail-tooltip");
-    if (!tooltip) {
-      mobileTooltipHeight = 0;
-      return;
-    }
-
-    const updateTooltipHeight = () => {
-      mobileTooltipHeight = window.matchMedia("(max-width: 640px)").matches
-        ? Math.ceil(tooltip.getBoundingClientRect().height)
-        : 0;
-    };
-
-    updateTooltipHeight();
-    const observer = new ResizeObserver(updateTooltipHeight);
-    observer.observe(tooltip);
-    window.addEventListener("resize", updateTooltipHeight);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateTooltipHeight);
-    };
-  });
-
-  //variables for keeping track of user doubletapping if no mouse is used
-  let doubleTapTargetId: string = "";
-  let longTapTimer: ReturnType<typeof setTimeout> = null as any;
-
   //count of trails that have been displayed for color selection
   let isPrinting = $state(false);
   //covering the map to stop interaction during loading
   let mapCover: HTMLElement;
   let printMapElement: HTMLDivElement;
   let printMap: LeafletMap;
-  let printMapMarkers: Marker[] = [];
-  let directionMarkers: Marker[] = [];
+  //bounds of the map display for the print function to be optimized to show the trail with best space usage
+  let printMapBounds = $state<LatLngBounds | null>(null);
+  //bounds of the trail to adapt the mapsize and page config
   let trailBoundsRatio: number;
+  //start finish and poi
+  let printMapMarkers: Marker[] = [];
+  //crosses to mark where to follow an instruction
+  let directionMarkers: Marker[] = [];
   let printHikingTrail: Polyline;
   let descriptionFontSize = $state(printConfig.descriptionFontSize);
   let poiImageSize = $state<"small" | "large">("small");
-  let printOptionsVisible = $state(false);
-  let onlyDirections = $state(false);
   let poiImageArea = $derived(
     printConfig.poiImageArea * (poiImageSize === "large" ? 1.5 : 1),
   );
   let displayDirections = $state(false);
-  let markDirections = $state(true);
+  let onlyDirections = $state(false);
   let showDirectionDistance = $state(false);
+  let markDirections = $state(true);
   let directionsMarkerFrequency = $state<number>(5);
   let directionMarkerSize = $state("1.5");
-
-  let pageNumber = $state(0);
-  let sortBy = $state<TrailSort | null>(null);
-  let sortAscending = $state(true);
-  const pageCount = $derived(
-    Math.ceil(filteredTrailList.length / trailsPerPage),
-  );
-  const displayedPageTrails = $derived.by(() =>
-    filteredTrailList.slice(
-      pageNumber * trailsPerPage,
-      (pageNumber + 1) * trailsPerPage,
-    ),
-  );
+  let printOptionsVisible = $state(false);
 
   function trailColor(i: number) {
     return colors.trailPalette[i % colors.trailPalette.length];
-  }
-
-  function getProp(obj: any, ...names: string[]) {
-    for (const n of names) {
-      if (obj && obj[n] !== undefined) return obj[n];
-    }
-    return undefined;
-  }
-
-  function toNum(v: any) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
   }
 
   function getPoiMarkerElement(poi: pointOfInterest) {
@@ -274,32 +193,6 @@
   }
 
   //turn on and off pointerover/out interactions for a poi marker
-  function markerHoverSwitch(poi: pointOfInterest, onOff: "on" | "off") {
-    const markerElement = getPoiMarkerElement(poi);
-    if (onOff == "on") {
-      poi.marker.on("pointerover", (event: any) => {
-        showtooltip({ event, poi });
-        if (markerElement) {
-          markerElement.style.border = "2px solid " + colors.highlight;
-        }
-      });
-      poi.marker.on("pointerout", (event: any) => {
-        //let the tooltip stay open for touch devices, both because you don't want to hold your fingers on the screen and for double tapping
-        if (event.originalEvent.pointerType == "mouse") {
-          if (markerElement) {
-            markerElement.style.border = "1px solid black";
-          }
-          tooltipVisible = false;
-        }
-      });
-    } else {
-      poi.marker.off("pointerover");
-      poi.marker.off("pointerout");
-      if (markerElement) {
-        markerElement.style.border = "1px solid black";
-      }
-    }
-  }
 
   function pageDisplaySwitch(page: number, onOff: "on" | "off") {
     if (onOff == "on") {
@@ -357,7 +250,7 @@
     map.fitBounds(pageBounds);
   }
 
-  function compareTrailNames(a: filteredTrail, b: filteredTrail) {
+  function compareTrailNames(a: FilteredTrail, b: FilteredTrail) {
     return (
       a.data.title.localeCompare(b.data.title, "de", {
         sensitivity: "base",
@@ -365,13 +258,19 @@
     );
   }
 
-  function sortTrails(
-    trails: filteredTrail[],
-    criterion: TrailSort,
-    ascending: boolean,
-  ) {
+  function sortTrails(criterion: TrailSort, ascending?: boolean) {
+    if (ascending === undefined) {
+      ascending = sortBy === criterion ? !sortAscending : true;
+    }
+    sortBy = criterion;
+    sortAscending = ascending;
+    pageDisplaySwitch(pageNumber, "off");
+    if (focussedTrail) {
+      focusTrailSwitch(focussedTrail, "off");
+    }
+
     const direction = ascending ? 1 : -1;
-    return [...trails].sort((a, b) => {
+    filteredTrailList.sort((a, b) => {
       if (criterion === "name") {
         return direction * compareTrailNames(a, b);
       }
@@ -384,31 +283,12 @@
       }
       return compareTrailNames(a, b);
     });
-  }
-
-  function sortFilteredTrails(criterion: TrailSort) {
-    const ascending = sortBy === criterion ? !sortAscending : true;
-    sortBy = criterion;
-    sortAscending = ascending;
-    pageDisplaySwitch(pageNumber, "off");
-    if (focussedTrail) {
-      focusTrailSwitch(focussedTrail, "off");
-    }
-    filteredTrailList.forEach((trail) => {
-      if (trail.display) displayTrailSwitch(trail, "off");
-    });
-
-    filteredTrailList = sortTrails(filteredTrailList, criterion, ascending);
-    pageNumber = Math.min(
-      pageNumber,
-      Math.max(0, Math.ceil(filteredTrailList.length / trailsPerPage) - 1),
-    );
     pageDisplaySwitch(pageNumber, "on");
     fitCurrentPageBounds();
   }
 
   //turn on and off trail pointerover/out interactions
-  function trailHoverSwitch(trail: filteredTrail, onOff: "on" | "off") {
+  function trailHoverSwitch(trail: FilteredTrail, onOff: "on" | "off") {
     if (onOff == "on") {
       trail.data.polyline?.on("pointerover", (e: any) => {
         if (e.originalEvent.pointerType == "mouse") {
@@ -429,7 +309,7 @@
     }
   }
 
-  function trailDownSwitch(trail: filteredTrail, onOff: "on" | "off") {
+  function trailDownSwitch(trail: FilteredTrail, onOff: "on" | "off") {
     if (onOff == "on") {
       trail.data.polyline?.on("pointerdown", (e: any) => {
         //a mouse should just use a click, whereas a touch device should tap twice or long tap
@@ -458,6 +338,33 @@
     } else {
       trail.data.polyline?.off("pointerdown");
       trail.data.polyline?.off("pointerup");
+    }
+  }
+
+  function markerHoverSwitch(poi: pointOfInterest, onOff: "on" | "off") {
+    const markerElement = getPoiMarkerElement(poi);
+    if (onOff == "on") {
+      poi.marker.on("pointerover", (event: any) => {
+        showtooltip({ event, poi });
+        if (markerElement) {
+          markerElement.style.border = "2px solid " + colors.highlight;
+        }
+      });
+      poi.marker.on("pointerout", (event: any) => {
+        //let the tooltip stay open for touch devices, both because you don't want to hold your fingers on the screen and for double tapping
+        if (event.originalEvent.pointerType == "mouse") {
+          if (markerElement) {
+            markerElement.style.border = "1px solid black";
+          }
+          tooltipVisible = false;
+        }
+      });
+    } else {
+      poi.marker.off("pointerover");
+      poi.marker.off("pointerout");
+      if (markerElement) {
+        markerElement.style.border = "1px solid black";
+      }
     }
   }
 
@@ -506,7 +413,7 @@
     }
   }
   //display an already loaded trail on the map and add interactivity or remove it
-  function displayTrailSwitch(trail: filteredTrail, onOff: "on" | "off") {
+  function displayTrailSwitch(trail: FilteredTrail, onOff: "on" | "off") {
     if (onOff == "off") {
       trailHoverSwitch(trail, "off");
       trailDownSwitch(trail, "off");
@@ -524,13 +431,13 @@
     }
   }
 
-  function showtooltip({
+  async function showtooltip({
     event,
     trail,
     poi,
   }: {
     event: any;
-    trail?: filteredTrail;
+    trail?: FilteredTrail;
     poi?: pointOfInterest;
   }) {
     if (!map) return;
@@ -593,9 +500,15 @@
       availableRight < approxTooltipWidth ? "left" : "right";
 
     tooltipVisible = true;
+    await tick();
+    const tooltip = document.querySelector<HTMLElement>(".trail-tooltip");
+    measuredMobileTooltipHeight =
+      tooltip && window.matchMedia("(max-width: 640px)").matches
+        ? Math.ceil(tooltip.getBoundingClientRect().height)
+        : 0;
   }
   //function to load and place trail data when a trail is focussed
-  async function loadTrailData(trail: filteredTrail) {
+  async function loadTrailData(trail: FilteredTrail) {
     //stop interaction while loading
     const trailId = trail.data.id;
     mapCover.style.display = "block";
@@ -648,140 +561,10 @@
     mapCover.style.display = "none";
   }
 
-  function toLeafletDirections(value: unknown): TrailDirections {
-    const entries = typeof value === "string" ? JSON.parse(value) : value;
-    if (!Array.isArray(entries)) return [];
-
-    return entries.flatMap((entry: any) => {
-      const coordinates = entry?.location;
-      if (!Array.isArray(coordinates) || coordinates.length < 2) return [];
-
-      const longitude = Number(coordinates[0]);
-      const latitude = Number(coordinates[1]);
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
-
-      return [
-        {
-          instruction:
-            typeof entry.instruction === "string" ? entry.instruction : "",
-          location: new LatLng(latitude, longitude),
-        },
-      ];
-    });
-  }
-  function getDistrictEntries(value: unknown): Array<Record<string, unknown>> {
-    const entries = typeof value === "string" ? JSON.parse(value) : value;
-    return Array.isArray(entries)
-      ? entries.filter(
-          (entry): entry is Record<string, unknown> =>
-            typeof entry === "object" && entry !== null,
-        )
-      : [];
-  }
-
-  function getDistrictNames(value: unknown): {
-    districts: string[];
-    startDistricts: string[];
-  } {
-    const entries = getDistrictEntries(value);
-    const names = (entry: Record<string, unknown>) =>
-      [entry.city, entry.borough, entry.suburb]
-        .filter((name): name is string => typeof name === "string")
-        .map((name) => name.trim())
-        .filter(Boolean);
-
-    return {
-      districts: Array.from(new Set(entries.flatMap(names))),
-      startDistricts: Array.from(
-        new Set(
-          entries.length
-            ? [...names(entries[0]), ...names(entries[entries.length - 1])]
-            : [],
-        ),
-      ),
-    };
-  }
-
-  function toLatLngSegments(value: unknown): LatLng[][] {
-    const segments = typeof value === "string" ? JSON.parse(value) : value;
-    if (!Array.isArray(segments)) return [];
-
-    return segments.flatMap((segment) => {
-      if (!Array.isArray(segment)) return [];
-      const points = segment.flatMap((point) => {
-        const latitude = Number(point?.lat ?? point?.[0]);
-        const longitude = Number(point?.lng ?? point?.[1]);
-        return Number.isFinite(latitude) && Number.isFinite(longitude)
-          ? [new LatLng(latitude, longitude)]
-          : [];
-      });
-      return points.length ? [points] : [];
-    });
-  }
-
-  function mapToHikingTrail(item: any): hikingTrail {
-    const { districts, startDistricts } = getDistrictNames(
-      getProp(item, "districts") ?? [],
-    );
-    const bounds = new LatLngBounds(
-      new LatLng(
-        toNum(getProp(item, "swLat", "swlat", "sw_lat")),
-        toNum(getProp(item, "swLng", "swlng", "sw_lng")),
-      ),
-      new LatLng(
-        toNum(getProp(item, "neLat", "nelat", "ne_lat")),
-        toNum(getProp(item, "neLng", "nelng", "ne_lng")),
-      ),
-    );
-    const start = new LatLng(
-      toNum(
-        getProp(item, "startLat", "startlat", "start_lat", "start_latitude"),
-      ),
-      toNum(
-        getProp(item, "startLng", "startlng", "start_lng", "start_longitude"),
-      ),
-    );
-    const end = new LatLng(
-      toNum(getProp(item, "endLat", "endlat", "end_lat", "end_latitude")),
-      toNum(getProp(item, "endLng", "endlng", "end_lng", "end_longitude")),
-    );
-    const trail = toLatLngSegments(getProp(item, "trail", "geojson"));
-    const length = getProp(item, "length");
-
-    return {
-      title: String(getProp(item, "title", "name") ?? ""),
-      id: String(getProp(item, "id", "_id", "uuid") ?? ""),
-      imageUrl: getProp(item, "imageUrl", "image_url", "image") || undefined,
-      imageAlt: getProp(item, "imageAlt") || undefined,
-      description: getProp(item, "description", "desc") || undefined,
-      districts,
-      startDistricts,
-      length:
-        typeof length === "number" ? Math.round(length / 100) * 100 : null,
-      bounds,
-      start,
-      end,
-      trail,
-      polyline: trail.length ? new Polyline(trail) : undefined,
-      startMarker: new Marker(start, {
-        icon: iconmaker({ color: "green", size: 1 }),
-      }),
-      endMarker: new Marker(end, {
-        icon: iconmaker({ color: "white", size: 1 }),
-      }),
-      poiTitles: Array.isArray(getProp(item, "poiTitles"))
-        ? getProp(item, "poiTitles")
-        : [],
-      poiImages: Array.isArray(getProp(item, "poiImages"))
-        ? getProp(item, "poiImages")
-        : [],
-    };
-  }
-
-  function createFilteredTrail(
-    data: hikingTrail,
+  export function createFilteredTrail(
+    data: HikingTrail,
     index: number,
-  ): filteredTrail {
+  ): FilteredTrail {
     return {
       data,
       display: false,
@@ -857,21 +640,13 @@
     }
   }
 
-  function selectTrailFromList(trail: { data: { id: string } }) {
-    const selectedTrail = filteredTrailList.find(
-      (item) => item.data.id === trail.data.id,
-    );
-    if (!selectedTrail) return;
-
+  function selectTrailFromList(trail: FilteredTrail) {
     displayMode = "map";
-    focusTrailSwitch(selectedTrail, "on");
+    focusTrailSwitch(trail, "on");
   }
 
-  function selectTrailFromLegend(trail: { data: { id: string } }) {
-    const selectedTrail = filteredTrailList.find(
-      (item) => item.data.id === trail.data.id,
-    );
-    if (!selectedTrail) return;
+  function selectTrailFromLegend(index: number) {
+    const selectedTrail = filteredTrailList[pageNumber * trailsPerPage + index];
 
     if (focussedTrail) {
       popupSwitch({ trail: selectedTrail });
@@ -910,7 +685,7 @@
         : undefined;
       return [
         {
-          id: trail.id,
+          trail: trail,
           matchedDistricts: normalizedQuery ? matchedDistricts : [],
           matchedPoiTitles: normalizedQuery ? matchedPoiTitles : [],
           matchedPoiImageUrl: matchedPoiImage?.imageUrl ?? undefined,
@@ -925,7 +700,7 @@
   //function to filter out trails that matched the search from SearchInterface and have only them displayed in the list or map
   function applyTrailSearch(
     nextFilteredTrails: Array<{
-      id: string;
+      trail: HikingTrail;
       matchedDistricts: string[];
       matchedPoiTitles: string[];
       matchedPoiImageUrl?: string;
@@ -937,32 +712,28 @@
       focusTrailSwitch(focussedTrail, "off");
     }
     pageDisplaySwitch(pageNumber, "off");
+    filteredTrailList.forEach((t) => (t = null as any));
     filteredTrailList = [];
     pageNumber = 0;
     nextFilteredTrails.forEach((filteredTrail, i) => {
-      const trail = hikingTrailList.find(
-        (item) => item.id === filteredTrail.id,
-      );
-      if (trail) {
-        const newFilteredTrail: filteredTrail = {
-          data: trail,
-          display: false,
-          color: trailColor(i),
-          loading: false,
-          matchedDistricts: filteredTrail.matchedDistricts,
-          matchedPoiTitles: filteredTrail.matchedPoiTitles,
-          matchedPoiImageUrl: filteredTrail.matchedPoiImageUrl,
-          matchedPoiImageAlt: filteredTrail.matchedPoiImageAlt,
-          reversed: false,
-        };
-        newFilteredTrail.data.polyline?.setStyle({
-          color: newFilteredTrail.color,
-        });
-        filteredTrailList.push(newFilteredTrail);
-      }
+      const newFilteredTrail: FilteredTrail = {
+        data: filteredTrail.trail,
+        display: false,
+        color: trailColor(i),
+        loading: false,
+        matchedDistricts: filteredTrail.matchedDistricts,
+        matchedPoiTitles: filteredTrail.matchedPoiTitles,
+        matchedPoiImageUrl: filteredTrail.matchedPoiImageUrl,
+        matchedPoiImageAlt: filteredTrail.matchedPoiImageAlt,
+        reversed: false,
+      };
+      newFilteredTrail.data.polyline?.setStyle({
+        color: newFilteredTrail.color,
+      });
+      filteredTrailList.push(newFilteredTrail);
     });
     if (sortBy) {
-      filteredTrailList = sortTrails(filteredTrailList, sortBy, sortAscending);
+      sortTrails(sortBy, sortAscending);
     }
 
     //on click of zurückseten no filter is applied if a trail is focussed, and the focus is kept
@@ -971,8 +742,8 @@
     pageDisplaySwitch(pageNumber, "on");
     fitCurrentPageBounds();
     //displaying message for empty results
-    const displayedTrails = filteredTrailList.filter((trail) => trail.display);
-    if (displayedTrails.length === 0) {
+
+    if (filteredTrailList.length === 0) {
       noTrailsFound = true;
       if (noResultsTimer) {
         clearTimeout(noResultsTimer);
@@ -991,18 +762,18 @@
     noTrailsFound = false;
     //adjusting the map to siplay all results
 
-    if (displayedTrails.length == 1) {
-      focusTrailSwitch(displayedTrails[0], "on");
+    if (filteredTrailList.length == 1) {
+      focusTrailSwitch(filteredTrailList[0], "on");
     }
     searchVisible = false;
   }
   //function to display a single selected trail with its pois and all information
-  function focusTrailSwitch(trail: filteredTrail, onOff: "on" | "off") {
+  function focusTrailSwitch(trail: FilteredTrail, onOff: "on" | "off") {
     // resetting focus specific variables
 
     doubleTapTargetId = "";
-    poiTitles = [];
     if (onOff == "off") {
+      poiTitles = [];
       stopNavigationTracking();
       printOptionsVisible = false;
       focussedTrail = null as any;
@@ -1079,14 +850,14 @@
     );
   }
   //can walk the other direction
-  function reverseTrail(trail: filteredTrail) {
+  function reverseTrail(trail: FilteredTrail) {
     navigationCurrentIndex = 0;
     navigationWasNearDirection = false;
     // Reverse the POIs for this trail
     const pois = poisByTrailId.get(trail.data.id);
     if (pois) {
       pois.reverse();
-      poiTitles = pois.map((poi) => poi.title);
+      poiTitles.reverse();
       // Update the marker icons with new numbers
       pois.forEach((p, i) => {
         p.marker.setIcon(
@@ -1122,7 +893,7 @@
     poi,
     poiIndex,
   }: {
-    trail?: filteredTrail;
+    trail?: FilteredTrail;
     poi?: pointOfInterest;
     poiIndex?: number;
   }) {
@@ -1230,6 +1001,22 @@
         activePoi.style.border = "1px solid black";
       }
     }
+  }
+  function clearNavigationError() {
+    if (navigationErrorTimer) {
+      clearTimeout(navigationErrorTimer);
+      navigationErrorTimer = null;
+    }
+    navigationError = "";
+  }
+
+  function showNavigationError(message: string) {
+    clearNavigationError();
+    navigationError = message;
+    navigationErrorTimer = setTimeout(() => {
+      navigationError = "";
+      navigationErrorTimer = null;
+    }, 5000);
   }
 
   function navigationDistance(index: number): number | null {
@@ -1443,8 +1230,8 @@
     printHikingTrail = new Polyline([]).addTo(printMap);
   }
 
-  function configurePrintMap(trail: filteredTrail) {
-    mapBounds = new LatLngBounds(
+  function configurePrintMap(trail: FilteredTrail) {
+    printMapBounds = new LatLngBounds(
       trail.data.bounds.getSouthWest(),
       new LatLng(
         (trail.data.bounds.getNorth() as number) +
@@ -1455,11 +1242,13 @@
 
     let modelingZoom = 13;
     let width =
-      CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x -
-      CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x;
+      CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
+        .x -
+      CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthWest(), modelingZoom).x;
     let height =
-      CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y -
-      CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y;
+      CRS.EPSG3857.latLngToPoint(printMapBounds.getSouthEast(), modelingZoom)
+        .y -
+      CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom).y;
     trailBoundsRatio = width / height;
 
     const pixelsPerMm = 200 / 25.4;
@@ -1486,11 +1275,15 @@
     ) {
       modelingZoom++;
       width =
-        CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x -
-        CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x;
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
+          .x -
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthWest(), modelingZoom)
+          .x;
       height =
-        CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y -
-        CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y;
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getSouthEast(), modelingZoom)
+          .y -
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
+          .y;
     }
     while (
       (2 ^ 0.5) * printWidthMm * pixelsPerMm < width &&
@@ -1498,11 +1291,15 @@
     ) {
       modelingZoom--;
       width =
-        CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).x -
-        CRS.EPSG3857.latLngToPoint(mapBounds.getNorthWest(), modelingZoom).x;
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
+          .x -
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthWest(), modelingZoom)
+          .x;
       height =
-        CRS.EPSG3857.latLngToPoint(mapBounds.getSouthEast(), modelingZoom).y -
-        CRS.EPSG3857.latLngToPoint(mapBounds.getNorthEast(), modelingZoom).y;
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getSouthEast(), modelingZoom)
+          .y -
+        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
+          .y;
     }
 
     if (trailBoundsRatio > printWidthMm / printHeightMm) {
@@ -1520,7 +1317,7 @@
     printMapElement.style.width = `${width}px`;
     printMapElement.style.height = `${height}px`;
     printMap?.invalidateSize();
-    printMap?.fitBounds(mapBounds);
+    printMap?.fitBounds(printMapBounds);
     printMapMarkers.forEach((m) => {
       m.remove();
       m = null as any;
@@ -1556,26 +1353,6 @@
         )
         .addTo(printMap),
     );
-  }
-
-  async function fetchImageData(imageUrl: string) {
-    if (!imageUrl) return null;
-    if (imageUrl.startsWith("data:")) return imageUrl;
-
-    try {
-      const response = await fetch(imageUrl);
-      if (!response.ok) return null;
-      const blob = await response.blob();
-      return await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () =>
-          resolve(typeof reader.result === "string" ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
-    }
   }
 
   async function printTrailWrapper() {
@@ -1640,7 +1417,6 @@
         directions,
         trailBoundsRatio,
         poisByTrailId,
-        fetchImageData,
         descriptionFontSize,
         poiImageArea,
         displayDirections,
@@ -1675,11 +1451,6 @@
     tiles.addTo(map);
 
     map.on("contextmenu", openRightClickMenu);
-    const updateMapBounds = () => {
-      mapBounds = map.getBounds();
-    };
-    map.on("moveend", updateMapBounds);
-    updateMapBounds();
     map.on("pointerdown", () => {
       closeRightClickMenu();
     });
@@ -1693,7 +1464,6 @@
       destroy: () => {
         map.off("contextmenu", openRightClickMenu);
         // dont litter
-        map.off("moveend", updateMapBounds);
         map.off("pointerdown");
         map.remove();
         map = null as any;
@@ -1832,10 +1602,11 @@
       <Legend
         trails={displayedPageTrails}
         {poiTitles}
-        {mapBounds}
+        {printMapBounds}
         {pageNumber}
         {pageCount}
         totalItems={filteredTrailList.length}
+        focussedTrail={focussedTrail ? true : false}
         onTrailSelect={selectTrailFromLegend}
         onPoiSelect={selectPoiFromLegend}
         onPageChange={changePage}
@@ -1890,7 +1661,7 @@
           onSelectTrail={selectTrailFromList}
           onMapMode={showMap}
           onPageChange={changePage}
-          onSort={sortFilteredTrails}
+          onSort={sortTrails}
         />
       </div>
     {/if}

@@ -1,14 +1,5 @@
 <script lang="ts">
-  interface Props {
-    directions: { instruction: string }[];
-    currentIndex: number;
-    distancesEnabled: boolean;
-    trackingEnabled: boolean;
-    error: string;
-    mobileTooltipHeight: number;
-    distanceForDirection: (index: number) => number | null;
-    onIndexChange: (index: number) => void;
-  }
+  import type { NavigationPanelProps } from "./types";
 
   let {
     directions,
@@ -19,7 +10,7 @@
     mobileTooltipHeight,
     distanceForDirection,
     onIndexChange,
-  }: Props = $props();
+  }: NavigationPanelProps = $props();
 </script>
 
 <section

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { ImageGaleryProps } from "./types";
   import { fly } from "svelte/transition";
 
   import { onMount } from "svelte";
@@ -9,13 +10,7 @@
     poiTitles = [],
     currentSlideItem = 0,
     closeGalery,
-  } = $props<{
-    imageUrls: string[];
-    imageAlts: string[];
-    poiTitles: string[];
-    currentSlideItem: number;
-    closeGalery: (currentSlideItem: number) => void;
-  }>();
+  }: ImageGaleryProps = $props();
 
   let flyX = $state(-500);
 
@@ -23,7 +18,7 @@
     flyX = -500;
     while (
       imageUrls[(currentSlideItem = (currentSlideItem + 1) % imageUrls.length)]
-        .url === ""
+        === ""
     );
   };
   const prevImage = () => {
@@ -32,7 +27,7 @@
       imageUrls[
         (currentSlideItem =
           (currentSlideItem - 1 + imageUrls.length) % imageUrls.length)
-      ].url === ""
+      ] === ""
     );
   };
 

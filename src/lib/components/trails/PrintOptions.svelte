@@ -1,17 +1,5 @@
 <script lang="ts">
-  interface Props {
-    descriptionFontSize: number;
-    poiImageSize: "small" | "large";
-    displayDirections: boolean;
-    showDirectionDistance: boolean;
-    onlyDirections: boolean;
-    markDirections: boolean;
-    directionsMarkerFrequency: number;
-    directionMarkerSize: string;
-    isPrinting: boolean;
-    onClose: () => void;
-    onPrint: () => void;
-  }
+  import type { PrintOptionsProps } from "./types";
 
   let {
     descriptionFontSize = $bindable(),
@@ -25,7 +13,7 @@
     isPrinting,
     onClose,
     onPrint,
-  }: Props = $props();
+  }: PrintOptionsProps = $props();
 </script>
 
 <div

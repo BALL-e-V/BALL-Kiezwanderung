@@ -1,15 +1,15 @@
 <script lang="ts">
-  interface Props {
-    x: number;
-    y: number;
-    hasFocusedTrail: boolean;
-    onSearch: () => void;
-    onList: () => void;
-    onShowAll: () => void;
-    isOnlyResult:boolean
-  }
+  import type { RightClickMenuProps } from "./types";
 
-  let { x, y, hasFocusedTrail, onSearch, onList, onShowAll,isOnlyResult }: Props = $props();
+  let {
+    x,
+    y,
+    hasFocusedTrail,
+    onSearch,
+    onList,
+    onShowAll,
+    isOnlyResult,
+  }: RightClickMenuProps = $props();
 </script>
 
 <div

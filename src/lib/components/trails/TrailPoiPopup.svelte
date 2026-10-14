@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { TrailPoiPopupProps } from "./types";
   import { onMount } from "svelte";
 
   let {
@@ -14,20 +15,7 @@
     poiCount = 0,
     highlightImageMarker,
     showGalery,
-  } = $props<{
-    title?: string;
-    description?: string;
-    imageUrls?: string[];
-    imageAlts?: string[];
-    length?: number;
-    poiCount?: number;
-    activePoiIndex?: number;
-    isPoiSelection?: boolean;
-    onClose?: (index: number) => void;
-    onSelectPoi?: (index: number) => void;
-    highlightImageMarker: (index: number, previous?: number) => void;
-    showGalery: () => void;
-  }>();
+  }: TrailPoiPopupProps = $props();
 
   let position = $state({ x: 24, y: 24 });
   let dragOffset = $state({ x: 0, y: 0 });
@@ -156,7 +144,7 @@
           <button
             class="trail-popup__image-counter"
             type="button"
-            onpointerdown={() => onSelectPoi(activePoiIndex)}
+            onpointerdown={() => onSelectPoi?.(activePoiIndex)}
           >
             Zu Sehenswürdigkeit({activePoiIndex +
               1}/{imageUrls.length})

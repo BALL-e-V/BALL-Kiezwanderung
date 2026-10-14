@@ -1,34 +1,8 @@
 <script lang="ts">
-  type SearchTrail = {
-    id: string;
-    title: string;
-    districts: string[];
-    startDistricts: string[];
-    poiTitles: string[];
-    poiImages: Array<{
-      title: string;
-      imageUrl?: string | null;
-      imageAlt?: string | null;
-    }>;
-    length: number | null;
-  };
-
-  type SearchResult = {
-    id: string;
-    matchedDistricts: string[];
-    matchedPoiTitles: string[];
-    matchedPoiImageUrl?: string;
-    matchedPoiImageAlt?: string;
-  };
-
-  export type SearchData = {
-    nameQuery: string;
-    districtQuery: string;
-    poiQuery: string;
-    onlyStart: boolean;
-    selectedMinLength: number | null;
-    selectedMaxLength: number | null;
-  };
+  import type {
+    SearchData,
+    SearchInterfaceProps,
+  } from "./types";
 
   let {
     trails = [],
@@ -42,12 +16,7 @@
       selectedMinLength: null,
       selectedMaxLength: null,
     }),
-  }: {
-    trails: SearchTrail[];
-    onSearch: (trails: SearchResult[]) => void;
-    noTrailsFound?: boolean;
-    searchData?: SearchData;
-  } = $props();
+  }: SearchInterfaceProps = $props();
 
   const lengthRange = $derived.by(() => {
     const lengths = trails
@@ -113,7 +82,7 @@
           : undefined;
 
         return {
-          id: trail.id,
+          trail: trail,
           matchedDistricts: searchData.districtQuery.trim()
             ? (searchData.onlyStart
                 ? trail.startDistricts

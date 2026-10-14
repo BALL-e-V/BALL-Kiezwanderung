@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { TrailPoiTooltipProps } from "./types";
+
   let {
     x,
     y,
@@ -13,7 +15,7 @@
     containerHeight = 500,
     offsetX = 12,
     offsetY = 12,
-  } = $props();
+  }: TrailPoiTooltipProps = $props();
 
   let isImageLoading = $state(true);
 

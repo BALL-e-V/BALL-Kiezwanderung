@@ -1,48 +1,19 @@
 <script lang="ts">
   import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
-
-  type TrailSort = "name" | "length";
-
-  type Trail = {
-    data: {
-      id: string;
-      title: string;
-      description?: string;
-      imageUrl?: string | null;
-      imageAlt?: string | null;
-      length: number | null;
-    };
-    matchedDistricts?: string[];
-    matchedPoiTitles?: string[];
-    matchedPoiImageUrl?: string;
-    matchedPoiImageAlt?: string;
-  };
-
-  interface Props {
-    trails: Trail[];
-    pageNumber: number;
-    pageCount: number;
-    totalItems: number;
-    sortBy: TrailSort | null;
-    sortAscending: boolean;
-    onSelectTrail: (trail: { data: { id: string } }) => void;
-    onMapMode: () => void;
-    onPageChange: (targetPage: number) => void;
-    onSort: (sortBy: TrailSort) => void;
-  }
+  import type { TrailDisplayProps } from "./types";
 
   let {
     trails = [],
     pageNumber,
     pageCount,
     totalItems,
-    sortBy,
-    sortAscending,
+    sortBy = $bindable(),
+    sortAscending = $bindable(),
     onSelectTrail,
     onMapMode,
     onPageChange,
     onSort,
-  }: Props = $props();
+  }: TrailDisplayProps = $props();
 </script>
 
 <section class="trail-display" aria-label="Gefilterte Wanderwege">
@@ -50,7 +21,10 @@
     <div class="trail-display__heading">
       <h2>Ausgewählte Wege</h2>
     </div>
-    <div class="trail-display__controls" aria-label="Wege sortieren und Seitenwechsel">
+    <div
+      class="trail-display__controls"
+      aria-label="Wege sortieren und Seitenwechsel"
+    >
       <button
         type="button"
         class="trail-display__sort-button"
@@ -73,7 +47,7 @@
         {pageNumber}
         {pageCount}
         {totalItems}
-        onPageChange={onPageChange}
+        {onPageChange}
         showPageSelect
       />
     </div>
@@ -257,11 +231,12 @@
   .trail-card {
     display: grid;
     grid-template-columns: minmax(14rem, 50%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 0.9rem;
     row-gap: 0;
     align-items: stretch;
     min-width: 0;
-    min-height: 18rem;
+    height: 18rem;
     padding: 0;
     overflow: hidden;
     border: 1px solid var(--accent-border, #b8c1cf);
@@ -283,7 +258,7 @@
 
   .trail-card__image-frame {
     min-width: 0;
-    min-height: 18rem;
+    min-height: 0;
     background: var(--accent-100, #e8f0ef);
   }
 
@@ -324,7 +299,7 @@
     display: block;
     width: 100%;
     height: 100%;
-    min-height: 18rem;
+    min-height: 0;
     object-fit: contain;
   }
 
@@ -411,11 +386,11 @@
       display: flex;
       flex-direction: column;
       min-height: 26rem;
-      height: auto;
+      height: 26rem;
     }
 
     .trail-card--with-matches {
-      height: auto;
+      height: 26rem;
     }
 
     .trail-card__image-frame {
