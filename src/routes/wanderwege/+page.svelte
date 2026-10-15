@@ -10,7 +10,6 @@
     LatLng,
     Marker,
     CRS,
-    DivIcon,
   } from "leaflet";
   import TrailPoiTooltip from "$lib/components/trails/TrailPoiTooltip.svelte";
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
@@ -30,7 +29,12 @@
     TrailSort,
   } from "$lib/components/trails/types";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
-  import { compareTrailPosition, crossmaker, iconmaker } from "$lib/util";
+  import {
+    compareTrailPosition,
+    crossmaker,
+    iconmaker,
+    userLocationIcon,
+  } from "$lib/util";
   import {
     toLeafletDirections,
     mapToHikingTrail,
@@ -138,6 +142,7 @@
   let navigationCurrentIndex = $state(0);
   let navigationLocation = $state<LatLng | null>(null);
   let navigationError = $state("");
+  let isGettingLocation = $state(false);
   let navigationErrorTimer: ReturnType<typeof setTimeout> | null = null;
   let navigationWatchId: number | null = null;
   let navigationMarker: Marker | null = null;
@@ -1048,26 +1053,54 @@
     navigationLastPoiId = "";
   }
 
+  function updateNavigationMarker(location: LatLng) {
+    navigationLocation = location;
+    if (!navigationMarker) {
+      navigationMarker = new Marker(location, {
+        icon: userLocationIcon(),
+        interactive: false,
+      }).addTo(map);
+    } else {
+      navigationMarker.setLatLng(location);
+    }
+  }
+
+  function locateUserOnce() {
+    if (navigationTrackingEnabled || isGettingLocation) return;
+    if (!("geolocation" in navigator)) {
+      showNavigationError("Dieses Gerät unterstützt keine Standortermittlung.");
+      return;
+    }
+
+    isGettingLocation = true;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        isGettingLocation = false;
+        const location = new LatLng(
+          position.coords.latitude,
+          position.coords.longitude,
+        );
+        updateNavigationMarker(location);
+        map.setView(location, Math.max(map.getZoom(), 16));
+      },
+      (error) => {
+        isGettingLocation = false;
+        showNavigationError(
+          `Standort konnte nicht ermittelt werden: ${error.message}`,
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+    );
+  }
+
   function handleNavigationPosition(position: GeolocationPosition) {
-    if (!navigationTrackingEnabled || !focussedTrail) return;
+    if (!navigationTrackingEnabled) return;
 
     const location = new LatLng(
       position.coords.latitude,
       position.coords.longitude,
     );
-    navigationLocation = location;
-
-    if (!navigationMarker) {
-      const icon = new DivIcon({
-        className: "navigation-location-icon",
-        html: '<svg viewBox="0 0 32 32" role="img" aria-label="Dein Standort"><circle cx="16" cy="16" r="15" fill="white" stroke="#1769aa" stroke-width="2"/><circle cx="16" cy="10" r="4" fill="#1769aa"/><path d="M9 25c.5-5 2.8-8 7-8s6.5 3 7 8z" fill="#1769aa"/></svg>',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-      });
-      navigationMarker = new Marker(location, { icon }).addTo(map);
-    } else {
-      navigationMarker.setLatLng(location);
-    }
+    updateNavigationMarker(location);
 
     if (focussedTrail) {
       let closestDirectionIndex = -1;
@@ -1489,6 +1522,7 @@
     const openPrintOptions = () => {
       if (focussedTrail) printOptionsVisible = true;
     };
+    const handleCenterUserLocation = () => locateUserOnce();
 
     const closeSearchOnOutsidePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -1500,13 +1534,23 @@
     window.addEventListener("wanderwege-global-search", handleGlobalSearch);
     window.addEventListener("open-wanderwege-print-options", openPrintOptions);
     window.addEventListener(
+      "wanderwege-center-user-location",
+      handleCenterUserLocation,
+    );
+    window.addEventListener(
       "wanderwege-navigation-settings",
       handleNavigationSettings,
     );
     window.addEventListener("pointerdown", closeSearchOnOutsidePointerDown);
     return () => {
+      navigationTrackingEnabled = false;
       stopNavigationTracking();
       clearNavigationError();
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-navigation-tracking-state", {
+          detail: false,
+        }),
+      );
       window.removeEventListener("toggle-wanderwege-search", toggleSearch);
       window.removeEventListener(
         "wanderwege-global-search",
@@ -1515,6 +1559,10 @@
       window.removeEventListener(
         "open-wanderwege-print-options",
         openPrintOptions,
+      );
+      window.removeEventListener(
+        "wanderwege-center-user-location",
+        handleCenterUserLocation,
       );
       window.removeEventListener(
         "wanderwege-navigation-settings",
@@ -1538,6 +1586,20 @@
       <div id="map" use:createMap>
         <div class="leaflet-top leaflet-right">
           <div style="display: flex; gap: 8px; align-items: center;">
+            <button
+              type="button"
+              class="location-action-button"
+              disabled={navigationTrackingEnabled || isGettingLocation}
+              onpointerdown={(event) => event.stopPropagation()}
+              onclick={(event) => {
+                event.stopPropagation();
+                locateUserOnce();
+              }}
+            >
+              {isGettingLocation
+                ? "Standort wird ermittelt..."
+                : "Standort ermitteln"}
+            </button>
             {#if focussedTrail}
               <button
                 style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
@@ -1734,6 +1796,24 @@
     z-index: 500;
     transform: translateX(-50%);
     pointer-events: auto;
+  }
+
+  .location-action-button {
+    pointer-events: auto;
+    padding: 8px 12px;
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .location-action-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 
   .navigation-error-toast {

@@ -1,9 +1,16 @@
 <script lang="ts">
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
+  import { colors } from "$lib/config";
   interface LegendMarker {
     label: string;
     color: string;
   }
+  const trailMarkup = [
+    { label: "Anfang", color: colors.trailStart },
+    { label: "Ende", color: colors.trailEnd },
+    { label: "bewegbarer Wegpunkt", color: colors.movableMarker },
+    { label: "Sehenswürdigkeit", color: colors.inactivePoi },
+  ];
 
   let {
     editorMode = "trail",
@@ -11,7 +18,6 @@
     creatingPoi = false,
     insertingWaypoint = false,
     poiList = [],
-    trailMarkup = [],
     heromaker,
   }: {
     poiList: pointOfInterest[];
@@ -19,7 +25,6 @@
     makingTrail: boolean;
     creatingPoi: boolean;
     editorMode: "trail" | "poi";
-    trailMarkup: LegendMarker[];
     heromaker: (poi: pointOfInterest) => void;
   } = $props();
 
@@ -66,7 +71,7 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       />
-    </svg>{isMinimized? "":"schliessen"}
+    </svg>{isMinimized ? "" : "schliessen"}
   </button>
 
   {#if !isMinimized}
@@ -97,8 +102,13 @@
               Sehenswürdigkeit zum bearbeiten oder verschieben anclicken
             </div>{/if}
           {#each poiList as poi, index}
-            <button type="button" class="poi-button" onpointerdown={() => heromaker(poi)}>
-              {index + 1} {poi.title}
+            <button
+              type="button"
+              class="poi-button"
+              onpointerdown={() => heromaker(poi)}
+            >
+              {index + 1}
+              {poi.title}
             </button>
           {/each}
         {/if}

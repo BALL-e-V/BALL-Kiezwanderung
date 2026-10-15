@@ -71,6 +71,35 @@ export function crossmaker({ color, size }: { color: string; size: number }) {
     });
 }
 
+export function userLocationIcon() {
+    return new DivIcon({
+        className: "user-location-marker-icon",
+        html: `
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40" aria-hidden="true">
+            <circle cx="16" cy="7" r="5.25" fill="#4f46e5" stroke="#ffffff" stroke-width="2" />
+            <path
+              d="M16 14v12m0-9-7 8m7-8 7 8m-7 1-5 9m5-9 5 9"
+              fill="none"
+              stroke="#ffffff"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="7"
+            />
+            <path
+              d="M16 14v12m0-9-7 8m7-8 7 8m-7 1-5 9m5-9 5 9"
+              fill="none"
+              stroke="#4f46e5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="3.5"
+            />
+          </svg>
+        `,
+        iconSize: [32, 40],
+        iconAnchor: [16, 20],
+    });
+}
+
  export function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

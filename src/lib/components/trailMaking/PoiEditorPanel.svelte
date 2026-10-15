@@ -8,8 +8,8 @@
     heroPoi: number;
     primaryPoi: string;
     deleteQuery: boolean;
+    onSceduleSave: (index: number) => void;
     onSave: (index: number) => void;
-    onSaveNow: (index: number) => void;
     onDelete: (poi: pointOfInterest) => void;
     onSelect: (poi: pointOfInterest) => void;
     onCreate: () => void;
@@ -25,8 +25,8 @@
     heroPoi = $bindable(-1),
     primaryPoi = "",
     deleteQuery = $bindable(false),
+    onSceduleSave,
     onSave,
-    onSaveNow,
     onDelete,
     onSelect,
     onCreate,
@@ -50,12 +50,15 @@
   let cameraInput = $state<HTMLInputElement | null>(null);
 
   onMount(() => {
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.enumerateDevices) {
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.mediaDevices?.enumerateDevices
+    ) {
       navigator.mediaDevices
         .enumerateDevices()
         .then((devices) => {
           const videoDevices = devices.filter((d) => d.kind === "videoinput");
-          hasCamera = videoDevices.length > 0 || ("ontouchstart" in window);
+          hasCamera = videoDevices.length > 0 || "ontouchstart" in window;
         })
         .catch(() => {
           hasCamera = typeof window !== "undefined" && "ontouchstart" in window;
@@ -160,7 +163,7 @@
       class="block"
       type="text"
       bind:value={poiList[heroPoi].title}
-      onchange={() => onSave(heroPoi)}
+      onchange={() => onSceduleSave(heroPoi)}
     />
   </div>
   <div>
@@ -169,7 +172,7 @@
       id="poiDescription"
       class="block"
       bind:value={poiList[heroPoi].description}
-      onchange={() => onSave(heroPoi)}
+      onchange={() => onSceduleSave(heroPoi)}
     ></textarea>
   </div>
   <div>
@@ -207,7 +210,7 @@
       type="text"
       placeholder="Alternativtext für das Bild"
       bind:value={poiList[heroPoi].imageAlt}
-      onchange={() => onSave(heroPoi)}
+      onchange={() => onSceduleSave(heroPoi)}
     />
     {#if currentImageUrl !== ""}
       <div class="poi-image-container">
@@ -238,7 +241,7 @@
     <button
       type="button"
       class="button primary"
-      onpointerdown={() => onSaveNow(heroPoi)}
+      onpointerdown={() => onSave(heroPoi)}
     >
       Speichern
     </button>

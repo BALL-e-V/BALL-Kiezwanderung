@@ -8,12 +8,11 @@
     Polyline,
     TileLayer,
     LatLngBounds,
-    CircleMarker,
     type LeafletMouseEvent,
     type LeafletEvent,
   } from "leaflet";
   import { getPath } from "./getPath.remote";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import {
     savePOI,
     saveTrailPOIRelation,
@@ -23,6 +22,7 @@
   } from "./poiDB.remote";
   import {
     iconmaker,
+    userLocationIcon,
     latlngsToDataobject,
     responseToLatlngs,
     compareTrailPosition,
@@ -56,6 +56,22 @@
   let map: LeafletMap;
   //the set of polylines that make up the hiking trail
   let trail: Polyline[] = $state([]);
+
+  //minimal data to fill in the list to select a trail for loading
+  type TrailListItem = {
+    id: string;
+    title: string;
+    author: string;
+    created: string;
+    updated?: string;
+    published: boolean;
+  };
+
+  //list of all trails in the database for display in the load menu
+  let listofTrails: TrailListItem[] = $state([] as TrailListItem[]);
+  // variable to save the according timeout
+  let waitToSave: ReturnType<typeof setTimeout> = $state(null as any);
+  //saving some metadata to search for later
   type TrailMarkerEntry = Marker & {
     marker: Marker;
     borough?: string;
@@ -113,8 +129,10 @@
   let hasGeolocation = $state(false);
   let hasCamera = $state(true);
   let isLocating = $state(false);
+  let isTrackingLocation = $state(false);
   let userLocation = $state<{ lat: number; lng: number } | null>(null);
-  let userLocationMarker: CircleMarker | null = null;
+  let userLocationMarker: Marker | null = null;
+  let locationWatchId: number | null = null;
 
   // Title modal state for mobile
   let titleModalOpen = $state(false);
@@ -122,19 +140,6 @@
   let titleModalInitial = $state("");
   let pendingPoiLocation = $state<{ lat: number; lng: number } | null>(null);
 
-  type TrailListItem = {
-    id: string;
-    title: string;
-    author: string;
-    created: string;
-    updated?: string;
-    published: boolean;
-  };
-
-  //list of all trails in the database for display in the load menu
-  let listofTrails: TrailListItem[] = $state([] as TrailListItem[]);
-  // variable to save the according timeout
-  let waitToSave: ReturnType<typeof setTimeout> = $state(null as any);
   //to get a confimation step before deleting trails/poi
   let deleteQuery = $state(false);
   //<p> to display autor,editor and the times it happened
@@ -153,6 +158,13 @@
 
   let showPoiEditor: boolean = $state(false);
 
+  //marker to move with the mouse when poicreator is active
+  let poiCreatorMarker = new Marker({ lat: 0, lng: 0 });
+  poiCreatorMarker.setIcon(
+    iconmaker({ color: colors.editing, size: sizes.poiHero }),
+  );
+  let insertTrail = new Polyline([{ lat: 0, lng: 0 }]);
+
   function showFailureTooltip(message: string) {
     failureTooltipMessage = message;
     pathFailureVisible = true;
@@ -163,22 +175,6 @@
     }, showFailureTime);
   }
 
-  // Legend marker definitions
-
-  const trailMarkup = [
-    { label: "Anfang", color: colors.trailStart },
-    { label: "Ende", color: colors.trailEnd },
-    { label: "bewegbarer Wegpunkt", color: colors.movableMarker },
-    { label: "Sehenswürdigkeit", color: colors.inactivePoi },
-  ];
-
-  let poiCreatorMarker = new Marker({ lat: 0, lng: 0 });
-  poiCreatorMarker.setIcon(
-    iconmaker({ color: colors.editing, size: sizes.poiHero }),
-  );
-  let insertTrail = new Polyline([{ lat: 0, lng: 0 }]);
-  //trail list filter and sort state
-  //poi list sort state
   // Helper to safely get event screen coordinates
   function getEventScreenPos(e: any): { x: number; y: number } {
     if (e.clientX !== undefined && e.clientY !== undefined) {
@@ -221,6 +217,9 @@
   //function to switch between editing pois and the trail
   function editorSwap() {
     if (editing === "trail") {
+      if (waitToSave) {
+        trailToDatabase();
+      }
       if (makingTrail) {
         //turning off trail interactivity
         map.off("click");
@@ -292,6 +291,9 @@
       }
       editing = "poi";
     } else {
+      if (waitToSave) {
+        poiToDatabase(heroPoi);
+      }
       editorial = trailEditorial;
       //turning on trail interactivity
       trailMarkers.forEach((m) => {
@@ -407,16 +409,102 @@
   function updateUserLocationMarker(lat: number, lng: number) {
     if (!map) return;
     if (!userLocationMarker) {
-      userLocationMarker = new CircleMarker([lat, lng], {
-        radius: 8,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: "#4f46e5",
-        fillOpacity: 1,
+      userLocationMarker = new Marker([lat, lng], {
+        icon: userLocationIcon(),
         pane: "markerPane",
+        interactive: false,
       }).addTo(map);
     } else {
       userLocationMarker.setLatLng([lat, lng]);
+    }
+  }
+
+  function handleTrackedPosition(position: GeolocationPosition) {
+    if (!isTrackingLocation) return;
+    const { latitude: lat, longitude: lng } = position.coords;
+    userLocation = { lat, lng };
+    updateUserLocationMarker(lat, lng);
+    map.panTo([lat, lng]);
+  }
+
+  function stopLocationTracking() {
+    if (locationWatchId !== null) {
+      if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(locationWatchId);
+      }
+      locationWatchId = null;
+    }
+    isTrackingLocation = false;
+  }
+
+  function setLocationTracking(shouldTrack: boolean) {
+    if (!shouldTrack) {
+      stopLocationTracking();
+      return;
+    }
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      showFailureTooltip("Geolocation wird nicht unterstützt");
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-navigation-tracking-state", {
+          detail: false,
+        }),
+      );
+      return;
+    }
+
+    isTrackingLocation = true;
+    try {
+      locationWatchId = navigator.geolocation.watchPosition(
+        handleTrackedPosition,
+        (error) => {
+          stopLocationTracking();
+          console.error("GPS tracking error:", error);
+          showFailureTooltip("GPS-Standort konnte nicht verfolgt werden");
+          window.dispatchEvent(
+            new CustomEvent("wanderwege-navigation-tracking-state", {
+              detail: false,
+            }),
+          );
+        },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+      );
+    } catch (error) {
+      stopLocationTracking();
+      console.error("Could not start GPS tracking:", error);
+      showFailureTooltip("GPS-Standort konnte nicht verfolgt werden");
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-navigation-tracking-state", {
+          detail: false,
+        }),
+      );
+    }
+  }
+
+  function toggleLocationTracking() {
+    const nextTrackingState = !isTrackingLocation;
+    setLocationTracking(nextTrackingState);
+    window.dispatchEvent(
+      new CustomEvent("wanderwege-navigation-tracking-state", {
+        detail: nextTrackingState && isTrackingLocation,
+      }),
+    );
+  }
+
+  function handleEditorNavigationSettings(event: Event) {
+    const settings = (event as CustomEvent<{ tracking: boolean }>).detail;
+    if (settings.tracking !== isTrackingLocation) {
+      setLocationTracking(settings.tracking);
+    }
+  }
+
+  async function locateUserOnce() {
+    if (isTrackingLocation) return;
+    try {
+      const coords = await getUserGPSLocation();
+      if (map)
+        map.setView([coords.lat, coords.lng], Math.max(map.getZoom(), 16));
+    } catch (err) {
+      console.error("Could not determine user location", err);
     }
   }
 
@@ -448,17 +536,6 @@
         { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
       );
     });
-  }
-
-  async function centerOnUserLocation() {
-    try {
-      const coords = await getUserGPSLocation();
-      if (map) {
-        map.setView([coords.lat, coords.lng], Math.max(map.getZoom(), 16));
-      }
-    } catch (err) {
-      console.log("Could not center on user location", err);
-    }
   }
 
   async function addWaypointAtGPS() {
@@ -532,6 +609,9 @@
         trailUpdate = true;
         loadingTrail++;
         clearTimeout(waitToSave);
+        if (editing !== "trail") {
+          editorSwap();
+        }
 
         try {
           const response = await getPath([
@@ -645,6 +725,7 @@
       console.error("insertMarkerAtGPS failed:", err);
     }
   }
+  //need to have the image in a main page variable so it doesnt vanish with the form
   async function handleCameraImage(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -661,9 +742,10 @@
     }
   }
 
-  //switch between editing trail and poi
-
   function poiCreator(latlng: LatLng) {
+    if (waitToSave) {
+      poiToDatabase(heroPoi);
+    }
     poiList.push(new pointOfInterest(map, latlng));
     poiPositionUpdate = true;
     if (trail.length > 0) {
@@ -685,11 +767,6 @@
   }
   //function to switch the onpointerdown for creating a new poi
   function poiCreatorSwitch(onOff: "on" | "off") {
-    if (waitToSave) {
-      clearTimeout(waitToSave);
-      waitToSave = null as any;
-      poiToDatabase(heroPoi);
-    }
     //i turn of poi interactivity while creating a new poi because its not needet and to have a visual indicator
     if (onOff === "off") {
       map.off("click", poiCreatorClick);
@@ -748,8 +825,6 @@
   }
   function heromaker(poi: pointOfInterest) {
     if (waitToSave) {
-      clearTimeout(waitToSave);
-      waitToSave = null as any;
       poiToDatabase(heroPoi);
     }
     showPoiEditor = true;
@@ -802,12 +877,15 @@
   }
   //onpointerdown functions to add a new waypoint at the end of the trail and find the path to it
   async function trailMaker(e: LeafletMouseEvent) {
+    //a marker and trail segment are addet in the switch function for display purposes, and deleted if the function is deactivated
+    //onclick adding a new trail segment and marker locking the old ones in place
     trail.push(
       new Polyline(
         [trailMarkers[trailMarkers.length - 1].getLatLng(), e.latlng],
         { color: colors.buildTrail },
       ).addTo(map),
     );
+    //same for the waypoint marker
     trailMarkers.push(wrapTrailMarker(new Marker(e.latlng).addTo(map)));
     trailMarkers[trailMarkers.length - 1].setIcon(
       iconmaker({ color: colors.editing, size: sizes.poiHero }),
@@ -887,10 +965,15 @@
         trailMarkers[0].setIcon(
           iconmaker({ color: colors.trailStart, size: sizes.trailMarker }),
         );
+        //removing the piece of traail that was only there for display purposes
         trail[trail.length - 1].removeFrom(map).remove();
         trail[trail.length - 1] = null as any;
         trail.pop();
       }
+      //removing the marker that was only there for display purposes
+      trailMarkers[trailMarkers.length - 1].removeFrom(map).remove();
+      trailMarkers[trailMarkers.length - 1] = null as any;
+      trailMarkers.pop();
       //menus for adding and deleting markers
       trailMarkers.forEach((m) =>
         m.on("contextmenu", (e) => rightClickContextMenu(e)),
@@ -904,10 +987,6 @@
             weight: sizes.clickableTrail,
           }),
       );
-
-      trailMarkers[trailMarkers.length - 1].removeFrom(map).remove();
-      trailMarkers[trailMarkers.length - 1] = null as any;
-      trailMarkers.pop();
     } else {
       map.getContainer().style.cursor = "crosshair";
       map.on("click", trailMaker);
@@ -935,11 +1014,13 @@
           weight: sizes.buildTrail,
         }),
       );
+
       const initialLatlng =
         trailMarkers.length > 0
           ? trailMarkers[trailMarkers.length - 1].getLatLng()
           : map.getCenter();
       trailMarkers.forEach((m) => m.off("contextmenu"));
+      //adding a trail segment already for visuial purposes
       if (trailMarkers.length > 0) {
         trail.push(
           new Polyline(
@@ -948,8 +1029,8 @@
           ).addTo(map),
         );
       }
-      // creating a first waypoint marker for the trail if none exist
 
+      //addying a marker already for visuial purposes
       trailMarkers.push(wrapTrailMarker(new Marker(initialLatlng).addTo(map)));
 
       if (trailMarkers.length == 1) {
@@ -966,7 +1047,7 @@
       map.on("pointermove", (e) => trailMakingMover(e));
     }
   }
-
+  //finction to move the last rail segment and waypoint marker while adding to the trail
   function trailMakingMover(e: any) {
     trailMarkers[trailMarkers.length - 1].setLatLng(e.latlng);
     if (trail.length > 0) {
@@ -1111,6 +1192,7 @@
       waitToSave = setTimeout(trailToDatabase, timeToSave);
     }
   }
+
   function deleteTrailend() {
     trailUpdate = true;
 
@@ -1265,6 +1347,7 @@
       map.on("click", (e) => insertWaypoint(e, rightClickTargetIndex));
       const startLatlng = trailMarkers[rightClickTargetIndex].getLatLng();
       const endLatlng = trailMarkers[rightClickTargetIndex + 1].getLatLng();
+      //displaying some polylines to visualize
       insertTrail.addTo(map).setLatLngs([startLatlng, endLatlng]);
       map.on("pointermove", (e) => moveInsertTrail(e, startLatlng, endLatlng));
       map.getContainer().style.cursor = "crosshair";
@@ -1707,8 +1790,10 @@
   async function poiToDatabase(heroPoi: number) {
     if (heroPoi >= 0) {
       loadingTrail++;
-      clearInterval(waitToSave);
-      waitToSave = null as any;
+      if (waitToSave) {
+        clearInterval(waitToSave);
+        waitToSave = null as any;
+      }
       let response;
       try {
         //sending the relattion data with the poi to upsert the relation if positionupdate = true
@@ -1762,6 +1847,10 @@
   }
   //function to delete the poi from the trail and the poi itself when no relations remain
   async function deletePoiOrRelation(poi: pointOfInterest) {
+    if (waitToSave) {
+      clearInterval(waitToSave);
+      waitToSave = null as any;
+    }
     try {
       await deleteTrailPOIRelation({
         trailId: trailId,
@@ -1918,18 +2007,6 @@
     return result.json();
   }
 
-  async function addMetadata() {
-    for (const markerEntry of trailMarkers) {
-      try {
-        await populateTrailMarkerLocationInfo(markerEntry);
-      } catch (error) {
-        console.log("Failed to add metadata for trail marker", error);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
-
   async function populateTrailMarkerLocationInfo(
     markerEntry: TrailMarkerEntry,
   ) {
@@ -1945,6 +2022,12 @@
 
   //need to load a list of trails and session when we mount the page
   onMount(async () => {
+    window.addEventListener(
+      "wanderwege-navigation-settings",
+      handleEditorNavigationSettings,
+    );
+    window.addEventListener("wanderwege-center-user-location", locateUserOnce);
+
     await loadTrailList();
 
     if (typeof window !== "undefined") {
@@ -1974,6 +2057,25 @@
       } else {
         hasCamera = "ontouchstart" in window;
       }
+    }
+  });
+
+  onDestroy(() => {
+    stopLocationTracking();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-navigation-tracking-state", {
+          detail: false,
+        }),
+      );
+      window.removeEventListener(
+        "wanderwege-navigation-settings",
+        handleEditorNavigationSettings,
+      );
+      window.removeEventListener(
+        "wanderwege-center-user-location",
+        locateUserOnce,
+      );
     }
   });
 </script>
@@ -2028,7 +2130,6 @@
       </div>
       <Legend
         editorMode={editing}
-        {trailMarkup}
         {makingTrail}
         {poiList}
         {creatingPoi}
@@ -2054,17 +2155,7 @@
         hasUnsavedChanges={waitToSave !== null || trailUpdate}
         onAddWaypointGPS={addWaypointAtGPS}
         onAddPoiGPS={addPoiAtGPS}
-        onCenterUserLocation={centerOnUserLocation}
-        onToggleMode={() => {
-          if (waitToSave) {
-            if (editing === "trail") {
-              trailToDatabase();
-            } else if (editing === "poi" && heroPoi >= 0) {
-              poiToDatabase(heroPoi);
-            }
-          }
-          editorSwap();
-        }}
+        onToggleMode={editorSwap}
         onSave={() => {
           if (editing === "trail") {
             trailToDatabase();
@@ -2091,20 +2182,7 @@
     {:else if (trailTitle == "Namen Eingeben" && editing === "trail") || trailId == ""}
       <button disabled>Einen Namen Eintragen und Speichern</button>
     {:else}
-      <button
-        onpointerdown={() => {
-          if (waitToSave) {
-            //only need to save if there is unsaved changes
-            if (editing === "trail") {
-              trailToDatabase();
-            } else if (editing === "poi" && heroPoi >= 0) {
-              poiToDatabase(heroPoi);
-            }
-          }
-          editorSwap();
-        }}
-        class="block switch-btn"
-      >
+      <button onpointerdown={editorSwap} class="block switch-btn">
         Modus: {editing === "trail" ? "Wanderweg" : "Sehenswürdigkeiten"} (wechseln)
       </button>
     {/if}
@@ -2127,6 +2205,9 @@
             titleModalMode = "trail";
             titleModalInitial = "Neuer Wanderweg";
             titleModalOpen = true;
+          }
+          if (waitToSave) {
+            trailToDatabase();
           }
           newTrail();
         }}
@@ -2165,9 +2246,10 @@
         {primaryPoi}
         onSetPrimaryPoi={(poiId: string) => {
           primaryPoi = poiId;
+          //needs explicit database interaction because we are in poi mod and this saves to trail
           setPrimaryPOI({ primaryPoiId: poiId, trailId });
         }}
-        onSave={(index: number) => {
+        onSceduleSave={(index: number) => {
           if (waitToSave) {
             clearInterval(waitToSave);
           }
@@ -2175,16 +2257,12 @@
             poiToDatabase(index);
           }, timeToSave);
         }}
-        onSaveNow={(index: number) => {
+        onSave={(index: number) => {
           if (waitToSave) {
             poiToDatabase(index);
           }
         }}
         onDelete={(poi: pointOfInterest) => {
-          if (waitToSave) {
-            clearInterval(waitToSave);
-            waitToSave = null as any;
-          }
           deletePoiOrRelation(poi);
         }}
         onSelect={(poi: pointOfInterest) => heromaker(poi)}

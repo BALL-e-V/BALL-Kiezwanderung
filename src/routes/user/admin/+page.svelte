@@ -9,8 +9,8 @@
   import type { Feature } from "$lib/authorization";
   import { onMount } from "svelte";
   import { fileToBase64 } from "$lib/util";
-  import{userConfig} from"$lib/config";
-  const {displayResponseTime} = userConfig;
+  import { userConfig } from "$lib/config";
+  const { displayResponseTime } = userConfig;
 
   let searchTerm = $state("");
   let users = $state([]) as { id: string; name: string; email: string }[];
@@ -169,7 +169,7 @@
         }
       }
     } else {
-      console.log("heroPoi is not defined");
+      console.log("user not found");
     }
   }
   async function handleDeleteUser() {

@@ -4,6 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.user-location-marker-icon {
+ background: transparent;
+ border: 0;
+}
+
 :root {
   /* Global accent palette */
   --accent-50: #eff6ff;

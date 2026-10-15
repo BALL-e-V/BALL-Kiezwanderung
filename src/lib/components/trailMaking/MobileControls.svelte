@@ -10,7 +10,6 @@
     hasUnsavedChanges: boolean;
     onAddWaypointGPS: () => void;
     onAddPoiGPS: () => void;
-    onCenterUserLocation: () => void;
     onToggleMode: () => void;
     onSave: () => void;
     onCancelAction: () => void;
@@ -27,7 +26,6 @@
     hasUnsavedChanges = false,
     onAddWaypointGPS,
     onAddPoiGPS,
-    onCenterUserLocation,
     onToggleMode,
     onSave,
     onCancelAction,
@@ -92,18 +90,6 @@
   </div>
 
   <div class="secondary-actions-row">
-    {#if hasGeolocation}
-      <button
-        type="button"
-        class="button secondary quick-btn"
-        disabled={isLoading}
-        onpointerdown={onCenterUserLocation}
-        title="Karte auf aktuellen Standort zentrieren"
-      >
-        🎯 Mein Standort
-      </button>
-    {/if}
-
     <button
       type="button"
       class="button secondary quick-btn mode-btn"
@@ -283,4 +269,3 @@
     }
   }
 </style>
-

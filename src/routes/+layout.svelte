@@ -30,6 +30,9 @@
   let suppressNextClick = false;
   let topbar: HTMLElement | null = null;
   let isWanderwegePage = $derived($page.url.pathname === "/wanderwege");
+  let isTrailMakingPage = $derived(
+    $page.url.pathname === "/wanderwegErstellen",
+  );
   let wanderwegeSearchQuery = $state("");
   let wanderwegeSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -358,7 +361,7 @@
 
     {#if isMenuOpen}
       <div class="header-panel dropdown" id="main-menu">
-        {#if isWanderwegePage && isTrailFocused}
+        {#if isWanderwegePage || isTrailMakingPage}
           <button
             type="button"
             class="button secondary"
@@ -379,23 +382,25 @@
               aria-label="Navigationseinstellungen"
               onpointerdown={(event) => event.stopPropagation()}
             >
-              <label>
-                <input
-                  type="checkbox"
-                  bind:checked={navigationInstructions}
-                  onchange={dispatchNavigationSettings}
-                />
-                Wegbeschreibung anzeigen
-              </label>
-              <label class:disabled={!navigationInstructions}>
-                <input
-                  type="checkbox"
-                  bind:checked={navigationDistances}
-                  disabled={!navigationInstructions}
-                  onchange={dispatchNavigationSettings}
-                />
-                Distanzen anzeigen
-              </label>
+              {#if isWanderwegePage && isTrailFocused}
+                <label>
+                  <input
+                    type="checkbox"
+                    bind:checked={navigationInstructions}
+                    onchange={dispatchNavigationSettings}
+                  />
+                  Wegbeschreibung anzeigen
+                </label>
+                <label class:disabled={!navigationInstructions}>
+                  <input
+                    type="checkbox"
+                    bind:checked={navigationDistances}
+                    disabled={!navigationInstructions}
+                    onchange={dispatchNavigationSettings}
+                  />
+                  Distanzen anzeigen
+                </label>
+              {/if}
               <label>
                 <input
                   type="checkbox"
@@ -404,21 +409,37 @@
                 />
                 Standort verfolgen
               </label>
+              <button
+                type="button"
+                class="button secondary"
+                disabled={navigationTracking}
+                onclick={(event) => {
+                  event.stopPropagation();
+                  window.dispatchEvent(
+                    new CustomEvent("wanderwege-center-user-location"),
+                  );
+                  isMenuOpen = false;
+                }}
+              >
+                Mein Standort
+              </button>
             </div>
           {/if}
-          <button
-            type="button"
-            class="button primary"
-            onpointerdown={(event) => {
-              event.stopPropagation();
-              isMenuOpen = false;
-              window.dispatchEvent(
-                new CustomEvent("open-wanderwege-print-options"),
-              );
-            }}
-          >
-            Drucken
-          </button>
+          {#if isWanderwegePage && isTrailFocused}
+            <button
+              type="button"
+              class="button primary"
+              onpointerdown={(event) => {
+                event.stopPropagation();
+                isMenuOpen = false;
+                window.dispatchEvent(
+                  new CustomEvent("open-wanderwege-print-options"),
+                );
+              }}
+            >
+              Drucken
+            </button>
+          {/if}
         {/if}
         {#if user}
           <div class="user-row">
@@ -745,20 +766,81 @@
   .navigation-options label {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.5rem;
     color: var(--accent-text);
     font-size: 0.9rem;
+    line-height: 1.3;
+    cursor: pointer;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .navigation-options label:hover:not(.disabled) {
+    background: var(--accent-surface);
   }
 
   .navigation-options label.disabled {
     color: var(--accent-muted-text);
+    cursor: not-allowed;
   }
 
   .navigation-options input[type="checkbox"] {
-    width: 1rem;
-    height: 1rem;
+    appearance: none;
+    position: relative;
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 1.45rem;
     margin: 0;
-    accent-color: var(--accent-600);
+    border: 1px solid var(--accent-border);
+    border-radius: 999px;
+    background: #e2e8f0;
+    cursor: pointer;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  .navigation-options input[type="checkbox"]::before {
+    content: "";
+    position: absolute;
+    top: 0.15rem;
+    left: 0.15rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+    transition: transform 150ms ease;
+  }
+
+  .navigation-options input[type="checkbox"]:checked {
+    border-color: var(--accent-600);
+    background: var(--accent-600);
+  }
+
+  .navigation-options input[type="checkbox"]:checked::before {
+    transform: translateX(1.05rem);
+  }
+
+  .navigation-options input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent-600);
+    outline-offset: 2px;
+  }
+
+  .navigation-options input[type="checkbox"]:disabled {
+    background: #e2e8f0;
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  .navigation-options input[type="checkbox"]:disabled::before {
+    box-shadow: none;
   }
 
   .header-panel.dropdown .header-actions,
