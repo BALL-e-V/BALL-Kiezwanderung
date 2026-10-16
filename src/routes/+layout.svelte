@@ -596,7 +596,9 @@
       </div>
     {/if}
   </header>
-  <main class="content-area">{@render children()}</main>
+  <main class="content-area" class:trail-making={isTrailMakingPage}>
+    {@render children()}
+  </main>
 </div>
 
 <style>
@@ -959,6 +961,10 @@
   }
 
   @media (max-width: 720px) {
+    .content-area.trail-making {
+      padding-bottom: 0;
+    }
+
     .topbar {
       align-items: center;
     }

@@ -1400,7 +1400,7 @@
       ? focussedTrail.data.reverseDirections
       : focussedTrail.data.directions;
     const directions = selectedDirections?.map(({ instruction }, index) => {
-      if (!showDirectionDistance) return instruction;
+      if (!showDirectionDistance) return instruction.trim();
 
       const distance =
         index === 0
@@ -1415,12 +1415,12 @@
               ),
             );
       return index > 0 || distance > 0
-        ? `nach ${distance} m: ${instruction}`
-        : instruction;
+        ? `nach ${distance} m: ${instruction.trim()}`
+        : instruction.trim();
     }) ?? ["Keine Wegbeschreibung verfügbar."];
     if (displayDirections && selectedDirections) {
       for (
-        let i = 0;
+        let i = 1;
         i < selectedDirections.length / directionsMarkerFrequency;
         i++
       ) {

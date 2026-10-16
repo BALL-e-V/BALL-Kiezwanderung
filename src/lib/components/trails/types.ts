@@ -187,25 +187,6 @@ export interface TrailPoiTooltipProps {
   offsetY?: number;
 }
 
-export type TrailPrintConfig = {
-  descriptionFontSize: number;
-  trailTitleFontSize: number;
-  poiTitleFontSize: number;
-  poiImageArea: number;
-  margins: {
-    mapContent: number;
-    titleDescription: number;
-    contentBlock: number;
-    continuationTitleDescription: number;
-    imageText: number;
-    poiTitle: number;
-    poiDescription: number;
-    imageDescription: number;
-  };
-  startEndSize: number;
-  poiSize: number;
-};
-
 export type InstructionSpan = {
   text: string;
   bold: boolean;

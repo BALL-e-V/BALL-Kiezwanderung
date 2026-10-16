@@ -2142,7 +2142,9 @@
         </div>
       {/if}
     </div>
-
+    <div class="map-footer">
+      <p>{editorial}</p>
+    </div>
     {#if isMobileLayout || isTouchDevice}
       <MobileControls
         {hasGeolocation}
@@ -2153,8 +2155,20 @@
         {insertingWaypoint}
         {loadingTrail}
         hasUnsavedChanges={waitToSave !== null || trailUpdate}
+        trails={listofTrails}
         onAddWaypointGPS={addWaypointAtGPS}
         onAddPoiGPS={addPoiAtGPS}
+        onLoadTrail={(id) => {
+          if (waitToSave) trailToDatabase();
+          trailFromDB(id);
+        }}
+        onNewTrail={() => {
+          if (waitToSave) trailToDatabase();
+          titleModalMode = "trail";
+          titleModalInitial = "Neuer Wanderweg";
+          titleModalOpen = true;
+          newTrail();
+        }}
         onToggleMode={editorSwap}
         onSave={() => {
           if (editing === "trail") {
@@ -2170,10 +2184,6 @@
         }}
       />
     {/if}
-
-    <div class="map-footer">
-      <p>{editorial}</p>
-    </div>
   </div>
 
   <div class="ui-panel">
@@ -2447,24 +2457,34 @@
   }
 
   .map-footer {
-    margin-top: 12px;
+    margin-top: 6px;
+  }
+
+  .map-footer p {
+    margin: 0.5em 0;
   }
 
   @media (max-width: 900px) {
     .alignment {
       flex-direction: column;
+      flex: 1 1 0;
       height: auto;
-      min-height: auto;
+      min-height: 0;
       overflow: visible;
       gap: 12px;
+      position: relative;
     }
 
     .map-column {
-      flex: 0 0 auto;
+      flex: 1 0 0;
       width: 100%;
     }
 
     .ui-panel {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      box-sizing: border-box;
       width: 100%;
       flex-basis: auto;
       max-height: none;
@@ -2472,9 +2492,14 @@
     }
 
     #map {
-      height: min(48vh, 420px);
-      min-height: 280px;
+      flex: 1 1 0;
+      height: auto;
+      min-height: 180px;
       width: 100%;
+    }
+
+    :global(.mobile-controls-bar) {
+      margin-bottom: 0;
     }
   }
   .hidden-file-input {

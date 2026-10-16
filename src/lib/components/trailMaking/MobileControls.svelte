@@ -1,4 +1,15 @@
 <script lang="ts">
+  import TrailListPanel from "./TrailListPanel.svelte";
+
+  type TrailListItem = {
+    id: string;
+    title: string;
+    author: string;
+    created: string;
+    updated?: string;
+    published: boolean;
+  };
+
   interface Props {
     hasGeolocation: boolean;
     isLocating: boolean;
@@ -8,8 +19,11 @@
     insertingWaypoint: boolean;
     loadingTrail: number;
     hasUnsavedChanges: boolean;
+    trails: TrailListItem[];
     onAddWaypointGPS: () => void;
     onAddPoiGPS: () => void;
+    onLoadTrail: (trailId: string) => void;
+    onNewTrail: () => void;
     onToggleMode: () => void;
     onSave: () => void;
     onCancelAction: () => void;
@@ -24,8 +38,11 @@
     insertingWaypoint = false,
     loadingTrail = 0,
     hasUnsavedChanges = false,
+    trails = [],
     onAddWaypointGPS,
     onAddPoiGPS,
+    onLoadTrail,
+    onNewTrail,
     onToggleMode,
     onSave,
     onCancelAction,
@@ -33,7 +50,14 @@
 
   let isAnyActionActive = $derived(makingTrail || creatingPoi || insertingWaypoint);
   let isLoading = $derived(loadingTrail > 0 || isLocating);
+  let isLoadPopupOpen = $state(false);
+
+  function handlePopupKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") isLoadPopupOpen = false;
+  }
 </script>
+
+<svelte:window onkeydown={handlePopupKeydown} />
 
 <div class="mobile-controls-bar">
   {#if isAnyActionActive}
@@ -92,6 +116,24 @@
   <div class="secondary-actions-row">
     <button
       type="button"
+      class="button secondary quick-btn"
+      disabled={isLoading}
+      onclick={() => (isLoadPopupOpen = true)}
+    >
+      📂 Laden
+    </button>
+
+    <button
+      type="button"
+      class="button secondary quick-btn"
+      disabled={isLoading}
+      onclick={onNewTrail}
+    >
+      ＋ Neuer Weg
+    </button>
+
+    <button
+      type="button"
       class="button secondary quick-btn mode-btn"
       disabled={isLoading}
       onpointerdown={onToggleMode}
@@ -113,6 +155,32 @@
     </button>
   </div>
 </div>
+
+{#if isLoadPopupOpen}
+  <div
+    class="load-popup-backdrop"
+    role="presentation"
+    onclick={(event) => {
+      if (event.target === event.currentTarget) isLoadPopupOpen = false;
+    }}
+  >
+    <dialog
+      open
+      class="load-popup"
+      aria-labelledby="load-popup-title"
+    >
+      <h2 id="load-popup-title">Wanderweg laden</h2>
+      <TrailListPanel
+        {trails}
+        onSelect={(trail) => {
+          isLoadPopupOpen = false;
+          onLoadTrail(trail.id);
+        }}
+        onClose={() => (isLoadPopupOpen = false)}
+      />
+    </dialog>
+  </div>
+{/if}
 
 <style>
   .mobile-controls-bar {
@@ -250,6 +318,39 @@
     font-size: 0.88rem;
     white-space: nowrap;
     text-align: center;
+  }
+
+  .load-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 6000;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  .load-popup {
+    position: relative;
+    inset: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(44rem, 100%);
+    max-height: min(85vh, 48rem);
+    margin: 0;
+    overflow: auto;
+    padding: 1rem;
+    border: 1px solid var(--accent-border, #cbd5e1);
+    border-radius: 1rem;
+    background: var(--accent-surface, #fff);
+    box-shadow: 0 1rem 3rem rgba(15, 23, 42, 0.28);
+  }
+
+  .load-popup h2 {
+    margin: 0;
+    color: var(--accent-900, #312e81);
+    font-size: 1.15rem;
   }
 
   @keyframes slideDown {
