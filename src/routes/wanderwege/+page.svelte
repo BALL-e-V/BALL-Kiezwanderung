@@ -40,6 +40,7 @@
     mapToHikingTrail,
   } from "./dataStructuringFunctions";
   import { wanderwegeConfig } from "$lib/config";
+  import { getGPSLocation, type GPSCoordinates } from "$lib/navigation";
   import { onMount, tick } from "svelte";
 
   const {
@@ -140,13 +141,10 @@
   let navigationDistancesEnabled = $state(false);
   let navigationTrackingEnabled = $state(false);
   let navigationCurrentIndex = $state(0);
-  let navigationLocation = $state<LatLng | null>(null);
   let navigationError = $state("");
   let isGettingLocation = $state(false);
   let navigationErrorTimer: ReturnType<typeof setTimeout> | null = null;
-  let navigationWatchId: number | null = null;
   let navigationMarker: Marker | null = null;
-  let navigationWasNearDirection = false;
   let navigationLastPoiId = "";
   let currentDirectionMarker: Marker = new Marker([0, 0], {
     icon: crossmaker({ color: "black", size: 1 }),
@@ -160,6 +158,15 @@
         : focussedTrail.data.directions) ?? []
     );
   });
+  const currentNavigationDirection = $derived.by(
+    () => {
+      const direction = navigationDirections[navigationCurrentIndex];
+      if (navigationInstructionsEnabled && direction) {
+        currentDirectionMarker.setLatLng(direction.location);
+      }
+      return direction;
+    },
+  );
 
   //count of trails that have been displayed for color selection
   let isPrinting = $state(false);
@@ -811,7 +818,6 @@
     } else {
       if (focussedTrail?.data.id !== trail.data.id) {
         navigationCurrentIndex = 0;
-        navigationWasNearDirection = false;
         navigationLastPoiId = "";
       }
       focussedTrail = trail;
@@ -857,7 +863,6 @@
   //can walk the other direction
   function reverseTrail(trail: FilteredTrail) {
     navigationCurrentIndex = 0;
-    navigationWasNearDirection = false;
     // Reverse the POIs for this trail
     const pois = poisByTrailId.get(trail.data.id);
     if (pois) {
@@ -1024,37 +1029,18 @@
     }, 5000);
   }
 
-  function navigationDistance(index: number): number | null {
-    const direction = navigationDirections[index];
-    if (!direction || !focussedTrail) return null;
-
-    if (navigationTrackingEnabled && navigationLocation) {
-      return Math.round(navigationLocation.distanceTo(direction.location));
-    }
-
-    return Math.round(
-      index === 0
-        ? focussedTrail.data.start.distanceTo(direction.location)
-        : navigationDirections[index - 1].location.distanceTo(
-            direction.location,
-          ),
-    );
-  }
-
   function stopNavigationTracking() {
-    if (navigationWatchId !== null) {
-      navigator.geolocation.clearWatch(navigationWatchId);
-      navigationWatchId = null;
-    }
     navigationMarker?.remove();
     navigationMarker = null;
-    navigationLocation = null;
-    navigationWasNearDirection = false;
     navigationLastPoiId = "";
   }
 
-  function updateNavigationMarker(location: LatLng) {
-    navigationLocation = location;
+  function updateNavigationMarker(location: LatLng | null) {
+    if (!location) {
+      navigationMarker?.remove();
+      navigationMarker = null;
+      return;
+    }
     if (!navigationMarker) {
       navigationMarker = new Marker(location, {
         icon: userLocationIcon(),
@@ -1065,158 +1051,71 @@
     }
   }
 
+  function handleTrackedNavigationLocation(location: GPSCoordinates | null) {
+    const latLng = location ? new LatLng(location.lat, location.lng) : null;
+    updateNavigationMarker(latLng);
+    if (!latLng || !focussedTrail) return;
+
+    const trailPois = poisByTrailId.get(focussedTrail.data.id) ?? [];
+    let closestPoi: pointOfInterest | null = null;
+    let closestPoiDistance = Number.POSITIVE_INFINITY;
+    for (const poi of trailPois) {
+      const distance = latLng.distanceTo(poi.marker.getLatLng());
+      if (distance < closestPoiDistance) {
+        closestPoi = poi;
+        closestPoiDistance = distance;
+      }
+    }
+
+    if (closestPoi && closestPoiDistance <= 50) {
+      if (closestPoi.id !== navigationLastPoiId) {
+        navigationLastPoiId = closestPoi.id;
+        popupSwitch({ poi: closestPoi });
+      }
+    } else {
+      navigationLastPoiId = "";
+    }
+  }
+
   function locateUserOnce() {
     if (navigationTrackingEnabled || isGettingLocation) return;
-    if (!("geolocation" in navigator)) {
-      showNavigationError("Dieses Gerät unterstützt keine Standortermittlung.");
-      return;
-    }
-
     isGettingLocation = true;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        isGettingLocation = false;
-        const location = new LatLng(
-          position.coords.latitude,
-          position.coords.longitude,
-        );
+    getGPSLocation()
+      .then(({ lat, lng }) => {
+        const location = new LatLng(lat, lng);
         updateNavigationMarker(location);
         map.setView(location, Math.max(map.getZoom(), 16));
-      },
-      (error) => {
-        isGettingLocation = false;
+      })
+      .catch((error: unknown) => {
         showNavigationError(
-          `Standort konnte nicht ermittelt werden: ${error.message}`,
+          error instanceof Error &&
+            error.message === "Geolocation is not supported"
+            ? "Dieses Gerät unterstützt keine Standortermittlung."
+            : `Standort konnte nicht ermittelt werden: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
         );
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
-    );
-  }
-
-  function handleNavigationPosition(position: GeolocationPosition) {
-    if (!navigationTrackingEnabled) return;
-
-    const location = new LatLng(
-      position.coords.latitude,
-      position.coords.longitude,
-    );
-    updateNavigationMarker(location);
-
-    if (focussedTrail) {
-      let closestDirectionIndex = -1;
-      let closestDirectionDistance = Number.POSITIVE_INFINITY;
-      navigationDirections.forEach((direction, index) => {
-        const distance = location.distanceTo(direction.location);
-        if (distance < closestDirectionDistance) {
-          closestDirectionDistance = distance;
-          closestDirectionIndex = index;
-        }
+      })
+      .finally(() => {
+        isGettingLocation = false;
       });
-
-      if (closestDirectionDistance <= 20) {
-        navigationCurrentIndex = closestDirectionIndex;
-        navigationWasNearDirection = true;
-        currentDirectionMarker.setLatLng(
-          navigationDirections[navigationCurrentIndex].location,
-        );
-      } else if (navigationWasNearDirection) {
-        navigationCurrentIndex = Math.min(
-          navigationCurrentIndex + 1,
-          Math.max(0, navigationDirections.length - 1),
-        );
-        navigationWasNearDirection = false;
-        currentDirectionMarker.setLatLng(
-          navigationDirections[navigationCurrentIndex].location,
-        );
-      }
-      const trailPois = poisByTrailId.get(focussedTrail.data.id) ?? [];
-      let closestPoi: pointOfInterest | null = null;
-      let closestPoiDistance = Number.POSITIVE_INFINITY;
-      for (const poi of trailPois) {
-        const distance = location.distanceTo(poi.marker.getLatLng());
-        if (distance < closestPoiDistance) {
-          closestPoi = poi;
-          closestPoiDistance = distance;
-        }
-      }
-
-      if (closestPoi && closestPoiDistance <= 50) {
-        if (closestPoi.id !== navigationLastPoiId) {
-          navigationLastPoiId = closestPoi.id;
-          popupSwitch({ poi: closestPoi });
-        }
-      } else {
-        navigationLastPoiId = "";
-      }
-    }
-  }
-
-  function handleNavigationPositionError(error: GeolocationPositionError) {
-    if (!navigationTrackingEnabled) return;
-
-    showNavigationError(
-      `Standort konnte nicht ermittelt werden: ${error.message}`,
-    );
-    navigationTrackingEnabled = false;
-    stopNavigationTracking();
-    window.dispatchEvent(
-      new CustomEvent("wanderwege-navigation-tracking-state", {
-        detail: false,
-      }),
-    );
-  }
-
-  function startNavigationTracking() {
-    clearNavigationError();
-    if (!("geolocation" in navigator)) {
-      showNavigationError("Dieses Gerät unterstützt keine Standortermittlung.");
-      navigationTrackingEnabled = false;
-      window.dispatchEvent(
-        new CustomEvent("wanderwege-navigation-tracking-state", {
-          detail: false,
-        }),
-      );
-      return;
-    }
-
-    navigationWatchId = navigator.geolocation.watchPosition(
-      handleNavigationPosition,
-      handleNavigationPositionError,
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
-    );
   }
 
   function handleNavigationSettings(event: Event) {
     const settings = (event as CustomEvent<NavigationSettings>).detail;
-    const wasTracking = navigationTrackingEnabled;
     navigationInstructionsEnabled = settings.instructions;
     navigationDistancesEnabled = settings.distances;
     navigationTrackingEnabled = settings.tracking;
     if (navigationInstructionsEnabled) {
-      currentDirectionMarker
-        ?.addTo(map)
-        .setLatLng(navigationDirections[navigationCurrentIndex].location);
+      currentDirectionMarker.addTo(map);
     } else {
       currentDirectionMarker?.remove();
     }
-
-    if (settings.tracking && !wasTracking) {
-      startNavigationTracking();
-    } else if (!settings.tracking && wasTracking) {
+    if (!settings.tracking) {
       clearNavigationError();
-      stopNavigationTracking();
+      updateNavigationMarker(null);
+      navigationLastPoiId = "";
     }
-  }
-
-  function changeNavigationIndex(index: number) {
-    navigationCurrentIndex = Math.max(
-      0,
-      Math.min(index, navigationDirections.length - 1),
-    );
-    navigationWasNearDirection = false;
-    currentDirectionMarker.setLatLng(
-      navigationDirections[navigationCurrentIndex].location,
-    );
   }
 
   function highlightImageMarker(index: number, previous?: number) {
@@ -1685,16 +1584,27 @@
           />
         </div>
       {/if}
-      {#if focussedTrail && navigationInstructionsEnabled}
+      {#if focussedTrail}
         <NavigationPanel
           directions={navigationDirections}
-          currentIndex={navigationCurrentIndex}
+          currentDirection={currentNavigationDirection}
+          bind:currentIndex={navigationCurrentIndex}
           distancesEnabled={navigationDistancesEnabled}
           trackingEnabled={navigationTrackingEnabled}
+          instructionsEnabled={navigationInstructionsEnabled}
           error={navigationError}
           {mobileTooltipHeight}
-          distanceForDirection={navigationDistance}
-          onIndexChange={changeNavigationIndex}
+          trailStart={focussedTrail.data.start}
+          onLocationUpdate={handleTrackedNavigationLocation}
+          onTrackingError={(message) => {
+            showNavigationError(message);
+            navigationTrackingEnabled = false;
+            window.dispatchEvent(
+              new CustomEvent("wanderwege-navigation-tracking-state", {
+                detail: false,
+              }),
+            );
+          }}
         />
       {/if}
       {#if focussedTrail && navigationError && !navigationInstructionsEnabled}

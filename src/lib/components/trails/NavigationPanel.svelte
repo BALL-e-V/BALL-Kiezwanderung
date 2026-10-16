@@ -1,18 +1,125 @@
 <script lang="ts">
-  import type { NavigationPanelProps } from "./types";
+  import { onMount } from "svelte";
+  import { LatLng } from "leaflet";
+  import {
+    advanceDirectionIndex,
+    closestDirectionIndex,
+    startGPSLocationTracking,
+    stopGPSLocationTracking,
+  } from "$lib/navigation";
+  import type { NavigationPanelProps, NavigationSettings } from "./types";
 
   let {
     directions,
-    currentIndex,
+    currentDirection,
+    currentIndex = $bindable(0),
     distancesEnabled,
     trackingEnabled,
+    instructionsEnabled,
     error,
     mobileTooltipHeight,
-    distanceForDirection,
-    onIndexChange,
+    trailStart,
+    onLocationUpdate,
+    onTrackingError,
   }: NavigationPanelProps = $props();
+
+  let currentLocation = $state<LatLng | null>(null);
+  let wasNearDirection = false;
+  let watchId: number | null = null;
+
+  function distanceForDirection(index: number): number | null {
+    const direction = directions[index];
+    if (!direction) return null;
+    return Math.round(
+      trackingEnabled && currentLocation
+        ? currentLocation.distanceTo(direction.location)
+        : (index === 0
+            ? trailStart
+            : directions[index - 1].location
+          ).distanceTo(direction.location),
+    );
+  }
+
+  function changeIndex(index: number) {
+    currentIndex = Math.max(0, Math.min(index, directions.length - 1));
+    wasNearDirection = false;
+  }
+
+  function stopTracking() {
+    stopGPSLocationTracking(watchId);
+    watchId = null;
+    currentLocation = null;
+    wasNearDirection = false;
+    onLocationUpdate(null);
+  }
+
+  function startTracking() {
+    if (watchId !== null) return;
+    wasNearDirection = false;
+    try {
+      watchId = startGPSLocationTracking(
+        ({ lat, lng }) => {
+          const location = new LatLng(lat, lng);
+          currentLocation = location;
+          onLocationUpdate({ lat, lng });
+
+          const closest = closestDirectionIndex(location, directions);
+          if (!closest) return;
+          const next = advanceDirectionIndex(
+            closest.distance,
+            closest.index,
+            currentIndex,
+            wasNearDirection,
+            directions.length,
+          );
+          if (next) {
+            currentIndex = next.index;
+            wasNearDirection = next.wasNearDirection;
+          }
+        },
+        (positionError) => {
+          stopTracking();
+          onTrackingError(
+            `Standort konnte nicht ermittelt werden: ${positionError.message}`,
+          );
+        },
+      );
+    } catch (trackingError) {
+      onTrackingError(
+        trackingError instanceof Error
+          ? trackingError.message
+          : "GPS-Standort konnte nicht verfolgt werden",
+      );
+    }
+  }
+
+  onMount(() => {
+    const handleNavigationSettings = (event: Event) => {
+      const settings = (event as CustomEvent<NavigationSettings>).detail;
+      if (settings.tracking) {
+        startTracking();
+      } else {
+        stopTracking();
+      }
+    };
+
+    window.addEventListener(
+      "wanderwege-navigation-settings",
+      handleNavigationSettings,
+    );
+    if (trackingEnabled) startTracking();
+
+    return () => {
+      window.removeEventListener(
+        "wanderwege-navigation-settings",
+        handleNavigationSettings,
+      );
+      stopTracking();
+    };
+  });
 </script>
 
+{#if instructionsEnabled}
 <section
   class="navigation-panel"
   aria-label="Wegbeschreibung"
@@ -35,7 +142,9 @@
     <div class="navigation-instructions">
       {#each [-1, 0, 1] as offset (offset)}
         {@const directionIndex = currentIndex + offset}
-        {#if directions[directionIndex]}
+        {@const direction =
+          offset === 0 ? currentDirection : directions[directionIndex]}
+        {#if direction}
           <article class="navigation-instruction" class:current={offset === 0}>
             <div class="navigation-instruction-heading">
               <strong>
@@ -62,7 +171,7 @@
                 </span>
               {/if}
             {/if}
-            <p>{directions[directionIndex].instruction}</p>
+            <p>{direction.instruction}</p>
             {#if offset === -1}
               <button
                 type="button"
@@ -72,7 +181,7 @@
                 disabled={currentIndex === 0}
                 onpointerdown={(event) => {
                   event.stopPropagation();
-                  onIndexChange(currentIndex - 1);
+                  changeIndex(currentIndex - 1);
                 }}
               >
                 ↑
@@ -86,7 +195,7 @@
                 disabled={currentIndex >= directions.length - 1}
                 onpointerdown={(event) => {
                   event.stopPropagation();
-                  onIndexChange(currentIndex + 1);
+                  changeIndex(currentIndex + 1);
                 }}
               >
                 ↓
@@ -98,6 +207,7 @@
     </div>
   {/if}
 </section>
+{/if}
 
 <style>
   .navigation-panel {

@@ -37,6 +37,11 @@
     saveTrail,
   } from "./trailDB.remote";
   import { pointOfInterest } from "$lib/pointOfInterest.svelte";
+  import {
+    createGPSLocationTracker,
+    getGPSLocation,
+    type GPSCoordinates,
+  } from "$lib/navigation";
   const {
     colors,
     sizes,
@@ -130,9 +135,7 @@
   let hasCamera = $state(true);
   let isLocating = $state(false);
   let isTrackingLocation = $state(false);
-  let userLocation = $state<{ lat: number; lng: number } | null>(null);
   let userLocationMarker: Marker | null = null;
-  let locationWatchId: number | null = null;
 
   // Title modal state for mobile
   let titleModalOpen = $state(false);
@@ -419,82 +422,33 @@
     }
   }
 
-  function handleTrackedPosition(position: GeolocationPosition) {
-    if (!isTrackingLocation) return;
-    const { latitude: lat, longitude: lng } = position.coords;
-    userLocation = { lat, lng };
-    updateUserLocationMarker(lat, lng);
-    map.panTo([lat, lng]);
-  }
-
-  function stopLocationTracking() {
-    if (locationWatchId !== null) {
-      if (typeof navigator !== "undefined" && "geolocation" in navigator) {
-        navigator.geolocation.clearWatch(locationWatchId);
-      }
-      locationWatchId = null;
-    }
-    isTrackingLocation = false;
-  }
-
-  function setLocationTracking(shouldTrack: boolean) {
-    if (!shouldTrack) {
-      stopLocationTracking();
-      return;
-    }
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      showFailureTooltip("Geolocation wird nicht unterstützt");
+  const locationTracker = createGPSLocationTracker({
+    onLocation: ({ lat, lng }: GPSCoordinates) => {
+      if (!isTrackingLocation) return;
+      updateUserLocationMarker(lat, lng);
+      map.panTo([lat, lng]);
+    },
+    onError: (error) => {
+      console.error("GPS tracking error:", error);
+      showFailureTooltip(
+        error.message === "Geolocation is not supported"
+          ? "Geolocation wird nicht unterstützt"
+          : "GPS-Standort konnte nicht verfolgt werden",
+      );
       window.dispatchEvent(
         new CustomEvent("wanderwege-navigation-tracking-state", {
           detail: false,
         }),
       );
-      return;
-    }
-
-    isTrackingLocation = true;
-    try {
-      locationWatchId = navigator.geolocation.watchPosition(
-        handleTrackedPosition,
-        (error) => {
-          stopLocationTracking();
-          console.error("GPS tracking error:", error);
-          showFailureTooltip("GPS-Standort konnte nicht verfolgt werden");
-          window.dispatchEvent(
-            new CustomEvent("wanderwege-navigation-tracking-state", {
-              detail: false,
-            }),
-          );
-        },
-        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
-      );
-    } catch (error) {
-      stopLocationTracking();
-      console.error("Could not start GPS tracking:", error);
-      showFailureTooltip("GPS-Standort konnte nicht verfolgt werden");
-      window.dispatchEvent(
-        new CustomEvent("wanderwege-navigation-tracking-state", {
-          detail: false,
-        }),
-      );
-    }
-  }
-
-  function toggleLocationTracking() {
-    const nextTrackingState = !isTrackingLocation;
-    setLocationTracking(nextTrackingState);
-    window.dispatchEvent(
-      new CustomEvent("wanderwege-navigation-tracking-state", {
-        detail: nextTrackingState && isTrackingLocation,
-      }),
-    );
-  }
+    },
+    onTrackingChange: (tracking) => {
+      isTrackingLocation = tracking;
+    },
+  });
 
   function handleEditorNavigationSettings(event: Event) {
     const settings = (event as CustomEvent<{ tracking: boolean }>).detail;
-    if (settings.tracking !== isTrackingLocation) {
-      setLocationTracking(settings.tracking);
-    }
+    locationTracker.setTracking(settings.tracking);
   }
 
   async function locateUserOnce() {
@@ -509,33 +463,24 @@
   }
 
   function getUserGPSLocation(): Promise<{ lat: number; lng: number }> {
-    return new Promise((resolve, reject) => {
-      if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-        showFailureTooltip("Geolocation wird nicht unterstützt");
-        reject(new Error("Geolocation not supported"));
-        return;
-      }
-      isLocating = true;
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          isLocating = false;
-          const coords = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          };
-          userLocation = coords;
-          updateUserLocationMarker(coords.lat, coords.lng);
-          resolve(coords);
-        },
-        (err) => {
-          isLocating = false;
-          console.error("GPS error:", err);
-          showFailureTooltip("GPS-Standort konnte nicht ermittelt werden");
-          reject(err);
-        },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-      );
-    });
+    isLocating = true;
+    return getGPSLocation()
+      .then((coords) => {
+        updateUserLocationMarker(coords.lat, coords.lng);
+        return coords;
+      })
+      .catch((error: unknown) => {
+        console.error("GPS error:", error);
+        showFailureTooltip(
+          error instanceof Error && error.message === "Geolocation is not supported"
+            ? "Geolocation wird nicht unterstützt"
+            : "GPS-Standort konnte nicht ermittelt werden",
+        );
+        throw error;
+      })
+      .finally(() => {
+        isLocating = false;
+      });
   }
 
   async function addWaypointAtGPS() {
@@ -2061,7 +2006,7 @@
   });
 
   onDestroy(() => {
-    stopLocationTracking();
+    locationTracker.stop();
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("wanderwege-navigation-tracking-state", {

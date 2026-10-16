@@ -1,4 +1,5 @@
 import type { LatLng, LatLngBounds, Marker, Polyline } from "leaflet";
+import type { GPSCoordinates } from "$lib/navigation";
 
 export type TrailDirections = { location: LatLng; instruction: string }[];
 
@@ -95,14 +96,17 @@ export interface PageNavigationProps {
 }
 
 export interface NavigationPanelProps {
-  directions: { instruction: string }[];
-  currentIndex: number;
+  directions: TrailDirections;
+  currentDirection: TrailDirections[number] | undefined;
+  currentIndex?: number;
   distancesEnabled: boolean;
   trackingEnabled: boolean;
+  instructionsEnabled: boolean;
   error: string;
   mobileTooltipHeight: number;
-  distanceForDirection: (index: number) => number | null;
-  onIndexChange: (index: number) => void;
+  trailStart: LatLng;
+  onLocationUpdate: (location: GPSCoordinates | null) => void;
+  onTrackingError: (error: string) => void;
 }
 
 export interface RightClickMenuProps {
