@@ -1,15 +1,12 @@
 <script lang="ts">
   import "leaflet/dist/leaflet.css";
-  import { printTrail } from "./printTrail";
   import { initialLoadTrails, getTrailData } from "./loadTrails.remote";
   import {
     Map as LeafletMap,
     TileLayer,
-    Polyline,
     LatLngBounds,
     LatLng,
     Marker,
-    CRS,
   } from "leaflet";
   import TrailPoiTooltip from "$lib/components/trails/TrailPoiTooltip.svelte";
   import TrailPoiPopup from "$lib/components/trails/TrailPoiPopup.svelte";
@@ -18,7 +15,7 @@
   import SearchInterface from "$lib/components/trails/SearchInterface.svelte";
   import PageNavigation from "$lib/components/trails/PageNavigation.svelte";
   import NavigationPanel from "$lib/components/trails/NavigationPanel.svelte";
-  import PrintOptions from "$lib/components/trails/PrintOptions.svelte";
+  import Print from "$lib/components/trails/Print.svelte";
   import TrailDisplay from "$lib/components/trails/TrailDisplay.svelte";
   import ImageGalery from "$lib/components/trails/ImageGalery.svelte";
   import type {
@@ -42,6 +39,7 @@
   import { wanderwegeConfig } from "$lib/config";
   import { getGPSLocation, type GPSCoordinates } from "$lib/navigation";
   import { onMount, tick } from "svelte";
+  import { getDeviceCategory } from "$lib/deviceDetection";
 
   const {
     colors,
@@ -51,7 +49,6 @@
     addPadding,
     trailLengthAccuracy,
     longTapDelay,
-    print: printConfig,
   } = wanderwegeConfig;
 
   let map: LeafletMap;
@@ -167,32 +164,16 @@
   });
 
   //count of trails that have been displayed for color selection
-  let isPrinting = $state(false);
-  //covering the map to stop interaction during loading
   let mapCover: HTMLElement;
-  let printMapElement: HTMLDivElement;
-  let printMap: LeafletMap;
+  type PrintComponent = {
+    configurePrintMap: (trail: FilteredTrail) => void;
+  };
+  let printComponent = $state<PrintComponent | null>(null);
   //bounds of the map display for the print function to be optimized to show the trail with best space usage
   let printMapBounds = $state<LatLngBounds | null>(null);
-  //bounds of the trail to adapt the mapsize and page config
-  let trailBoundsRatio: number;
-  //start finish and poi
-  let printMapMarkers: Marker[] = [];
-  //crosses to mark where to follow an instruction
-  let directionMarkers: Marker[] = [];
-  let printHikingTrail: Polyline;
-  let descriptionFontSize = $state(printConfig.descriptionFontSize);
-  let poiImageSize = $state<"small" | "large">("small");
-  let poiImageArea = $derived(
-    printConfig.poiImageArea * (poiImageSize === "large" ? 1.5 : 1),
-  );
-  let displayDirections = $state(false);
-  let onlyDirections = $state(false);
-  let showDirectionDistance = $state(false);
-  let markDirections = $state(true);
-  let directionsMarkerFrequency = $state<number>(5);
-  let directionMarkerSize = $state("1.5");
-  let printOptionsVisible = $state(false);
+  let deviceCategory = $state<"mobile" | "desktop" | "other">("other");
+  const isMobileDevice = $derived(deviceCategory === "mobile");
+  const isDesktopDevice = $derived(deviceCategory === "desktop");
 
   function trailColor(i: number) {
     return colors.trailPalette[i % colors.trailPalette.length];
@@ -821,7 +802,6 @@
     if (onOff == "off") {
       poiTitles = [];
       stopNavigationTracking();
-      printOptionsVisible = false;
       focussedTrail = null as any;
       if (popupVisible) {
         popupVisible = false;
@@ -1210,224 +1190,9 @@
     }
   }
 
-  function createPrintMap() {
-    printMap = new LeafletMap(printMapElement, { zoomControl: false }).setView(
-      initialMapCoordinates,
-      initialMapZoom,
-    );
-    const tiles = new TileLayer(
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png?b",
-
-      {
-        maxZoom: 19,
-        attribution:
-          '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      },
-    ).addTo(printMap);
-    printHikingTrail = new Polyline([]).addTo(printMap);
-  }
-
   function configurePrintMap(trail: FilteredTrail) {
-    printMapBounds = new LatLngBounds(
-      trail.data.bounds.getSouthWest(),
-      new LatLng(
-        (trail.data.bounds.getNorth() as number) +
-          (trail.data.bounds.getNorth() - trail.data.bounds.getSouth()) * 0.05,
-        trail.data.bounds.getEast(),
-      ),
-    );
-
-    let modelingZoom = 13;
-    let width =
-      CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
-        .x -
-      CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthWest(), modelingZoom).x;
-    let height =
-      CRS.EPSG3857.latLngToPoint(printMapBounds.getSouthEast(), modelingZoom)
-        .y -
-      CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom).y;
-    trailBoundsRatio = width / height;
-
-    const pixelsPerMm = 200 / 25.4;
-    let printWidthMm = 100;
-    let printHeightMm = 287;
-
-    if (trailBoundsRatio < 0.3) {
-      printWidthMm = 100;
-      printHeightMm = 287;
-    } else if (trailBoundsRatio < 1) {
-      printWidthMm = 140;
-      printHeightMm = 185;
-    } else if (trailBoundsRatio < 3) {
-      printWidthMm = 185;
-      printHeightMm = 140;
-    } else {
-      printWidthMm = 287;
-      printHeightMm = 100;
-    }
-
-    while (
-      printWidthMm * pixelsPerMm > (2 ^ 0.5) * width &&
-      printHeightMm * pixelsPerMm > (2 ^ 0.5) * height
-    ) {
-      modelingZoom++;
-      width =
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
-          .x -
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthWest(), modelingZoom)
-          .x;
-      height =
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getSouthEast(), modelingZoom)
-          .y -
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
-          .y;
-    }
-    while (
-      (2 ^ 0.5) * printWidthMm * pixelsPerMm < width &&
-      (2 ^ 0.5) * printHeightMm * pixelsPerMm < height
-    ) {
-      modelingZoom--;
-      width =
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
-          .x -
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthWest(), modelingZoom)
-          .x;
-      height =
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getSouthEast(), modelingZoom)
-          .y -
-        CRS.EPSG3857.latLngToPoint(printMapBounds.getNorthEast(), modelingZoom)
-          .y;
-    }
-
-    if (trailBoundsRatio > printWidthMm / printHeightMm) {
-      height = Math.round((width / (printWidthMm / printHeightMm)) * 1.01);
-      width = Math.round(width * 1.01);
-    } else {
-      width = Math.round(height * (printWidthMm / printHeightMm));
-      height = Math.round(height);
-    }
-
-    printHikingTrail
-      .setLatLngs(trail.data.trail)
-      .setStyle({ color: trail.color, weight: 3 });
-
-    printMapElement.style.width = `${width}px`;
-    printMapElement.style.height = `${height}px`;
-    printMap?.invalidateSize();
-    printMap?.fitBounds(printMapBounds);
-    printMapMarkers.forEach((m) => {
-      m.remove();
-      m = null as any;
-    });
-    printMapMarkers = [];
-    printMapMarkers.push(
-      new Marker(trail.data.start)
-        .setIcon(
-          iconmaker({ size: printConfig.startEndSize, color: colors.trailEnd }),
-        )
-        .addTo(printMap),
-    );
-    poisByTrailId.get(trail.data.id)?.forEach((p, i) =>
-      printMapMarkers.push(
-        new Marker({ lat: p.lat, lng: p.lng })
-          .setIcon(
-            iconmaker({
-              size: printConfig.poiSize,
-              color: colors.poi,
-              number: i + 1,
-            }),
-          )
-          .addTo(printMap),
-      ),
-    );
-    printMapMarkers.push(
-      new Marker(trail.data.end)
-        .setIcon(
-          iconmaker({
-            size: printConfig.startEndSize,
-            color: colors.trailStart,
-          }),
-        )
-        .addTo(printMap),
-    );
-  }
-
-  async function printTrailWrapper() {
-    if (isPrinting || !focussedTrail || !printMapElement) return;
-    isPrinting = true;
-    directionMarkers.forEach((m) => {
-      m.remove();
-      m = null as any;
-    });
-    directionMarkers = [];
-    const selectedDirections = focussedTrail.reversed
-      ? focussedTrail.data.reverseDirections
-      : focussedTrail.data.directions;
-    const directions = selectedDirections?.map(({ instruction }, index) => {
-      if (!showDirectionDistance) return instruction.trim();
-
-      const distance =
-        index === 0
-          ? Math.round(
-              focussedTrail.data.start.distanceTo(
-                selectedDirections[index].location,
-              ),
-            )
-          : Math.round(
-              selectedDirections[index - 1].location.distanceTo(
-                selectedDirections[index].location,
-              ),
-            );
-      return index > 0 || distance > 0
-        ? `nach ${distance} m: ${instruction.trim()}`
-        : instruction.trim();
-    }) ?? ["Keine Wegbeschreibung verfügbar."];
-    if (displayDirections && selectedDirections) {
-      for (
-        let i = 1;
-        i < selectedDirections.length / directionsMarkerFrequency;
-        i++
-      ) {
-        directionMarkers.push(
-          new Marker(selectedDirections[directionsMarkerFrequency * i].location)
-            .addTo(printMap)
-            .setIcon(
-              crossmaker({
-                size: Number(directionMarkerSize),
-                color: "black",
-              }),
-            ),
-        );
-      }
-    }
-    if (onlyDirections) {
-      printMapMarkers.forEach((m) => m.removeFrom(printMap));
-    }
-
-    try {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      await printTrail({
-        printMapElement,
-        focussedTrail,
-        directions,
-        trailBoundsRatio,
-        poisByTrailId,
-        descriptionFontSize,
-        poiImageArea,
-        displayDirections,
-        onlyDirections,
-        directionsMarkerFrequency: markDirections
-          ? Math.min(20, Math.max(1, directionsMarkerFrequency ?? 1))
-          : 0,
-      });
-    } finally {
-      isPrinting = false;
-    }
-    if (onlyDirections) {
-      printMapMarkers.forEach((m) => m.addTo(printMap));
-    }
+    if (!isDesktopDevice) return;
+    printComponent?.configurePrintMap(trail);
   }
 
   function createMap(element: any) {
@@ -1474,7 +1239,7 @@
   }
 
   onMount(() => {
-    createPrintMap();
+    deviceCategory = getDeviceCategory(navigator.userAgent);
     const toggleSearch = () => {
       searchVisible = !searchVisible;
     };
@@ -1482,9 +1247,6 @@
       const query = (event as CustomEvent<string>).detail;
       wanderwegeSearchQuery = query;
       applyQuickSearch(query);
-    };
-    const openPrintOptions = () => {
-      if (focussedTrail) printOptionsVisible = true;
     };
     const handleCenterUserLocation = () => locateUserOnce();
 
@@ -1496,7 +1258,6 @@
     };
     window.addEventListener("toggle-wanderwege-search", toggleSearch);
     window.addEventListener("wanderwege-global-search", handleGlobalSearch);
-    window.addEventListener("open-wanderwege-print-options", openPrintOptions);
     window.addEventListener(
       "wanderwege-center-user-location",
       handleCenterUserLocation,
@@ -1521,10 +1282,6 @@
         handleGlobalSearch,
       );
       window.removeEventListener(
-        "open-wanderwege-print-options",
-        openPrintOptions,
-      );
-      window.removeEventListener(
         "wanderwege-center-user-location",
         handleCenterUserLocation,
       );
@@ -1540,9 +1297,14 @@
   });
 </script>
 
-<div class="print-map-shell" aria-hidden="true">
-  <div id="printMap" bind:this={printMapElement}></div>
-</div>
+{#if isDesktopDevice}
+  <Print
+    bind:this={printComponent}
+    {focussedTrail}
+    {poisByTrailId}
+    onBoundsChange={(bounds) => (printMapBounds = bounds)}
+  />
+{/if}
 
 <div class="alignment">
   <div class="viewport-shell">
@@ -1649,7 +1411,7 @@
           />
         </div>
       {/if}
-      {#if focussedTrail}
+      {#if isMobileDevice && focussedTrail}
         <NavigationPanel
           directions={navigationDirections}
           currentDirection={currentNavigationDirection}
@@ -1713,40 +1475,7 @@
     {/if}
   </div>
 </div>
-{#if focussedTrail && printOptionsVisible}
-  <PrintOptions
-    bind:descriptionFontSize
-    bind:poiImageSize
-    bind:displayDirections
-    bind:showDirectionDistance
-    bind:onlyDirections
-    bind:markDirections
-    bind:directionsMarkerFrequency
-    bind:directionMarkerSize
-    {isPrinting}
-    onClose={() => (printOptionsVisible = false)}
-    onPrint={printTrailWrapper}
-  />
-{/if}
-
 <style>
-  .print-map-shell {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 0;
-    height: 0;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: -1;
-  }
-
-  #printMap {
-    width: 1000px;
-    height: 1000px;
-    visibility: hidden;
-  }
-
   .map-container {
     position: absolute;
     inset: 0;

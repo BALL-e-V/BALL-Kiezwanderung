@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { wanderwegeConfig } from "$lib/config";
-import type { TrailPrintContext } from "$lib/components/trails/types";
+import type { TrailPrintContext } from "../types";
 
 const { print: printConfig } = wanderwegeConfig;
 

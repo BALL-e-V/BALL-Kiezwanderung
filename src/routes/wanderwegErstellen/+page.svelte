@@ -56,6 +56,7 @@
   import Legend from "$lib/components/trailMaking/Legend.svelte";
   import MobileControls from "$lib/components/trailMaking/MobileControls.svelte";
   import TitleModal from "$lib/components/trailMaking/TitleModal.svelte";
+  import { isMobileDevice as detectMobileDevice } from "$lib/deviceDetection";
 
   //leaflet map and the dom element
   let map: LeafletMap;
@@ -131,6 +132,7 @@
   // Mobile, Geolocation, and Camera State
   let isTouchDevice = $state(false);
   let isMobileLayout = $state(false);
+  let isMobileDevice = $state(false);
   let hasGeolocation = $state(false);
   let hasCamera = $state(true);
   let isLocating = $state(false);
@@ -2068,6 +2070,7 @@
       const syncMedia = () => {
         isMobileLayout = mobileQuery.matches;
         isTouchDevice = touchQuery.matches || navigator.maxTouchPoints > 0;
+        isMobileDevice = detectMobileDevice(navigator.userAgent);
       };
       syncMedia();
       mobileQuery.addEventListener("change", syncMedia);
@@ -2176,7 +2179,7 @@
     <div class="map-footer">
       <p>{editorial}</p>
     </div>
-    {#if isMobileLayout || isTouchDevice}
+    {#if isMobileDevice}
       <MobileControls
         {hasGeolocation}
         {isLocating}

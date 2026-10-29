@@ -1,6 +1,6 @@
 import domtoimage from "dom-to-image-more";
 import { wanderwegeConfig } from "$lib/config";
-import type { TrailPrintContext } from "$lib/components/trails/types";
+import type { TrailPrintContext } from "../types";
 import {
   drawDescriptionAfterDirections,
   drawInitialPageDescription,

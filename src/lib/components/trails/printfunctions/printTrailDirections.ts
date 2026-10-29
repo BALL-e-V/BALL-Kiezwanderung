@@ -3,7 +3,7 @@ import { wanderwegeConfig } from "$lib/config";
 import type {
   InstructionBlock,
   InstructionSpan,
-} from "$lib/components/trails/types";
+} from "../types";
 
 const { print: printConfig } = wanderwegeConfig;
 

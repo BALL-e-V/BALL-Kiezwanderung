@@ -5,6 +5,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { layoutConfig } from "$lib/config";
+  import { getDeviceCategory } from "$lib/deviceDetection";
   const { longPressTime } = layoutConfig;
 
   import type { UserWithRolesAndClaims } from "$lib/auth.d";
@@ -20,6 +21,8 @@
 
   let isTouchDevice = $state(false);
   let isMobileLayout = $state(false);
+  let isMobileDevice = $state(false);
+  let isDesktopDevice = $state(false);
   let isMenuOpen = $state(false);
   let isTrailFocused = $state(false);
   let isNavigationOptionsOpen = $state(false);
@@ -66,6 +69,10 @@
   });
 
   async function mountHandler() {
+    const deviceCategory = getDeviceCategory(navigator.userAgent);
+    isMobileDevice = deviceCategory === "mobile";
+    isDesktopDevice = deviceCategory === "desktop";
+
     const response = await authClient.getSession();
     if (response && response.data) {
       user = response.data.user;
@@ -362,19 +369,21 @@
     {#if isMenuOpen}
       <div class="header-panel dropdown" id="main-menu">
         {#if isWanderwegePage || isTrailMakingPage}
-          <button
-            type="button"
-            class="button secondary"
-            aria-expanded={isNavigationOptionsOpen}
-            aria-controls="navigation-options"
-            onpointerdown={(event) => {
-              event.stopPropagation();
-              isNavigationOptionsOpen = !isNavigationOptionsOpen;
-            }}
-          >
-            Navigation
-          </button>
-          {#if isNavigationOptionsOpen}
+          {#if isMobileDevice}
+            <button
+              type="button"
+              class="button secondary"
+              aria-expanded={isNavigationOptionsOpen}
+              aria-controls="navigation-options"
+              onpointerdown={(event) => {
+                event.stopPropagation();
+                isNavigationOptionsOpen = !isNavigationOptionsOpen;
+              }}
+            >
+              Navigation
+            </button>
+          {/if}
+          {#if isMobileDevice && isNavigationOptionsOpen}
             <div
               class="navigation-options"
               id="navigation-options"
@@ -425,7 +434,7 @@
               </button>
             </div>
           {/if}
-          {#if isWanderwegePage && isTrailFocused}
+          {#if isWanderwegePage && isTrailFocused && isDesktopDevice}
             <button
               type="button"
               class="button primary"
