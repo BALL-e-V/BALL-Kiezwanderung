@@ -371,27 +371,10 @@
   function rightClickContextMenu(e: any) {
     e.originalEvent?.stopPropagation();
 
-    if (showClickMenu) {
-      if (
-        rightClickTargetType === "marker" &&
-        rightClickTargetIndex >= 0 &&
-        rightClickTargetIndex < trailMarkers.length
-      ) {
-        trailMarkers[rightClickTargetIndex].dragging?.enable();
-      } else if (
-        rightClickTargetType === "poi" &&
-        rightClickTargetIndex >= 0 &&
-        rightClickTargetIndex < poiList.length
-      ) {
-        poiList[rightClickTargetIndex].marker.dragging?.enable();
-      }
-    }
-
     showClickMenu = true;
     //checking if the target is one of the trailmarkers
     if (trailMarkers.indexOf(e.target) >= 0) {
       rightClickTargetIndex = trailMarkers.indexOf(e.target);
-      e.target.dragging?.disable();
       rightClickTargetType = "marker";
     } // checking if the target is a polyline in the trail
     else if (trail.indexOf(e.target) >= 0) {
@@ -399,7 +382,6 @@
       rightClickTargetType = "polyline";
     } else if (poiList.some((p) => p.marker === e.target)) {
       rightClickTargetIndex = poiList.findIndex((p) => p.marker === e.target);
-      e.target.dragging?.disable();
       rightClickTargetType = "poi";
     } else {
       rightClickTargetIndex = -1;
@@ -410,6 +392,14 @@
 
   // Geolocation helpers
   function updateUserLocationMarker(lat: number, lng: number) {
+    if (lat < -90 || lat > 90) {
+      console.log("lat has to be between -90 and 90");
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      console.log("lng has bot be between -180 and 180");
+      return;
+    }
     if (!map) return;
     if (!userLocationMarker) {
       userLocationMarker = new Marker([lat, lng], {
@@ -472,7 +462,8 @@
       .catch((error: unknown) => {
         console.error("GPS error:", error);
         showFailureTooltip(
-          error instanceof Error && error.message === "Geolocation is not supported"
+          error instanceof Error &&
+            error.message === "Geolocation is not supported"
             ? "Geolocation wird nicht unterstützt"
             : "GPS-Standort konnte nicht ermittelt werden",
         );
@@ -646,7 +637,18 @@
 
   async function moveMarkerToGPS(targetIndex: number) {
     showClickMenu = false;
-    if (targetIndex < 0 || targetIndex >= trailMarkers.length) return;
+    if (
+      !Number.isInteger(targetIndex) ||
+      targetIndex < 0 ||
+      targetIndex >= trailMarkers.length
+    ) {
+      console.log(
+        "targetIndex has to be a whole number between 0 and trailMarkers.length - 1; " +
+          targetIndex +
+          " is not",
+      );
+      return;
+    }
     try {
       const coords = await getUserGPSLocation();
       const latlng = new LatLng(coords.lat, coords.lng);
@@ -660,7 +662,18 @@
 
   async function insertMarkerAtGPS(targetIndex: number) {
     showClickMenu = false;
-    if (targetIndex < 0 || targetIndex >= trailMarkers.length - 1) return;
+    if (
+      !Number.isInteger(targetIndex) ||
+      targetIndex < 0 ||
+      targetIndex >= trailMarkers.length - 1
+    ) {
+      console.log(
+        "targetIndex has to be a whole number between 0 and trailMarkers.length - 2; " +
+          targetIndex +
+          " is not",
+      );
+      return;
+    }
     try {
       const coords = await getUserGPSLocation();
       const latlng = new LatLng(coords.lat, coords.lng);
@@ -766,6 +779,10 @@
   }
 
   function moveCreatorMarker(e: any) {
+    if (!e.latLng) {
+      console.log("needs a leaflet event");
+      return;
+    }
     poiCreatorMarker.setLatLng(e.latlng);
   }
   function heromaker(poi: pointOfInterest) {
@@ -895,7 +912,8 @@
       if (trailMarkers.length > 1) {
         //allow moving the trail by dragging markers and recoloring to indicate that
         trailMarkers.forEach((m) => {
-          m.on("dragend", () => moveTrail(trailMarkers.indexOf(m)))
+          m
+            .on("dragend", () => moveTrail(trailMarkers.indexOf(m)))
             .setIcon(
               iconmaker({
                 color: colors.movableMarker,
@@ -994,6 +1012,10 @@
   }
   //finction to move the last rail segment and waypoint marker while adding to the trail
   function trailMakingMover(e: any) {
+    if (!e.latlng) {
+      console.log("needs a leaflet event");
+      return;
+    }
     trailMarkers[trailMarkers.length - 1].setLatLng(e.latlng);
     if (trail.length > 0) {
       trail[trail.length - 1].setLatLngs([
@@ -1005,6 +1027,18 @@
 
   //function to move the trail by dragging markers, input is the number of the marker and the surrounding markers in the array
   async function moveTrail(current: number) {
+    if (
+      !Number.isInteger(current) ||
+      current < 0 ||
+      current >= trailMarkers.length
+    ) {
+      console.log(
+        "current has to be a whole number between 0 and trailMarkers.length - 1; " +
+          current +
+          " is not",
+      );
+      return;
+    }
     if (trail.length == 0) return;
     trailUpdate = true;
 
@@ -1182,6 +1216,18 @@
   }
   //functtion to delete a waypoint marker from the trail
   async function deleteWaypoint(rightClickTargetIndex: number) {
+    if (
+      !Number.isInteger(rightClickTargetIndex) ||
+      rightClickTargetIndex < 0 ||
+      rightClickTargetIndex >= trailMarkers.length
+    ) {
+      console.log(
+        "rightClickTargetIndex has to be a whole number between 0 and trailMarkers.length - 1; " +
+          rightClickTargetIndex +
+          " is not",
+      );
+      return;
+    }
     trailUpdate = true;
     loadingTrail++;
     clearTimeout(waitToSave);
@@ -1315,6 +1361,10 @@
   }
 
   function moveInsertTrail(e: any, start: LatLng, end: LatLng) {
+    if (!e.latlng) {
+      console.log("needs a leaflet event");
+      return;
+    }
     insertTrail.setLatLngs([start, e.latlng, end]);
   }
 
@@ -1322,6 +1372,18 @@
     event: LeafletMouseEvent,
     rightClickTargetIndex: number,
   ) {
+    if (
+      !Number.isInteger(rightClickTargetIndex) ||
+      rightClickTargetIndex < 0 ||
+      rightClickTargetIndex >= trail.length
+    ) {
+      console.log(
+        "rightClickTargetIndex has to be a whole number between 0 and trail.length - 1; " +
+          rightClickTargetIndex +
+          " is not",
+      );
+      return;
+    }
     trailUpdate = true;
     loadingTrail++;
     clearTimeout(waitToSave);
@@ -1733,39 +1795,47 @@
   }
   //function to save a single poi and its relation if nessecary
   async function poiToDatabase(heroPoi: number) {
-    if (heroPoi >= 0) {
-      loadingTrail++;
-      if (waitToSave) {
-        clearInterval(waitToSave);
-        waitToSave = null as any;
-      }
-      let response;
-      try {
-        //sending the relattion data with the poi to upsert the relation if positionupdate = true
-        response = await savePOI({
-          id: poiList[heroPoi].id,
-          title: poiList[heroPoi].title,
-          description: poiList[heroPoi].description,
-          lat: poiList[heroPoi].lat,
-          lng: poiList[heroPoi].lng,
-          imageAlt: poiList[heroPoi].imageAlt,
-          imageUrl: poiList[heroPoi].imageUrl,
-          poiPositionUpdate: poiPositionUpdate,
-          trailId: trailId,
-          position1: poiList[heroPoi].trailPosition[0],
-          position2: poiList[heroPoi].trailPosition[1],
-        });
-      } catch (err) {
-        console.log(err);
-        showFailureTooltip("Speichern gescheitert");
-      }
-      if (response) {
-        poiList[heroPoi].id = response;
-      }
-      poiPositionUpdate = false;
-    } else {
-      console.log("heroPoi is not defined");
+    if (
+      !Number.isInteger(heroPoi) ||
+      heroPoi < 0 ||
+      heroPoi >= poiList.length
+    ) {
+      console.log(
+        "heroPoi has to be a whole number between 0 and poiList.length - 1; " +
+          heroPoi +
+          " is not",
+      );
+      return;
     }
+    loadingTrail++;
+    if (waitToSave) {
+      clearInterval(waitToSave);
+      waitToSave = null as any;
+    }
+    let response;
+    try {
+      //sending the relattion data with the poi to upsert the relation if positionupdate = true
+      response = await savePOI({
+        id: poiList[heroPoi].id,
+        title: poiList[heroPoi].title,
+        description: poiList[heroPoi].description,
+        lat: poiList[heroPoi].lat,
+        lng: poiList[heroPoi].lng,
+        imageAlt: poiList[heroPoi].imageAlt,
+        imageUrl: poiList[heroPoi].imageUrl,
+        poiPositionUpdate: poiPositionUpdate,
+        trailId: trailId,
+        position1: poiList[heroPoi].trailPosition[0],
+        position2: poiList[heroPoi].trailPosition[1],
+      });
+    } catch (err) {
+      console.log(err);
+      showFailureTooltip("Speichern gescheitert");
+    }
+    if (response) {
+      poiList[heroPoi].id = response;
+    }
+    poiPositionUpdate = false;
     loadingTrail--;
   }
   // function to upsert a whole lot of relations if the trail was changed
@@ -1818,30 +1888,38 @@
     fileName: string,
     heroPoi: number,
   ) {
-    if (heroPoi >= 0) {
-      if (poiList[heroPoi].id === "") {
-        let timer = setInterval(() => {
-          imageToBlobstorage(content, fileName, heroPoi);
-          clearInterval(timer);
-        }, 1000);
-      } else {
-        let imageUrl;
-        try {
-          imageUrl = await saveImage({
-            content: content,
-            fileName: fileName,
-            oldImageUrl: poiList[heroPoi].imageUrl as string,
-            poiId: poiList[heroPoi].id,
-          });
-        } catch (err) {
-          console.log(err);
-        }
-        if (imageUrl) {
-          poiList[heroPoi].imageUrl = imageUrl;
-        }
-      }
+    if (
+      !Number.isInteger(heroPoi) ||
+      heroPoi < 0 ||
+      heroPoi >= poiList.length
+    ) {
+      console.log(
+        "heroPoi has to be a whole number between 0 and poiList.length - 1; " +
+          heroPoi +
+          " is not",
+      );
+      return;
+    }
+    if (poiList[heroPoi].id === "") {
+      let timer = setInterval(() => {
+        imageToBlobstorage(content, fileName, heroPoi);
+        clearInterval(timer);
+      }, 1000);
     } else {
-      console.log("heroPoi is not defined");
+      let imageUrl;
+      try {
+        imageUrl = await saveImage({
+          content: content,
+          fileName: fileName,
+          oldImageUrl: poiList[heroPoi].imageUrl as string,
+          poiId: poiList[heroPoi].id,
+        });
+      } catch (err) {
+        console.log(err);
+      }
+      if (imageUrl) {
+        poiList[heroPoi].imageUrl = imageUrl;
+      }
     }
   }
   async function streetSearch(name: string) {
@@ -1946,6 +2024,14 @@
   }
 
   async function findWaypointDistrict(lat: number, lng: number) {
+    if (lat < -90 || lat > 90) {
+      console.log("lat has to be between -90 and 90");
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      console.log("lng has bot be between -180 and 180");
+      return;
+    }
     const result = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14`,
     );

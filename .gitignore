@@ -32,3 +32,9 @@ project.inlang/cache/
 #testdata
 /static/cms
 /static/apiUsageCounter
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

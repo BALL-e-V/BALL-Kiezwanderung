@@ -20,11 +20,11 @@
     poiList = [],
     heromaker,
   }: {
-    poiList: pointOfInterest[];
-    insertingWaypoint: boolean;
+    editorMode: "trail" | "poi";
     makingTrail: boolean;
     creatingPoi: boolean;
-    editorMode: "trail" | "poi";
+    insertingWaypoint: boolean;
+    poiList: pointOfInterest[];
     heromaker: (poi: pointOfInterest) => void;
   } = $props();
 

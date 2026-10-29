@@ -84,7 +84,7 @@
 
 <div class="edit-user-page">
   {#if passwordQuery}
-    <form class="profile-form">
+    <form class="profile-form" class:password-form={passwordQuery}>
       <label>
         Altes Passwort
         <input type="password" bind:value={oldPassword} required />
@@ -101,6 +101,7 @@
         <p class="error">Die neuen Passwörter stimmen nicht überein.</p>
       {/if}
       <button
+        type="button"
         disabled={newPassword !== repeatNewPassword}
         onclick={async () => {
           error = null;
@@ -120,76 +121,90 @@
       >
         Passwort ändern
       </button>
-      <button onclick={() => (passwordQuery = false)} class="form-button"
+      <button type="button" onclick={() => (passwordQuery = false)} class="form-button"
         >Abbrechen</button
       >
     </form>
   {:else}
     <h1>Profil bearbeiten</h1>
-    <form class="profile-form">
-      {#if userDetails.image}
-        <img src={userDetails.image} alt="Profilbild" class="profile-image" />
-      {/if}
+    <form class="profile-form" class:password-form={passwordQuery}>
+      <div class="profile-fields">
+        <label>
+          Name
+          <input type="text" bind:value={userDetails.name} required />
+        </label>
 
-      <label>
-        Name
-        <input type="text" bind:value={userDetails.name} required />
-      </label>
+        <label>
+          Email
+          <input type="email" bind:value={userDetails.email} required />
+        </label>
+        <label>
+          Profilbild hochladen
+          <input
+            type="file"
+            accept="image/*"
+            onchange={async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              const name = file?.name;
+              if (file && name) {
+                const content = await fileToBase64(file);
+                await imageToBlobstorage(content, name);
+              }
+            }}
+          />
+        </label>
+      </div>
 
-      <label>
-        Email
-        <input type="email" bind:value={userDetails.email} required />
-      </label>
+      <div class="profile-image-section">
+        {#if userDetails.image}
+          <img src={userDetails.image} alt="Profilbild" class="profile-image" />
+        {/if}
+      </div>
 
-      <label>
-        Profilbild hochladen
-        <input
-          type="file"
-          accept="image/*"
-          onchange={async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            const name = file?.name;
-            if (file && name) {
-              const content = await fileToBase64(file);
-              await imageToBlobstorage(content, name);
-            }
-          }}
-        />
-      </label>
-      <button
-        onclick={() => {
-          passwordQuery = true;
-        }}
-        class="form-button">Passwort ändern</button
-      >
-      <button onclick={saveUser} class="form-button">Speichern</button>
-      {#if deleteQuery}
-        <p class="error">
-          Bist du sicher, dass du dein Konto löschen möchtest? Diese Aktion kann
-          nicht rückgängig gemacht werden.
-        </p>
+      <div class="form-actions">
         <button
-          onclick={async () => {
-            error = null;
-            try {
-              await authClient.deleteUser();
-              window.location.href = "/";
-            } catch (err) {
-              error = (err as Error).message;
-            }
+          type="button"
+          onclick={() => {
+            passwordQuery = true;
           }}
-          class="form-button"
+          class="form-button">Passwort ändern</button
         >
-          Ja, Konto löschen
-        </button>
-        <button onclick={() => (deleteQuery = false)} class="form-button"
-          >Abbrechen</button
+        <button type="button" onclick={saveUser} class="form-button"
+          >Speichern</button
         >
-      {:else}
-        <button class="form-button" onclick={() => (deleteQuery = true)}
-          >Account löschen</button
-        >
-      {/if}
+        {#if deleteQuery}
+          <p class="error">
+            Bist du sicher, dass du dein Konto löschen möchtest? Diese Aktion
+            kann nicht rückgängig gemacht werden.
+          </p>
+          <button
+            type="button"
+            onclick={async () => {
+              error = null;
+              try {
+                await authClient.deleteUser();
+                window.location.href = "/";
+              } catch (err) {
+                error = (err as Error).message;
+              }
+            }}
+            class="form-button"
+          >
+            Ja, Konto löschen
+          </button>
+          <button
+            type="button"
+            onclick={() => (deleteQuery = false)}
+            class="form-button">Abbrechen</button
+          >
+        {:else}
+          <button
+            type="button"
+            class="form-button"
+            onclick={() => (deleteQuery = true)}>Account löschen</button
+          >
+        {/if}
+      </div>
       {#if saveResponse}
         <p class="success">{saveResponse}</p>
       {/if}
@@ -202,23 +217,43 @@
 
 <style>
   .edit-user-page {
-    max-width: 620px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 960px;
     margin: 0 auto;
-    padding: 24px;
+    padding: 24px clamp(16px, 4vw, 32px);
   }
 
   .profile-form {
+    box-sizing: border-box;
+    min-width: 0;
     display: grid;
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
     background: var(--accent-muted);
     border: 1px solid var(--accent-border);
     border-radius: 12px;
-    padding: 24px;
+    padding: clamp(16px, 3vw, 28px);
+  }
+
+  .profile-fields {
+    display: grid;
+    min-width: 0;
+    gap: 18px;
+  }
+
+  .profile-image-section {
+    display: grid;
+    align-content: start;
+    justify-items: stretch;
+    min-width: 0;
+    gap: 12px;
   }
 
   .profile-form label {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     gap: 8px;
     font-size: 0.95rem;
     font-weight: 600;
@@ -229,6 +264,8 @@
   .profile-form input[type="email"],
   .profile-form input[type="password"],
   .profile-form input[type="file"] {
+    box-sizing: border-box;
+    min-width: 0;
     width: 100%;
     padding: 12px 14px;
     border: 1px solid var(--accent-border);
@@ -252,14 +289,27 @@
   }
 
   .profile-image {
+    display: block;
     width: 100%;
-    max-width: 220px;
     border-radius: 12px;
     object-fit: cover;
-    margin-bottom: 8px;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .form-actions .error {
+    flex-basis: 100%;
   }
 
   .form-button {
+    box-sizing: border-box;
+    max-width: 100%;
     padding: 12px 18px;
     border: none;
     border-radius: 8px;
@@ -267,13 +317,29 @@
     color: white;
     font-weight: 700;
     cursor: pointer;
+    overflow-wrap: anywhere;
   }
 
   .success {
     color: var(--success);
+    overflow-wrap: anywhere;
   }
 
   .error {
     color: var(--danger);
+    overflow-wrap: anywhere;
   }
+
+  @media (min-width: 720px) {
+    .profile-form:not(.password-form) {
+      grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+      align-items: start;
+    }
+
+    .profile-form > .success,
+    .profile-form > .error {
+      grid-column: 1 / -1;
+    }
+  }
+
 </style>

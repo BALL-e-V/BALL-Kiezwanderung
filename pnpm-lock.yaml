@@ -69,6 +69,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.4
         version: 6.2.4(svelte@5.56.7)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1))
+      '@typed/node':
+        specifier: ^6.7.0
+        version: 6.7.0(@types/node@25.9.5)(tslib@2.8.1)
       '@types/geojson':
         specifier: ^7946.0.16
         version: 7946.0.16
@@ -1611,6 +1614,102 @@ packages:
 
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
+
+  '@typed/common@3.5.0':
+    resolution: {integrity: sha512-GV+hjZyu82tWrbtIZwP7NSeVDfiEZe7e0PIsVdhhK1b7RxCRDNxymu5792gPb9QAXJKRwLnlqO6DgSEim3oq0A==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/disposable@3.4.1':
+    resolution: {integrity: sha512-EsybTZBUUbm4kftcVa0itjzk4xfUuurMJVpxvZc8R+jagTHA0LayQft2+8k/vGN/XDFxS3aG9pcE9WGmsQGRdw==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/effects@6.8.0':
+    resolution: {integrity: sha512-J6LWy6IQewR/3OUqzUng2yaZIkyGykDgVEIW+t5JNXzhWtP2Ll/4TwCQIg1bfTYjouGTTAgvTZkQGVd33iZm5A==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/either@8.3.0':
+    resolution: {integrity: sha512-VKKGwdQ0tVP+9wJmuSySvE/zfCq+XhKD6i12ZXhLwiqJgCX/o/r24FRUYwzeuNIbR17Yd2dgC5SWB1rgwOo/pw==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/env@8.5.0':
+    resolution: {integrity: sha512-gm1/1aoj+IG5Xzp8eBpyQR1T2Yfj/ivdtq9JILSoIsfsMwdigW8dDCja7YH0RL5GYtx09DoPGnABciD8GmLtUw==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/future@11.6.0':
+    resolution: {integrity: sha512-iAcFP28gpU5uJLqOe0Km2VnCnn/8f1Uu2GTqUuwEFK2zO8QChVEe5lvj7BYfru9OZEntdDW+JyFgmX0HywHBFg==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/iterable@3.4.4':
+    resolution: {integrity: sha512-zPwa5KqkTacuM5EWO3jICGq31jKHbH67tyEI4i2x0fU67FInJVTlpPf+S1xqoUQGja3NvJVloKpItMn+9+Q/kQ==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/lambda@3.4.0':
+    resolution: {integrity: sha512-0Bn60qEt4ocCqUI0W9sALz3CED8HBZc9ErXihNkTJL/CGlUda0XmdUz7/pls5qRAog/dmFyOdR5ls6YSfOyZcw==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/list@6.4.4':
+    resolution: {integrity: sha512-KI/z/MOMbbIbzGzBMthpCGoH2J3Ho1t2nnNuK1sZxk/IAtKSTrMQiWJRArkPQs1JNBH7TDsXDu1/47pUxwxPPw==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/logger@8.7.0':
+    resolution: {integrity: sha512-gCpIrRzcH5S9H8CcJ2hbcXXp0JiywNVIuHm+nrpeuZ0Xmf1WkLaMGSU4us8F0IDwQepiIYhfu4u3b1ErkeY/vg==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/logic@6.5.4':
+    resolution: {integrity: sha512-TtiG7+GzrnwpBr3e6erPdSQx67eXa5tva/IjvfJnGWAUNjkTBd0+9vuNmIYgobX+IP5kSBFUv95ZAVZnrDgVUQ==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/math@6.4.0':
+    resolution: {integrity: sha512-FHa8HBkSFEv9vJiSqjX7J4o9wloB9aDA64CyB2dSuIKYXzP8+tbfg/xBB3qDIB5X7oABWtAi3+kJq79o1QuYtg==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/maybe@10.4.0':
+    resolution: {integrity: sha512-J7mcL9WSji9u0wD8oCjAIX4q0t0GKNY0ghBHw7vJLoXauEGSRclE9gM+AtfYKVnQuE2fdhy/sCiYzaOJB7iBGQ==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/node@6.7.0':
+    resolution: {integrity: sha512-KAyDc0O1PboRrZiKLLtnXv/ISDV1H7pF2vbehlOXKewjQwzOb3U3GFByqM5nuR2bROnkC77mhG2G+mcaejqUZw==}
+    peerDependencies:
+      '@types/node': ^13.11.1
+      tslib: ^2.0.0
+
+  '@typed/objects@6.4.1':
+    resolution: {integrity: sha512-qu3K5W8z9lS/DcWdINLOw88FDZ9R+NukM+63kGkuEs/CpgcvEN7O+nECP6dPfh1xsKILwareLaVzRIqcegKcbQ==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/promises@5.3.0':
+    resolution: {integrity: sha512-25icRmJCPxQ4xpLjFzD/9egFq3JdB042/R3mZNdG6nicJOycV+ADjv+6ZxKpmyYruwNh70hb0dCIzTSMOrZJ7g==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/strings@7.4.0':
+    resolution: {integrity: sha512-zpaKU/wdsjESTVhUShDcxbNplduaQh4m6Q0o+T+9hsCR8XJqa81VLV0DE2h2PkMQ1KvV3GBqfg0PVbOJ5ykJ0w==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/timer@3.6.0':
+    resolution: {integrity: sha512-Py/9OvemHoI67auuTmejKFUousBAX7gdcxTBKYybUFdEj9EdIpCPUzutzb8tao4PLaNokLlfnlAaCpJLJ91JLg==}
+    peerDependencies:
+      tslib: ^2.0.0
+
+  '@typed/tuple@3.3.0':
+    resolution: {integrity: sha512-8yHduiKLkoh+cJ8oOzzX+Rl4uql+vcCmE2UBDt6yqwEVf4FFQckrhdBkUasM71AxMKqQk9PStO243ixV1lTebA==}
+    peerDependencies:
+      tslib: ^2.0.0
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -5058,6 +5157,149 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
+
+  '@typed/common@3.5.0(tslib@2.8.1)':
+    dependencies:
+      tslib: 2.8.1
+
+  '@typed/disposable@3.4.1(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/effects@6.8.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/disposable': 3.4.1(tslib@2.8.1)
+      '@typed/either': 8.3.0(tslib@2.8.1)
+      '@typed/env': 8.5.0(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/list': 6.4.4(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      '@typed/promises': 5.3.0(tslib@2.8.1)
+      '@typed/timer': 3.6.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/either@8.3.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/env@8.5.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/disposable': 3.4.1(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/list': 6.4.4(tslib@2.8.1)
+      '@typed/objects': 6.4.1(tslib@2.8.1)
+      '@typed/timer': 3.6.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/future@11.6.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/disposable': 3.4.1(tslib@2.8.1)
+      '@typed/either': 8.3.0(tslib@2.8.1)
+      '@typed/env': 8.5.0(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/iterable@3.4.4(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/logic': 6.5.4(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/lambda@3.4.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/list@6.4.4(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/logic': 6.5.4(tslib@2.8.1)
+      '@typed/math': 6.4.0(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      '@typed/tuple': 3.3.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/logger@8.7.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/effects': 6.8.0(tslib@2.8.1)
+      '@typed/env': 8.5.0(tslib@2.8.1)
+      '@typed/objects': 6.4.1(tslib@2.8.1)
+      '@typed/timer': 3.6.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/logic@6.5.4(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/math@6.4.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/maybe@10.4.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/node@6.7.0(@types/node@25.9.5)(tslib@2.8.1)':
+    dependencies:
+      '@typed/disposable': 3.4.1(tslib@2.8.1)
+      '@typed/effects': 6.8.0(tslib@2.8.1)
+      '@typed/either': 8.3.0(tslib@2.8.1)
+      '@typed/env': 8.5.0(tslib@2.8.1)
+      '@typed/future': 11.6.0(tslib@2.8.1)
+      '@typed/iterable': 3.4.4(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/list': 6.4.4(tslib@2.8.1)
+      '@typed/logger': 8.7.0(tslib@2.8.1)
+      '@typed/logic': 6.5.4(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      '@typed/strings': 7.4.0(tslib@2.8.1)
+      '@typed/timer': 3.6.0(tslib@2.8.1)
+      '@types/node': 25.9.5
+      tslib: 2.8.1
+
+  '@typed/objects@6.4.1(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/maybe': 10.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/promises@5.3.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/strings@7.4.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/timer@3.6.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/common': 3.5.0(tslib@2.8.1)
+      '@typed/disposable': 3.4.1(tslib@2.8.1)
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      '@typed/list': 6.4.4(tslib@2.8.1)
+      tslib: 2.8.1
+
+  '@typed/tuple@3.3.0(tslib@2.8.1)':
+    dependencies:
+      '@typed/lambda': 3.4.0(tslib@2.8.1)
+      tslib: 2.8.1
 
   '@types/chai@5.2.3':
     dependencies:

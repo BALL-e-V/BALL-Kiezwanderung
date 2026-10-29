@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ImageGaleryProps } from "./types";
   import { fly } from "svelte/transition";
-
   import { onMount } from "svelte";
 
   let {
@@ -17,8 +16,9 @@
   const nextImage = () => {
     flyX = -500;
     while (
-      imageUrls[(currentSlideItem = (currentSlideItem + 1) % imageUrls.length)]
-        === ""
+      imageUrls[
+        (currentSlideItem = (currentSlideItem + 1) % imageUrls.length)
+      ] === ""
     );
   };
   const prevImage = () => {

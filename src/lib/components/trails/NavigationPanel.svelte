@@ -28,6 +28,19 @@
   let watchId: number | null = null;
 
   function distanceForDirection(index: number): number | null {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= directions.length
+    ) {
+      console.log(
+        "index has to be a whole number between 0 and directions.length - 1; " +
+          index +
+          " is not",
+      );
+      return null;
+    }
+
     const direction = directions[index];
     if (!direction) return null;
     return Math.round(
@@ -41,7 +54,20 @@
   }
 
   function changeIndex(index: number) {
-    currentIndex = Math.max(0, Math.min(index, directions.length - 1));
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= directions.length
+    ) {
+      console.log(
+        "index has to be a whole number between 0 and directions.length - 1; " +
+          index +
+          " is not",
+      );
+      return;
+    }
+
+    currentIndex = index;
     wasNearDirection = false;
   }
 

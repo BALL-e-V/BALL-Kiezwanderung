@@ -158,15 +158,13 @@
         : focussedTrail.data.directions) ?? []
     );
   });
-  const currentNavigationDirection = $derived.by(
-    () => {
-      const direction = navigationDirections[navigationCurrentIndex];
-      if (navigationInstructionsEnabled && direction) {
-        currentDirectionMarker.setLatLng(direction.location);
-      }
-      return direction;
-    },
-  );
+  const currentNavigationDirection = $derived.by(() => {
+    const direction = navigationDirections[navigationCurrentIndex];
+    if (navigationInstructionsEnabled && direction) {
+      currentDirectionMarker.setLatLng(direction.location);
+    }
+    return direction;
+  });
 
   //count of trails that have been displayed for color selection
   let isPrinting = $state(false);
@@ -207,6 +205,19 @@
   //turn on and off pointerover/out interactions for a poi marker
 
   function pageDisplaySwitch(page: number, onOff: "on" | "off") {
+    if (
+      !Number.isInteger(page) ||
+      page < 0 ||
+      (filteredTrailList.length > 0 && page >= pageCount)
+    ) {
+      console.log(
+        "page has to be a whole number between 0 and pageCount - 1; " +
+          page +
+          " is not",
+      );
+      return;
+    }
+
     if (onOff == "on") {
       for (
         let i = trailsPerPage * page;
@@ -230,9 +241,16 @@
     if (
       !Number.isInteger(targetPage) ||
       targetPage < 0 ||
-      targetPage >= pageCount ||
-      targetPage === pageNumber
+      targetPage >= pageCount
     ) {
+      console.log(
+        "targetPage has to be a whole number between 0 and pageCount - 1; " +
+          targetPage +
+          " is not",
+      );
+      return;
+    }
+    if (targetPage === pageNumber) {
       return;
     }
     pageDisplaySwitch(pageNumber, "off");
@@ -276,10 +294,11 @@
     }
     sortBy = criterion;
     sortAscending = ascending;
-    pageDisplaySwitch(pageNumber, "off");
+    //remove currently dispalyed trails
     if (focussedTrail) {
       focusTrailSwitch(focussedTrail, "off");
     }
+    pageDisplaySwitch(pageNumber, "off");
 
     const direction = ascending ? 1 : -1;
     filteredTrailList.sort((a, b) => {
@@ -295,6 +314,7 @@
       }
       return compareTrailNames(a, b);
     });
+    //add trails that are now on the current page
     pageDisplaySwitch(pageNumber, "on");
     fitCurrentPageBounds();
   }
@@ -341,7 +361,7 @@
           }, longTapDelay);
         }
       });
-      trail.data.polyline?.on("pointerup", (e: any) => {
+      trail.data.polyline?.on("pointerup", () => {
         if (longTapTimer) {
           clearTimeout(longTapTimer);
           longTapTimer = null as any;
@@ -658,7 +678,21 @@
   }
 
   function selectTrailFromLegend(index: number) {
-    const selectedTrail = filteredTrailList[pageNumber * trailsPerPage + index];
+    const selectedIndex = pageNumber * trailsPerPage + index;
+    const trailsOnPage = Math.min(
+      trailsPerPage,
+      filteredTrailList.length - pageNumber * trailsPerPage,
+    );
+    if (!Number.isInteger(index) || index < 0 || index >= trailsOnPage) {
+      console.log(
+        "index has to be a whole number between 0 and trailsOnPage - 1; " +
+          index +
+          " is not",
+      );
+      return;
+    }
+
+    const selectedTrail = filteredTrailList[selectedIndex];
 
     if (focussedTrail) {
       popupSwitch({ trail: selectedTrail });
@@ -907,7 +941,11 @@
     poi?: pointOfInterest;
     poiIndex?: number;
   }) {
-    if ((trail && poi) || (poi && poiIndex) || (trail && poiIndex)) {
+    if (
+      (trail && poi) ||
+      (poi && poiIndex !== undefined) ||
+      (trail && poiIndex !== undefined)
+    ) {
       console.log("choose either trail or poi");
       return;
     }
@@ -915,6 +953,19 @@
     const trailPois = focussedTrail
       ? (poisByTrailId.get(focussedTrail.data.id) ?? [])
       : [];
+    if (
+      typeof poiIndex === "number" &&
+      (!Number.isInteger(poiIndex) ||
+        poiIndex < 0 ||
+        poiIndex >= trailPois.length)
+    ) {
+      console.log(
+        "poiIndex has to be a whole number between 0 and trailPois.length - 1; " +
+          poiIndex +
+          " is not",
+      );
+      return;
+    }
 
     if (popupData.poiId !== "") {
       const poiElement = document.getElementById(popupData.poiId);
@@ -1117,7 +1168,7 @@
       navigationLastPoiId = "";
     }
   }
-
+  //function to highlight a marker and remove the highlight from the previous one
   function highlightImageMarker(index: number, previous?: number) {
     const trailPois = focussedTrail
       ? (poisByTrailId.get(focussedTrail.data.id) ?? [])
@@ -1126,21 +1177,35 @@
       ? []
       : trailPois.filter((poi) => Boolean(poi.imageUrl));
 
-    if (index >= 0 && index < imagePois.length) {
+    if (!Number.isInteger(index) || index < 0 || index >= imagePois.length) {
+      console.log(
+        "index has to be a whole number between 0 and imagePois.length - 1; " +
+          index +
+          " is not",
+      );
+    } else {
       const currentElement = getPoiMarkerElement(imagePois[index]);
       if (currentElement) {
         currentElement.style.border = "2px solid " + colors.highlight;
       }
     }
 
-    if (
-      previous !== undefined &&
-      previous >= 0 &&
-      previous < imagePois.length
-    ) {
-      const previousElement = getPoiMarkerElement(imagePois[previous]);
-      if (previousElement) {
-        previousElement.style.border = "1px solid black";
+    if (previous !== undefined) {
+      if (
+        !Number.isInteger(previous) ||
+        previous < 0 ||
+        previous >= imagePois.length
+      ) {
+        console.log(
+          "previous has to be a whole number between 0 and imagePois.length - 1; " +
+            previous +
+            " is not",
+        );
+      } else {
+        const previousElement = getPoiMarkerElement(imagePois[previous]);
+        if (previousElement) {
+          previousElement.style.border = "1px solid black";
+        }
       }
     }
   }
