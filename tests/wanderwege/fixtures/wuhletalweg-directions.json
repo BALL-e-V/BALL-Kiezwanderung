@@ -1,0 +1,1364 @@
+{
+  "directions": [
+    {
+      "location": [
+        13.581318,
+        52.570919
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.58206,
+        52.56366
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.581562,
+        52.560467
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.581358,
+        52.559404
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.581199,
+        52.559318
+      ],
+      "instruction": "Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.581358,
+        52.559404
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.587029,
+        52.553509
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.586201,
+        52.551427
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.585723,
+        52.550351
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.5853,
+        52.549758
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.585302,
+        52.549655
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.585449,
+        52.549622
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.585398,
+        52.549553
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.585544,
+        52.549512
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.585545,
+        52.549416
+      ],
+      "instruction": "Links auf Landsberger Allee abbiegen."
+    },
+    {
+      "location": [
+        13.586784,
+        52.549334
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.586862,
+        52.54925
+      ],
+      "instruction": "Leicht nach rechts auf Zossener Straße abbiegen."
+    },
+    {
+      "location": [
+        13.586818,
+        52.549113
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.583304,
+        52.544391
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.583316,
+        52.543306
+      ],
+      "instruction": "Leicht nach rechts abbiegen."
+    },
+    {
+      "location": [
+        13.583108,
+        52.542076
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.58246,
+        52.541896
+      ],
+      "instruction": "Auf Fußweg Richtung Südwesten laufen."
+    },
+    {
+      "location": [
+        13.582305,
+        52.539831
+      ],
+      "instruction": "Rechts auf Eisenacher Straße abbiegen."
+    },
+    {
+      "location": [
+        13.580372,
+        52.539865
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.582126,
+        52.537076
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.585035,
+        52.534918
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.57678,
+        52.526549
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.576706,
+        52.526415
+      ],
+      "instruction": "Links auf Cecilienstraße abbiegen."
+    },
+    {
+      "location": [
+        13.577022,
+        52.526296
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.576978,
+        52.526235
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.576958,
+        52.526206
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.575912,
+        52.524118
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.576014,
+        52.523887
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.573125,
+        52.514728
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.573726,
+        52.513587
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.573795,
+        52.513239
+      ],
+      "instruction": "Links auf Altentreptower Straße abbiegen."
+    },
+    {
+      "location": [
+        13.57426,
+        52.513246
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.574266,
+        52.513047
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.57427,
+        52.512805
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.57364,
+        52.512037
+      ],
+      "instruction": "Weiter auf Wasserwegbrücke."
+    },
+    {
+      "location": [
+        13.573384,
+        52.512012
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.573317,
+        52.51199
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.572932,
+        52.510559
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.575751,
+        52.507896
+      ],
+      "instruction": "Auf Fußweg Richtung Südosten laufen."
+    },
+    {
+      "location": [
+        13.578075,
+        52.505573
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.577889,
+        52.504579
+      ],
+      "instruction": "Links auf Möwenweg abbiegen."
+    },
+    {
+      "location": [
+        13.57755,
+        52.504002
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.577292,
+        52.502846
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.577264,
+        52.502742
+      ],
+      "instruction": "Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.577238,
+        52.502635
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.576728,
+        52.501383
+      ],
+      "instruction": "Leicht nach links abbiegen."
+    },
+    {
+      "location": [
+        13.575873,
+        52.501173
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.575796,
+        52.501173
+      ],
+      "instruction": "Leicht nach links abbiegen."
+    },
+    {
+      "location": [
+        13.575218,
+        52.500876
+      ],
+      "instruction": "Leicht nach rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.571934,
+        52.500255
+      ],
+      "instruction": "Auf Fußweg Richtung Südwesten laufen."
+    },
+    {
+      "location": [
+        13.568005,
+        52.496808
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.56838,
+        52.494038
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.568359,
+        52.492898
+      ],
+      "instruction": "Links auf Heesestraße abbiegen."
+    },
+    {
+      "location": [
+        13.569368,
+        52.492747
+      ],
+      "instruction": "Leicht nach rechts auf Heerstraße abbiegen."
+    },
+    {
+      "location": [
+        13.569479,
+        52.49268
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.569395,
+        52.492406
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.564873,
+        52.485433
+      ],
+      "instruction": "Auf Fußweg Richtung Westen laufen."
+    },
+    {
+      "location": [
+        13.564836,
+        52.485383
+      ],
+      "instruction": "Rechts auf Lindenstraße abbiegen."
+    },
+    {
+      "location": [
+        13.564357,
+        52.485524
+      ],
+      "instruction": "Links auf Fußgängerüberweg abbiegen."
+    },
+    {
+      "location": [
+        13.562792,
+        52.484355
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.561491,
+        52.481059
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.567515,
+        52.4751
+      ],
+      "instruction": "Auf Fußweg Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.567589,
+        52.475123
+      ],
+      "instruction": "Weiter auf Bismarcksfelder Brücke."
+    },
+    {
+      "location": [
+        13.567913,
+        52.475242
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.567975,
+        52.475263
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.567011,
+        52.473573
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.567193,
+        52.473123
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.567602,
+        52.472061
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.567323,
+        52.470711
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.571266,
+        52.46653
+      ],
+      "instruction": "Richtung Südosten laufen."
+    },
+    {
+      "location": [
+        13.571599,
+        52.466348
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.571261,
+        52.466293
+      ],
+      "instruction": "Weiter auf Mozartstraße."
+    },
+    {
+      "location": [
+        13.570914,
+        52.466229
+      ],
+      "instruction": "Links auf Verlängerte Mozartstraße abbiegen."
+    },
+    {
+      "location": [
+        13.571922,
+        52.465371
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.573472,
+        52.463348
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.574144,
+        52.462036
+      ],
+      "instruction": "Auf Fußweg Richtung Süden laufen."
+    },
+    {
+      "location": [
+        13.576356,
+        52.459568
+      ],
+      "instruction": "Links auf Am Bahndamm abbiegen."
+    },
+    {
+      "location": [
+        13.577268,
+        52.459363
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.576984,
+        52.458946
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.576613,
+        52.45901
+      ],
+      "instruction": "Richtung Südwesten laufen."
+    },
+    {
+      "location": [
+        13.576613,
+        52.45901
+      ],
+      "instruction": "Leicht nach rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.575738,
+        52.457907
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.573259,
+        52.456757
+      ],
+      "instruction": "Richtung Westen laufen."
+    },
+    {
+      "location": [
+        13.567843,
+        52.455629
+      ],
+      "instruction": "Richtung Südwesten laufen."
+    },
+    {
+      "location": [
+        13.567551,
+        52.455504
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.567121,
+        52.45531
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.566918,
+        52.455502
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.56652,
+        52.455677
+      ],
+      "instruction": "Leicht nach rechts auf An der Wuhlheide abbiegen."
+    },
+    {
+      "location": [
+        13.563963,
+        52.456731
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.563892,
+        52.456246
+      ],
+      "instruction": "Links auf An der Wuhlheide abbiegen."
+    },
+    {
+      "location": [
+        13.566108,
+        52.455577
+      ],
+      "instruction": "Leicht nach rechts abbiegen."
+    },
+    {
+      "location": [
+        13.566451,
+        52.455039
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.566511,
+        52.455013
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    }
+  ],
+  "reverseDirections": [
+    {
+      "location": [
+        13.565778,
+        52.454705
+      ],
+      "instruction": "Auf Fußweg Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.566511,
+        52.455013
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.566451,
+        52.455039
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.566108,
+        52.455577
+      ],
+      "instruction": "Leicht nach links auf An der Wuhlheide abbiegen."
+    },
+    {
+      "location": [
+        13.563892,
+        52.456246
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.563963,
+        52.456731
+      ],
+      "instruction": "Rechts auf An der Wuhlheide abbiegen."
+    },
+    {
+      "location": [
+        13.56652,
+        52.455677
+      ],
+      "instruction": "Leicht nach links abbiegen."
+    },
+    {
+      "location": [
+        13.566918,
+        52.455502
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.567121,
+        52.45531
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.567551,
+        52.455504
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.567843,
+        52.455629
+      ],
+      "instruction": "Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.573259,
+        52.456757
+      ],
+      "instruction": "Richtung Osten laufen."
+    },
+    {
+      "location": [
+        13.575738,
+        52.457907
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.576613,
+        52.45901
+      ],
+      "instruction": "Auf Fußweg Richtung Osten laufen."
+    },
+    {
+      "location": [
+        13.576613,
+        52.45901
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.576984,
+        52.458946
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.577268,
+        52.459363
+      ],
+      "instruction": "Links auf Am Bahndamm abbiegen."
+    },
+    {
+      "location": [
+        13.576356,
+        52.459568
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.574144,
+        52.462036
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.573472,
+        52.463348
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.571922,
+        52.465371
+      ],
+      "instruction": "Rechts auf Verlängerte Mozartstraße abbiegen."
+    },
+    {
+      "location": [
+        13.570914,
+        52.466229
+      ],
+      "instruction": "Rechts auf Mozartstraße abbiegen."
+    },
+    {
+      "location": [
+        13.571261,
+        52.466293
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.571599,
+        52.466348
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.571266,
+        52.46653
+      ],
+      "instruction": "Richtung Nordwesten laufen."
+    },
+    {
+      "location": [
+        13.567602,
+        52.472061
+      ],
+      "instruction": "Leicht nach links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.567193,
+        52.473123
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.567011,
+        52.473573
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.567975,
+        52.475263
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.567913,
+        52.475242
+      ],
+      "instruction": "Weiter auf Bismarcksfelder Brücke."
+    },
+    {
+      "location": [
+        13.567589,
+        52.475123
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.567515,
+        52.4751
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.563843,
+        52.478415
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.563108,
+        52.479188
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.561491,
+        52.481059
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.56428,
+        52.485429
+      ],
+      "instruction": "Rechts auf Zimmermannstraße abbiegen."
+    },
+    {
+      "location": [
+        13.564759,
+        52.48529
+      ],
+      "instruction": "Links auf Fußgängerüberweg abbiegen."
+    },
+    {
+      "location": [
+        13.564873,
+        52.485433
+      ],
+      "instruction": "Auf Fußweg Richtung Westen laufen."
+    },
+    {
+      "location": [
+        13.569395,
+        52.492406
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.569479,
+        52.49268
+      ],
+      "instruction": "Links auf Heerstraße abbiegen."
+    },
+    {
+      "location": [
+        13.569368,
+        52.492747
+      ],
+      "instruction": "Leicht nach links abbiegen, um auf Heerstraße zu bleiben."
+    },
+    {
+      "location": [
+        13.569045,
+        52.492779
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.568351,
+        52.492865
+      ],
+      "instruction": "Rechts auf Fußgängerüberweg abbiegen."
+    },
+    {
+      "location": [
+        13.56838,
+        52.494038
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.568382,
+        52.497577
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.571934,
+        52.500255
+      ],
+      "instruction": "Auf Fußweg Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.575218,
+        52.500876
+      ],
+      "instruction": "Leicht nach links abbiegen."
+    },
+    {
+      "location": [
+        13.575796,
+        52.501173
+      ],
+      "instruction": "Leicht nach rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.575873,
+        52.501173
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.576728,
+        52.501383
+      ],
+      "instruction": "Leicht nach rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.577238,
+        52.502635
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.577264,
+        52.502742
+      ],
+      "instruction": "Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.577292,
+        52.502846
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.57755,
+        52.504002
+      ],
+      "instruction": "Rechts auf Möwenweg abbiegen."
+    },
+    {
+      "location": [
+        13.577889,
+        52.504579
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.575751,
+        52.507896
+      ],
+      "instruction": "Auf Fußweg Richtung Nordwesten laufen."
+    },
+    {
+      "location": [
+        13.573384,
+        52.512012
+      ],
+      "instruction": "Weiter auf Wasserwegbrücke."
+    },
+    {
+      "location": [
+        13.57364,
+        52.512037
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.57427,
+        52.512805
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.574266,
+        52.513047
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.57426,
+        52.513246
+      ],
+      "instruction": "Links auf Altentreptower Straße abbiegen."
+    },
+    {
+      "location": [
+        13.573795,
+        52.513239
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.573726,
+        52.513587
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.576014,
+        52.523887
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.576958,
+        52.526206
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.576978,
+        52.526235
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.577022,
+        52.526296
+      ],
+      "instruction": "Links auf Cecilienstraße abbiegen."
+    },
+    {
+      "location": [
+        13.576706,
+        52.526415
+      ],
+      "instruction": "Rechts abbiegen."
+    },
+    {
+      "location": [
+        13.57678,
+        52.526549
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.581451,
+        52.531082
+      ],
+      "instruction": "Leicht nach rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.585035,
+        52.534918
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.582126,
+        52.537076
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.580372,
+        52.539865
+      ],
+      "instruction": "Rechts auf Eisenacher Straße abbiegen."
+    },
+    {
+      "location": [
+        13.582305,
+        52.539831
+      ],
+      "instruction": "Links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.58246,
+        52.541896
+      ],
+      "instruction": "Auf Fußweg Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.583108,
+        52.542076
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.583316,
+        52.543306
+      ],
+      "instruction": "Leicht nach links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.586818,
+        52.549113
+      ],
+      "instruction": "Links auf Zossener Straße abbiegen."
+    },
+    {
+      "location": [
+        13.586862,
+        52.54925
+      ],
+      "instruction": "Leicht nach links auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.586784,
+        52.549334
+      ],
+      "instruction": "Links auf Landsberger Allee abbiegen."
+    },
+    {
+      "location": [
+        13.585545,
+        52.549416
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.585544,
+        52.549512
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.585398,
+        52.549553
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.585449,
+        52.549622
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.585302,
+        52.549655
+      ],
+      "instruction": "Rechts auf Fußweg abbiegen."
+    },
+    {
+      "location": [
+        13.5853,
+        52.549758
+      ],
+      "instruction": "Weiter geradeaus."
+    },
+    {
+      "location": [
+        13.585723,
+        52.550351
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.585936,
+        52.550744
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.587029,
+        52.553509
+      ],
+      "instruction": "Auf Fußweg Richtung Norden laufen."
+    },
+    {
+      "location": [
+        13.581358,
+        52.559404
+      ],
+      "instruction": "Links abbiegen."
+    },
+    {
+      "location": [
+        13.581199,
+        52.559318
+      ],
+      "instruction": "Richtung Nordosten laufen."
+    },
+    {
+      "location": [
+        13.581358,
+        52.559404
+      ],
+      "instruction": "Weiter auf Fußweg."
+    },
+    {
+      "location": [
+        13.581566,
+        52.560445
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.581447,
+        52.56286
+      ],
+      "instruction": "links halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.58182,
+        52.564487
+      ],
+      "instruction": "rechts halten an der Gabelung."
+    },
+    {
+      "location": [
+        13.581867,
+        52.567648
+      ],
+      "instruction": "Geradeaus halten an der Gabelung."
+    }
+  ]
+}

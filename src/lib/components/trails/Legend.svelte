@@ -10,7 +10,12 @@
     pageCount,
     totalItems,
     onTrailSelect,
+    onTrailSelectEnd,
+    onTrailHover,
+    onTrailHoverEnd,
     onPoiSelect,
+    onPoiHover,
+    onPoiHoverEnd,
     onPageChange,
     focussedTrail,
   }: LegendProps = $props();
@@ -21,7 +26,9 @@
     trails.filter(
       (trail) =>
         trail.display &&
-        (!printMapBounds || trail.data.bounds.overlaps(printMapBounds)),
+        (!focussedTrail ||
+          !printMapBounds ||
+          trail.data.bounds.overlaps(printMapBounds)),
     ),
   );
 </script>
@@ -58,7 +65,17 @@
         <button
           class="legend-item legend-button"
           type="button"
-          onpointerdown={() => onTrailSelect?.(index)}
+          aria-label={`Wanderweg ${trail.data.title} auf der Karte anzeigen`}
+          onpointerenter={(event) =>
+            onTrailHover?.(trails.indexOf(trail), event)}
+          onpointerleave={(event) => {
+            onTrailHoverEnd?.(trails.indexOf(trail), event);
+            onTrailSelectEnd?.(event);
+          }}
+          onpointerdown={(event) =>
+            onTrailSelect?.(trails.indexOf(trail), event)}
+          onpointerup={(event) => onTrailSelectEnd?.(event)}
+          onpointercancel={(event) => onTrailSelectEnd?.(event)}
         >
           <div
             class="legend-line"
@@ -73,6 +90,8 @@
           <button
             class="legend-item legend-button"
             type="button"
+            onpointerenter={(event) => onPoiHover?.(index, event)}
+            onpointerleave={(event) => onPoiHoverEnd?.(index, event)}
             onpointerdown={() => onPoiSelect?.(index)}
           >
             <span class="poi-number" aria-hidden="true">{index + 1}</span>

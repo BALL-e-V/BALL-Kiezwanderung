@@ -53,10 +53,21 @@
     const syncNavigationTracking = (event: Event) => {
       navigationTracking = (event as CustomEvent<boolean>).detail;
     };
+    const clearWanderwegeQuickSearch = () => {
+      if (wanderwegeSearchTimer) {
+        clearTimeout(wanderwegeSearchTimer);
+        wanderwegeSearchTimer = null;
+      }
+      wanderwegeSearchQuery = "";
+    };
     window.addEventListener("wanderwege-trail-focus", syncTrailFocus);
     window.addEventListener(
       "wanderwege-navigation-tracking-state",
       syncNavigationTracking,
+    );
+    window.addEventListener(
+      "clear-wanderwege-quick-search",
+      clearWanderwegeQuickSearch,
     );
     void mountHandler();
     return () => {
@@ -64,6 +75,10 @@
       window.removeEventListener(
         "wanderwege-navigation-tracking-state",
         syncNavigationTracking,
+      );
+      window.removeEventListener(
+        "clear-wanderwege-quick-search",
+        clearWanderwegeQuickSearch,
       );
     };
   });

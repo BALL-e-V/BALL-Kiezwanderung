@@ -133,21 +133,20 @@ export interface PrintOptionsProps {
   onPrint: () => void;
 }
 
-export interface LegendTrail {
-  data: Pick<HikingTrail, "title" | "bounds">;
-  display: boolean;
-  color: string;
-}
-
 export interface LegendProps {
-  trails: LegendTrail[];
+  trails: FilteredTrail[];
   poiTitles: string[];
   printMapBounds?: LatLngBounds | null;
   pageNumber: number;
   pageCount: number;
   totalItems: number;
-  onTrailSelect?: (index: number) => void;
+  onTrailSelect?: (index: number, event: PointerEvent) => void;
+  onTrailSelectEnd?: (event: PointerEvent) => void;
+  onTrailHover?: (index: number, event: PointerEvent) => void;
+  onTrailHoverEnd?: (index: number, event: PointerEvent) => void;
   onPoiSelect?: (index: number) => void;
+  onPoiHover?: (index: number, event: PointerEvent) => void;
+  onPoiHoverEnd?: (index: number, event: PointerEvent) => void;
   onPageChange: (targetPage: number) => void;
   focussedTrail: boolean;
 }

@@ -436,6 +436,12 @@
       trail.data.endMarker.removeFrom(map);
     } else {
       trail.data.polyline?.addTo(map);
+      const trailElement = trail.data.polyline?.getElement();
+      trailElement?.setAttribute("data-trail-title", trail.data.title);
+      trailElement?.setAttribute(
+        "aria-label",
+        `${trail.data.title} Wanderweg`,
+      );
       trailHoverSwitch(trail, "on");
       trailDownSwitch(trail, "on");
       trail.display = true;
@@ -658,32 +664,102 @@
     focusTrailSwitch(trail, "on");
   }
 
-  function selectTrailFromLegend(index: number) {
-    const selectedIndex = pageNumber * trailsPerPage + index;
-    const trailsOnPage = Math.min(
-      trailsPerPage,
-      filteredTrailList.length - pageNumber * trailsPerPage,
-    );
-    if (!Number.isInteger(index) || index < 0 || index >= trailsOnPage) {
+  function activateTrailFromLegend(trail: FilteredTrail) {
+    if (focussedTrail) {
+      popupSwitch({ trail });
+    } else {
+      focusTrailSwitch(trail, "on");
+    }
+  }
+
+  function selectTrailFromLegend(index: number, event: PointerEvent) {
+    if (!Number.isInteger(index) || index < 0 || index >= displayedPageTrails.length) {
       console.log(
-        "index has to be a whole number between 0 and trailsOnPage - 1; " +
+        "index has to be a whole number between 0 and displayedPageTrails.length - 1; " +
           index +
           " is not",
       );
       return;
     }
 
-    const selectedTrail = filteredTrailList[selectedIndex];
+    const selectedTrail = displayedPageTrails[index];
+    if (event.pointerType !== "mouse") {
+      showtooltip({ event, trail: selectedTrail });
+      if (longTapTimer) clearTimeout(longTapTimer);
+      longTapTimer = setTimeout(() => {
+        activateTrailFromLegend(selectedTrail);
+        clearTimeout(longTapTimer);
+        longTapTimer = null as any;
+      }, longTapDelay);
+      return;
+    }
 
-    if (focussedTrail) {
-      popupSwitch({ trail: selectedTrail });
-    } else {
-      focusTrailSwitch(selectedTrail, "on");
+    activateTrailFromLegend(selectedTrail);
+  }
+
+  function endTrailSelectFromLegend(event: PointerEvent) {
+    if (event.pointerType === "mouse" || !longTapTimer) return;
+    clearTimeout(longTapTimer);
+    longTapTimer = null as any;
+  }
+
+  function hoverTrailFromLegend(
+    index: number,
+    event: PointerEvent,
+  ) {
+    if (event.pointerType !== "mouse" || popupVisible) return;
+    const trail =
+      focussedTrail ??
+      displayedPageTrails[index];
+    if (!trail) return;
+
+    trail.data.polyline?.setStyle({ weight: 5 });
+    showtooltip({ event, trail });
+  }
+
+  function unhoverTrailFromLegend(
+    index: number,
+    event: PointerEvent,
+  ) {
+    if (event.pointerType !== "mouse") return;
+    const trail =
+      focussedTrail ??
+      displayedPageTrails[index];
+    if (!trail) return;
+    tooltipVisible = false;
+    trail.data.polyline?.setStyle({ weight: 3 });
+  }
+
+  function hoverPoiFromLegend(index: number, event: PointerEvent) {
+    if (popupVisible) return;
+    const poi = focussedTrail
+      ? poisByTrailId.get(focussedTrail.data.id)?.[index]
+      : undefined;
+    if (!poi) return;
+
+    showtooltip({ event, poi });
+    const markerElement = getPoiMarkerElement(poi);
+    if (markerElement) {
+      markerElement.style.border = "2px solid " + colors.highlight;
     }
   }
 
   function selectPoiFromLegend(index: number) {
     popupSwitch({ poiIndex: index });
+  }
+
+  function unhoverPoiFromLegend(index: number, event: PointerEvent) {
+    if (event.pointerType !== "mouse") return;
+    const poi = focussedTrail
+      ? poisByTrailId.get(focussedTrail.data.id)?.[index]
+      : undefined;
+    if (!poi) return;
+
+    const markerElement = getPoiMarkerElement(poi);
+    if (markerElement) {
+      markerElement.style.border = "1px solid black";
+    }
+    tooltipVisible = false;
   }
 
   function applyQuickSearch(query: string) {
@@ -880,8 +956,17 @@
     // Reverse the POIs for this trail
     const pois = poisByTrailId.get(trail.data.id);
     if (pois) {
+      const selectedPoiId = pois[popupData.activePoiIndex]?.id;
       pois.reverse();
       poiTitles.reverse();
+      popupData.imageUrls.reverse();
+      popupData.imageAlts.reverse();
+      popupData.poiNames.reverse();
+      if (selectedPoiId) {
+        popupData.activePoiIndex = pois.findIndex(
+          (poi) => poi.id === selectedPoiId,
+        );
+      }
       // Update the marker icons with new numbers
       pois.forEach((p, i) => {
         p.marker.setIcon(
@@ -1252,7 +1337,10 @@
 
     const closeSearchOnOutsidePointerDown = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Element && !target.closest(".search-overlay")) {
+      if (
+        target instanceof Element &&
+        !target.closest(".search-overlay, .search-toggle")
+      ) {
         searchVisible = false;
       }
     };
@@ -1396,7 +1484,12 @@
         totalItems={filteredTrailList.length}
         focussedTrail={focussedTrail ? true : false}
         onTrailSelect={selectTrailFromLegend}
+        onTrailSelectEnd={endTrailSelectFromLegend}
+        onTrailHover={hoverTrailFromLegend}
+        onTrailHoverEnd={unhoverTrailFromLegend}
         onPoiSelect={selectPoiFromLegend}
+        onPoiHover={hoverPoiFromLegend}
+        onPoiHoverEnd={unhoverPoiFromLegend}
         onPageChange={changePage}
       />
       {#if !focussedTrail && pageCount > 1}
@@ -1442,7 +1535,12 @@
       <div class="search-overlay">
         <SearchInterface
           trails={hikingTrailList}
-          onSearch={(results) => applyTrailSearch(results)}
+          onSearch={(results) => {
+            window.dispatchEvent(
+              new CustomEvent("clear-wanderwege-quick-search"),
+            );
+            applyTrailSearch(results);
+          }}
           bind:searchData
           {noTrailsFound}
         />

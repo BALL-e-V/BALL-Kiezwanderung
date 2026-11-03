@@ -59,15 +59,20 @@
       const hasNameQuery = Boolean(searchData.nameQuery.trim());
       const hasDistrictQuery = Boolean(searchData.districtQuery.trim());
       const hasPoiQuery = Boolean(searchData.poiQuery.trim());
-      const hasCategoryQuery = hasNameQuery || hasDistrictQuery || hasPoiQuery;
-      const matchesCategory =
-        !hasCategoryQuery ||
-        (hasNameQuery && matchesRegex(trail.title, searchData.nameQuery)) ||
-        (hasDistrictQuery && matchesAny(districts, searchData.districtQuery)) ||
-        (hasPoiQuery && matchesAny(trail.poiTitles, searchData.poiQuery));
+      const matchesName =
+        !hasNameQuery || matchesRegex(trail.title, searchData.nameQuery);
+      const matchesDistrict =
+        !hasDistrictQuery ||
+        matchesAny(districts, searchData.districtQuery);
+      const matchesPoi =
+        !hasPoiQuery || matchesAny(trail.poiTitles, searchData.poiQuery);
 
       return (
-        matchesCategory && trailLength >= minLength && trailLength <= maxLength
+        matchesName &&
+        matchesDistrict &&
+        matchesPoi &&
+        trailLength >= minLength &&
+        trailLength <= maxLength
       );
     });
 
