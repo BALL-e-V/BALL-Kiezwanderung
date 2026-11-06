@@ -1,0 +1,52 @@
+[
+  {
+    "label": "trailhead",
+    "latitude": 52.570919,
+    "longitude": 13.581318
+  },
+  {
+    "label": "near-trailhead",
+    "latitude": 52.571019,
+    "longitude": 13.581318
+  },
+  {
+    "label": "direction-1",
+    "latitude": 52.56366,
+    "longitude": 13.58206
+  },
+  {
+    "label": "direction-2",
+    "latitude": 52.560467,
+    "longitude": 13.581562
+  },
+  {
+    "label": "direction-3",
+    "latitude": 52.559404,
+    "longitude": 13.581358
+  },
+  {
+    "label": "ahrensfelder-berge",
+    "latitude": 52.555525,
+    "longitude": 13.5866748
+  },
+  {
+    "label": "direction-6",
+    "latitude": 52.553509,
+    "longitude": 13.587029
+  },
+  {
+    "label": "direction-7",
+    "latitude": 52.551427,
+    "longitude": 13.586201
+  },
+  {
+    "label": "detour-skipping-directions-8-to-10",
+    "latitude": 52.5513,
+    "longitude": 13.59
+  },
+  {
+    "label": "rejoin-at-direction-11",
+    "latitude": 52.549622,
+    "longitude": 13.585449
+  }
+]

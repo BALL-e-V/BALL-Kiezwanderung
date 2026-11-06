@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
+import { resolve } from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { soakLaunchOptions } from 'playwright-soak-test';
+
+const projectRoot = fileURLToPath(new URL('.', import.meta.url));
+const viteCli = resolve(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 
 /**
  * Read environment variables from file.
@@ -32,7 +37,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5174',
+    storageState: process.env.PLAYWRIGHT_STORAGE_STATE,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -48,7 +54,7 @@ export default defineConfig({
     {
       name: 'mobile-chromium',
       use: { ...devices['iPhone 13'] },
-      testMatch: /wanderwege-page\.spec\.ts/,
+      testMatch: /wanderwege-(page|navigation)\.spec\.ts/,
     },
 
     {
@@ -79,8 +85,12 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: 'pnpm dev --host 127.0.0.1',
-        url: 'http://127.0.0.1:5173',
-        reuseExistingServer: !process.env.CI,
+        command: `"${process.execPath}" "${viteCli}" dev --host 127.0.0.1 --port 5174 --strictPort`,
+        url: 'http://127.0.0.1:5174',
+        env: {
+          PLAYWRIGHT_TEST_AUTH: '1',
+          VITE_PLAYWRIGHT_TEST_AUTH: '1',
+        },
+        reuseExistingServer: false,
       },
 });

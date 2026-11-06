@@ -438,10 +438,7 @@
       trail.data.polyline?.addTo(map);
       const trailElement = trail.data.polyline?.getElement();
       trailElement?.setAttribute("data-trail-title", trail.data.title);
-      trailElement?.setAttribute(
-        "aria-label",
-        `${trail.data.title} Wanderweg`,
-      );
+      trailElement?.setAttribute("aria-label", `${trail.data.title} Wanderweg`);
       trailHoverSwitch(trail, "on");
       trailDownSwitch(trail, "on");
       trail.display = true;
@@ -673,7 +670,11 @@
   }
 
   function selectTrailFromLegend(index: number, event: PointerEvent) {
-    if (!Number.isInteger(index) || index < 0 || index >= displayedPageTrails.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= displayedPageTrails.length
+    ) {
       console.log(
         "index has to be a whole number between 0 and displayedPageTrails.length - 1; " +
           index +
@@ -703,28 +704,18 @@
     longTapTimer = null as any;
   }
 
-  function hoverTrailFromLegend(
-    index: number,
-    event: PointerEvent,
-  ) {
+  function hoverTrailFromLegend(index: number, event: PointerEvent) {
     if (event.pointerType !== "mouse" || popupVisible) return;
-    const trail =
-      focussedTrail ??
-      displayedPageTrails[index];
+    const trail = focussedTrail ?? displayedPageTrails[index];
     if (!trail) return;
 
     trail.data.polyline?.setStyle({ weight: 5 });
     showtooltip({ event, trail });
   }
 
-  function unhoverTrailFromLegend(
-    index: number,
-    event: PointerEvent,
-  ) {
+  function unhoverTrailFromLegend(index: number, event: PointerEvent) {
     if (event.pointerType !== "mouse") return;
-    const trail =
-      focussedTrail ??
-      displayedPageTrails[index];
+    const trail = focussedTrail ?? displayedPageTrails[index];
     if (!trail) return;
     tooltipVisible = false;
     trail.data.polyline?.setStyle({ weight: 3 });
@@ -1400,20 +1391,6 @@
       <div id="map" use:createMap>
         <div class="leaflet-top leaflet-right">
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button
-              type="button"
-              class="location-action-button"
-              disabled={navigationTrackingEnabled || isGettingLocation}
-              onpointerdown={(event) => event.stopPropagation()}
-              onclick={(event) => {
-                event.stopPropagation();
-                locateUserOnce();
-              }}
-            >
-              {isGettingLocation
-                ? "Standort wird ermittelt..."
-                : "Standort ermitteln"}
-            </button>
             {#if focussedTrail}
               <button
                 style="pointer-events: auto; padding: 8px 16px; background-color: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;"
@@ -1573,6 +1550,7 @@
     {/if}
   </div>
 </div>
+
 <style>
   .map-container {
     position: absolute;
@@ -1598,24 +1576,6 @@
     z-index: 500;
     transform: translateX(-50%);
     pointer-events: auto;
-  }
-
-  .location-action-button {
-    pointer-events: auto;
-    padding: 8px 12px;
-    background-color: #fff;
-    color: #333;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .location-action-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
   }
 
   .navigation-error-toast {

@@ -68,6 +68,7 @@
     id: string;
     title: string;
     author: string;
+    editor?: string;
     created: string;
     updated?: string;
     published: boolean;
@@ -820,7 +821,9 @@
       }),
     );
     const time = setTimeout(() => {
-      poiList[heroPoi].marker.dragging?.enable();
+      if (poiList[heroPoi] === poi) {
+        poi.marker.dragging?.enable();
+      }
       clearTimeout(time);
     }, poiDraggingDelay);
     poiList[heroPoi].marker.on("dragend", (e: LeafletEvent) => movePoi(e));
