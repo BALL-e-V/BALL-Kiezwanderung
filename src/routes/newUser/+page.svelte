@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "leaflet/dist/leaflet.css";
   import { authClient } from "$lib/auth-client";
   import {
     allUsers,
@@ -13,7 +14,10 @@
   import { onMount } from "svelte";
   import Asdf from "./asdf.svelte";
   import Thing from "./thing.svelte";
+  import { Map as LeafletMap, TileLayer, Marker, Polyline } from "leaflet";
 
+  let map: LeafletMap;
+  let mapElement: HTMLDivElement;
   const session = authClient.useSession();
   let displayThing = $state(false);
 
@@ -105,6 +109,30 @@
       Math.round(Math.random() * 256) +
       ")";
   }
+
+  //function to make the map once the html is created
+  function createMap(element: any) {
+    map = new LeafletMap(element).setView([52.54, 13.52], 13);
+
+    const tiles = new TileLayer(
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+      {
+        maxZoom: 19,
+
+        attribution:
+          '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      },
+    ).addTo(map);
+
+    return {
+      destroy: () => {
+        // dont litter
+        map.remove();
+        map = null as any;
+      },
+    };
+  }
 </script>
 
 <button onclick={() => (displayThing = !displayThing)}>thing</button>
@@ -167,10 +195,35 @@
     {/if}
   </div>
 </div>
-<button onclick={deleteDeprecatedPoi}>Delete deprecated POI</button>
-
+<div
+  style="display:block;border:1px solid black;min-height: 600px; width: 90%;"
+>
+  <div id="map" use:createMap></div>
+</div>
 {#each await allTrails() as trail}
-  <button onclick={async () => console.log(await trailDirection(trail.id))}
-    >{trail.title}</button
+  <button
+    onclick={async () => {
+      const response = await trailDirection(trail.id);
+      const direction = response.direction;
+
+      if (direction && direction instanceof Array && direction.length > 0) {
+        direction.forEach((d) => {
+          const marker = new Marker([d.location[1], d.location[0]]).addTo(map);
+        });
+      }
+      const path = response.path;
+      if (path && path instanceof Array && path.length > 0) {
+        const polyline = new Polyline(path).addTo(map);
+      }
+    }}>{trail.title}</button
   >
 {/each}
+
+<style>
+  #map {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+</style>

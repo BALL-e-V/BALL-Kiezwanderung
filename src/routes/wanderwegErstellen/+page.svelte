@@ -96,6 +96,11 @@
   }
   //waypoint markers at the start and end of all the polylines for help editing the trail
   let trailMarkers: TrailMarkerEntry[] = $state([]);
+  //mark te location where validating the direction failed
+  let validateDirectionMarker = new Marker([0, 0]).setIcon(
+    iconmaker({ size: 2, color: "red" }),
+  );
+  let validateDirectionMarkerVisible = false;
   //are you editing the trail or the poi
   let editing = $state("trail") as "trail" | "poi";
   //is the onpointerdown listener for the trailmaker active?
@@ -1604,7 +1609,7 @@
     }
 
     //if the trail was new the database will respond by sending back the assigned uuid
-    if (response) {
+    if (response.result) {
       trailId = response.result[0].id;
       let i = 0;
       //placing the trail into its location in the dropdown list according to the title
@@ -1639,9 +1644,34 @@
         listofTrails.splice(i, 0, existingTrail);
       }
     }
-
+    console.log(response.validationResult);
+    directionValidationHandler(
+      response.validationResult.coordinates,
+      response.validationResult.validated,
+    );
     trailUpdate = false;
     loadingTrail--;
+  }
+
+  function directionValidationHandler(
+    coordinates: [number, number],
+    validated: boolean,
+  ) {
+    if (validated) {
+      if (validateDirectionMarkerVisible) {
+        validateDirectionMarker.remove();
+        validateDirectionMarkerVisible = false;
+      }
+    } else {
+      showFailureTooltip(
+        "Wegbeschreibung konnte nicht validiert werden, bitte wegpunkte in der nähe prüfen",
+      );
+      validateDirectionMarker
+        .setLatLng({ lat: coordinates[1], lng: coordinates[0] })
+        .addTo(map);
+      map.setView({ lat: coordinates[1], lng: coordinates[0] }, 17);
+    }
+    validateDirectionMarkerVisible = true;
   }
   //function to load a trail from the database
   async function trailFromDB(id: string) {

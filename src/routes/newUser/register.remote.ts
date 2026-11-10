@@ -1,90 +1,106 @@
-import { query,command } from "$app/server";
+import { query, command } from "$app/server";
 import { user } from "$lib/server/db/auth.schema";
-import {db}from "$lib/server/db";
+import { db } from "$lib/server/db";
 import * as v from "valibot";
-import{eq}from "drizzle-orm"
-import {hikingTrails, poi,trailsToPoi} from "$lib/server/db/trails.schema"
-export const allUsers = query (async()=>{
-    try{ 
-        const users = await db.select({name:user.name,email:user.email,userID:user.id}).from(user)
-        return users
-    }catch(error){
-        throw(error)
-    }
-})
-
-
+import { eq } from "drizzle-orm";
+import { hikingTrails, poi, trailsToPoi } from "$lib/server/db/trails.schema";
+export const allUsers = query(async () => {
+  try {
+    const users = await db
+      .select({ name: user.name, email: user.email, userID: user.id })
+      .from(user);
+    return users;
+  } catch (error) {
+    throw error;
+  }
+});
 
 export const makeAdmin = command(v.string(), async (userId) => {
+  try {
+    const response = await db
+      .select({ roles: user.roles })
+      .from(user)
+      .where(eq(user.id, userId));
 
-    try {
-        const response = await db
-            .select({ roles: user.roles})
-            .from(user)
-            .where(eq(user.id, userId));
+    const raw = response[0];
+    if (!raw) {
+      throw new Error("User not found");
+    }
 
-        const raw = response[0];
-        if (!raw) {
-            throw new Error('User not found');
+    const currentRoles = (() => {
+      const rawRoles = raw.roles;
+      if (!rawRoles) return [] as string[];
+      if (Array.isArray(rawRoles)) return rawRoles as string[];
+      if (typeof rawRoles === "string") {
+        try {
+          const parsed = JSON.parse(rawRoles);
+          if (Array.isArray(parsed)) {
+            return parsed as string[];
+          }
+        } catch {
+          throw new Error("could not parse roles data");
         }
+      }
+      return [] as string[];
+    })();
 
-        const currentRoles = (() => {
-            const rawRoles = raw.roles;
-            if (!rawRoles) return [] as string[];
-            if (Array.isArray(rawRoles)) return rawRoles as string[]
-            if (typeof rawRoles === 'string') {
-                try {
-                    const parsed = JSON.parse(rawRoles);
-                    if (Array.isArray(parsed)) {
-                        return parsed as string[]
-                    }
-                } catch {
-                    throw new Error("could not parse roles data")
-                }
-            }
-            return [] as string[];
-        })();
+    const updatedRoles = [...new Set([...currentRoles, "admin"])];
+    await db
+      .update(user)
+      .set({ roles: updatedRoles })
+      .where(eq(user.id, userId));
+  } catch (error) {
+    throw error;
+  }
 
-        const updatedRoles = [...new Set([...currentRoles, 'admin'])];
-        await db.update(user).set({ roles: updatedRoles }).where(eq(user.id, userId));
-    } catch (error) {
-        throw error;
-    }
+  return { success: true };
+});
 
-    return { success: true };
- });
+export const allTrailPoiRealations = query(async () => {
+  const response = await db
+    .select({
+      trailId: trailsToPoi.trailId,
+      poiId: trailsToPoi.poiId,
+      poiTitle: poi.title,
+    })
+    .from(trailsToPoi)
+    .leftJoin(poi, eq(trailsToPoi.poiId, poi.id));
+  return response;
+});
 
- export const allTrailPoiRealations = query (async()=>{
-    const response = await db.select({trailId:trailsToPoi.trailId,poiId:trailsToPoi.poiId,poiTitle:poi.title}).from(trailsToPoi).leftJoin(poi,eq(trailsToPoi.poiId,poi.id))
-    return response;
- })
+export const allPoi = query(async () => {
+  const response = await db.select({ id: poi.id, title: poi.title }).from(poi);
+  return response;
+});
 
- export const allPoi = query (async()=>{
-    const response = await db.select({id:poi.id,title:poi.title}).from(poi)
-    return response;
- })
+export const deletePoi = command(v.string(), async (poiId) => {
+  try {
+    await db.delete(poi).where(eq(poi.id, poiId));
+  } catch (error) {
+    throw error;
+  }
 
- export const deletePoi = command(v.string(), async (poiId) => {
-    try {
-        await db.delete(poi).where(eq(poi.id, poiId));
-    } catch (error) {
-        throw error;
-    }
+  return { success: true };
+});
 
-    return { success: true };
- })
-
- export const allTrails = query (async()=>{
-        const Trails = await db.select({ id: hikingTrails.id, title: hikingTrails.title }).from(hikingTrails)
-        return Trails;
-
-})
+export const allTrails = query(async () => {
+  const Trails = await db
+    .select({ id: hikingTrails.id, title: hikingTrails.title })
+    .from(hikingTrails);
+  return Trails;
+});
 
 export const trailDirection = command(v.string(), async (trailId) => {
-    try {
-        const trail = await db.select({directions:hikingTrails.reverseDirections}).from(hikingTrails).where(eq(hikingTrails.id, trailId));
-        return trail[0].directions;
-    } catch (error) {
-        throw error;
-    }
-})
+  try {
+    const trail = await db
+      .select({
+        directions: hikingTrails.reverseDirections,
+        path: hikingTrails.trail,
+      })
+      .from(hikingTrails)
+      .where(eq(hikingTrails.id, trailId));
+    return { direction: trail[0]?.directions, path: trail[0]?.path };
+  } catch (error) {
+    throw error;
+  }
+});
