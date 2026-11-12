@@ -1,11 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 import { resolve } from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { soakLaunchOptions } from 'playwright-soak-test';
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 const viteCli = resolve(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
+const directionsMock = pathToFileURL(
+  resolve(projectRoot, 'tests', 'wanderwegeErstellen', 'mock-mapbox-directions.mjs'),
+).href;
 
 /**
  * Read environment variables from file.
@@ -90,6 +93,12 @@ export default defineConfig({
         env: {
           PLAYWRIGHT_TEST_AUTH: '1',
           VITE_PLAYWRIGHT_TEST_AUTH: '1',
+          NODE_OPTIONS: [
+            process.env.NODE_OPTIONS,
+            `--import=${directionsMock}`,
+          ]
+            .filter(Boolean)
+            .join(' '),
         },
         reuseExistingServer: false,
       },

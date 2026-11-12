@@ -226,7 +226,6 @@ export function validateDirections(
       coordinates: reverseDirection[directionIndex].location,
     };
   } else {
-    console.log("directions validated successfully");
     return { validated: true, coordinates: [0, 0] as [number, number] };
   }
 }

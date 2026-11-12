@@ -5,6 +5,7 @@
     position: { x: number; y: number };
     target: "polyline" | "marker" | "poi" | "map" | null;
     trailStarted: boolean;
+    editing: "trail" | "poi";
     targetIndex: number;
     markerCount: number;
     isLoading: boolean;
@@ -26,6 +27,7 @@
     position = { x: 0, y: 0 },
     target = null,
     trailStarted = false,
+    editing = "trail",
     targetIndex = $bindable(),
     markerCount = 0,
     isLoading = false,
@@ -109,6 +111,7 @@
 
       {/if}
     {:else if target === "map"}
+      {#if editing === "trail"}
         <button
           type="button"
           class="context-menu-button"
@@ -116,15 +119,16 @@
         >
           ▶️ Wanderweg fortsetzen{markerCount > 0 ? "fortsetzen" : "starten"}
         </button>
-        {#if trailStarted}
-          <button
-            type="button"
-            class="context-menu-button"
-            onpointerdown={onCreatePoi}
-          >
-            📍 Neue Sehenswürdigkeit
-          </button>
-        {/if}
+      {/if}
+      {#if trailStarted}
+        <button
+          type="button"
+          class="context-menu-button"
+          onpointerdown={onCreatePoi}
+        >
+          📍 Neue Sehenswürdigkeit
+        </button>
+      {/if}
     {:else if target === "polyline"}
       <button type="button" class="context-menu-button" onpointerdown={() => insertSwitch("on")}>
         ➕ Wegpunkt manuell einfügen

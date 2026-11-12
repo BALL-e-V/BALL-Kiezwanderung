@@ -13,6 +13,7 @@
 
   interface Props {
     loadingTrail: number;
+    hasUnsavedChanges: boolean;
     trailTitle: string;
     trailDescription: string;
     published: boolean;
@@ -32,6 +33,7 @@
 
   let {
     loadingTrail,
+    hasUnsavedChanges,
     trailTitle = $bindable("") as string,
     trailDescription = $bindable("") as string,
     published = $bindable(false) as boolean,
@@ -95,7 +97,7 @@
     </button>
     <button
       type="button"
-      disabled={trail.length == 0 || loadingTrail != 0}
+      disabled={trail.length == 0 || loadingTrail != 0 || !hasUnsavedChanges}
       onpointerdown={saveTrail}
       class="button primary"
     >

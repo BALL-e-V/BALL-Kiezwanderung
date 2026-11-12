@@ -832,6 +832,7 @@
       clearTimeout(time);
     }, poiDraggingDelay);
     poiList[heroPoi].marker.on("dragend", (e: LeafletEvent) => movePoi(e));
+    map.panTo(poiList[heroPoi].marker.getLatLng());
   }
 
   function movePoi(e: LeafletEvent) {
@@ -1627,8 +1628,14 @@
     } else {
       //updating the position in the list if the title was changed
       let index = listofTrails.findIndex((t) => t.id == trailData.id);
-      listofTrails[index].published = published;
+
       if (listofTrails[index].title != trailData.title) {
+        const existingTrail = {
+          ...listofTrails[index],
+          published: published,
+          updated: new Date().toISOString(),
+          title: trailData.title,
+        };
         listofTrails.splice(index, 1);
         let i = 0;
         while (
@@ -1637,11 +1644,11 @@
         ) {
           i++;
         }
-        const existingTrail = {
-          ...listofTrails[index],
-          title: trailData.title,
-        };
+
         listofTrails.splice(i, 0, existingTrail);
+      } else {
+        listofTrails[index].published = published;
+        listofTrails[index].updated = new Date().toISOString();
       }
     }
     console.log(response.validationResult);
@@ -1666,9 +1673,15 @@
       showFailureTooltip(
         "Wegbeschreibung konnte nicht validiert werden, bitte wegpunkte in der nähe prüfen",
       );
-      validateDirectionMarker
+      const markerLatLng = validateDirectionMarker
         .setLatLng({ lat: coordinates[1], lng: coordinates[0] })
-        .addTo(map);
+        .addTo(map)
+        .getLatLng();
+      const markerElement = validateDirectionMarker.getElement();
+      if (markerElement) {
+        markerElement.dataset.lat = String(markerLatLng.lat);
+        markerElement.dataset.lng = String(markerLatLng.lng);
+      }
       map.setView({ lat: coordinates[1], lng: coordinates[0] }, 17);
     }
     validateDirectionMarkerVisible = true;
@@ -2272,6 +2285,7 @@
         bind:deleteQuery
         bind:listofTrails
         bind:loadTrailQuery
+        hasUnsavedChanges={waitToSave !== null}
         {loadingTrail}
         {trailId}
         {trail}
@@ -2358,6 +2372,7 @@
   position={menuPos}
   target={rightClickTargetType}
   trailStarted={trailTitle != "Namen Eintragen" && trailId != ""}
+  {editing}
   bind:targetIndex={rightClickTargetIndex}
   markerCount={trailMarkers.length}
   isLoading={loadingTrail > 0}
