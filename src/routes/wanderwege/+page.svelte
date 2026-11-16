@@ -43,6 +43,7 @@
 
   const {
     colors,
+    map: mapConfig,
     tooltipSignCount,
     initialMapZoom,
     initialMapCoordinates,
@@ -183,6 +184,14 @@
     return document.getElementById(poi.id) ?? poi.marker.getElement();
   }
 
+  function poiBorderStyle(highlighted = false) {
+    const width = highlighted
+      ? mapConfig.highlightedPoiBorderWidth
+      : mapConfig.poiBorderWidth;
+    const color = highlighted ? colors.highlight : mapConfig.poiBorderColor;
+    return `${width}px solid ${color}`;
+  }
+
   //turn on and off pointerover/out interactions for a poi marker
 
   function pageDisplaySwitch(page: number, onOff: "on" | "off") {
@@ -305,20 +314,22 @@
     if (onOff == "on") {
       trail.data.polyline?.on("pointerover", (e: any) => {
         if (e.originalEvent.pointerType == "mouse") {
-          trail.data.polyline?.setStyle({ weight: 5 });
+          trail.data.polyline?.setStyle({
+            weight: mapConfig.highlightedTrailWeight,
+          });
           showtooltip({ event: e, trail: trail });
         }
       });
       trail.data.polyline?.on("pointerout", (e: any) => {
         if (e.originalEvent.pointerType == "mouse") {
           tooltipVisible = false;
-          trail.data.polyline?.setStyle({ weight: 3 });
+          trail.data.polyline?.setStyle({ weight: mapConfig.trailWeight });
         }
       });
     } else {
       trail.data.polyline?.off("pointerover");
       trail.data.polyline?.off("pointerout");
-      trail.data.polyline?.setStyle({ weight: 3 });
+      trail.data.polyline?.setStyle({ weight: mapConfig.trailWeight });
     }
   }
 
@@ -360,14 +371,14 @@
       poi.marker.on("pointerover", (event: any) => {
         showtooltip({ event, poi });
         if (markerElement) {
-          markerElement.style.border = "2px solid " + colors.highlight;
+          markerElement.style.border = poiBorderStyle(true);
         }
       });
       poi.marker.on("pointerout", (event: any) => {
         //let the tooltip stay open for touch devices, both because you don't want to hold your fingers on the screen and for double tapping
         if (event.originalEvent.pointerType == "mouse") {
           if (markerElement) {
-            markerElement.style.border = "1px solid black";
+            markerElement.style.border = poiBorderStyle();
           }
           tooltipVisible = false;
         }
@@ -376,7 +387,7 @@
       poi.marker.off("pointerover");
       poi.marker.off("pointerout");
       if (markerElement) {
-        markerElement.style.border = "1px solid black";
+        markerElement.style.border = poiBorderStyle();
       }
     }
   }
@@ -398,14 +409,14 @@
             const markerElement =
               document.getElementById(doubleTapTargetId) ?? undefined;
             if (markerElement) {
-              markerElement.style.border = "1px solid black";
+              markerElement.style.border = poiBorderStyle();
             }
           }
           doubleTapTargetId = poi.id;
           showtooltip({ event: e, poi });
           const markerElement = getPoiMarkerElement(poi);
           if (markerElement) {
-            markerElement.style.border = "2px solid " + colors.highlight;
+            markerElement.style.border = poiBorderStyle(true);
           }
           longTapTimer = setTimeout(() => {
             popupSwitch({ poi });
@@ -556,7 +567,14 @@
       //needs to happen agter sorting because of enuzmeration
       pois.forEach((p, i) => {
         p.marker.setIcon(
-          iconmaker({ color: "yellow", size: 2, number: i + 1, id: p.id }),
+          iconmaker({
+            color: colors.poi,
+            size: mapConfig.poiSize,
+            number: i + 1,
+            id: p.id,
+            borderColor: mapConfig.poiBorderColor,
+            borderWidth: mapConfig.poiBorderWidth,
+          }),
         );
         poiTitles.push(p.title);
       });
@@ -597,7 +615,10 @@
       hikingTrailList = response.map(mapToHikingTrail);
       for (let index = 0; index < hikingTrailList.length; index++) {
         const trail = createFilteredTrail(hikingTrailList[index], index);
-        trail.data.polyline?.setStyle({ color: trail.color });
+        trail.data.polyline?.setStyle({
+          color: trail.color,
+          weight: mapConfig.trailWeight,
+        });
         filteredTrailList.push(trail);
       }
       pageNumber = 0;
@@ -709,7 +730,9 @@
     const trail = focussedTrail ?? displayedPageTrails[index];
     if (!trail) return;
 
-    trail.data.polyline?.setStyle({ weight: 5 });
+    trail.data.polyline?.setStyle({
+      weight: mapConfig.highlightedTrailWeight,
+    });
     showtooltip({ event, trail });
   }
 
@@ -718,7 +741,7 @@
     const trail = focussedTrail ?? displayedPageTrails[index];
     if (!trail) return;
     tooltipVisible = false;
-    trail.data.polyline?.setStyle({ weight: 3 });
+    trail.data.polyline?.setStyle({ weight: mapConfig.trailWeight });
   }
 
   function hoverPoiFromLegend(index: number, event: PointerEvent) {
@@ -731,7 +754,7 @@
     showtooltip({ event, poi });
     const markerElement = getPoiMarkerElement(poi);
     if (markerElement) {
-      markerElement.style.border = "2px solid " + colors.highlight;
+      markerElement.style.border = poiBorderStyle(true);
     }
   }
 
@@ -748,7 +771,7 @@
 
     const markerElement = getPoiMarkerElement(poi);
     if (markerElement) {
-      markerElement.style.border = "1px solid black";
+      markerElement.style.border = poiBorderStyle();
     }
     tooltipVisible = false;
   }
@@ -823,6 +846,7 @@
       };
       newFilteredTrail.data.polyline?.setStyle({
         color: newFilteredTrail.color,
+        weight: mapConfig.trailWeight,
       });
       filteredTrailList.push(newFilteredTrail);
     });
@@ -922,7 +946,14 @@
         poisByTrailId.get(trail.data.id)?.forEach((poi, i) => {
           poi.marker.addTo(map);
           poi.marker.setIcon(
-            iconmaker({ color: "yellow", size: 2, number: i + 1, id: poi.id }),
+            iconmaker({
+              color: colors.poi,
+              size: mapConfig.poiSize,
+              number: i + 1,
+              id: poi.id,
+              borderColor: mapConfig.poiBorderColor,
+              borderWidth: mapConfig.poiBorderWidth,
+            }),
           );
           markerHoverSwitch(poi, "on");
           markerDownSwitch(poi, "on");
@@ -961,7 +992,14 @@
       // Update the marker icons with new numbers
       pois.forEach((p, i) => {
         p.marker.setIcon(
-          iconmaker({ color: "yellow", size: 2, number: i + 1, id: p.id }),
+          iconmaker({
+            color: colors.poi,
+            size: mapConfig.poiSize,
+            number: i + 1,
+            id: p.id,
+            borderColor: mapConfig.poiBorderColor,
+            borderWidth: mapConfig.poiBorderWidth,
+          }),
         );
       });
       configurePrintMap(trail);
@@ -979,11 +1017,17 @@
 
     // Recreate markers with swapped positions
     trail.data.startMarker = new Marker(trail.data.start, {
-      icon: iconmaker({ color: "green", size: 1 }),
+      icon: iconmaker({
+        color: colors.trailStart,
+        size: mapConfig.startEndSize,
+      }),
     }).addTo(map);
 
     trail.data.endMarker = new Marker(trail.data.end, {
-      icon: iconmaker({ color: "white", size: 1 }),
+      icon: iconmaker({
+        color: colors.trailEnd,
+        size: mapConfig.startEndSize,
+      }),
     }).addTo(map);
     configurePrintMap(trail);
   }
@@ -1026,8 +1070,8 @@
     if (popupData.poiId !== "") {
       const poiElement = document.getElementById(popupData.poiId);
       if (poiElement) {
-        poiElement.style.backgroundColor = "yellow";
-        poiElement.style.border = "1px solid black";
+        poiElement.style.backgroundColor = colors.poi;
+        poiElement.style.border = poiBorderStyle();
       }
     }
     //remember the last poi or displayed image to undo some styling
@@ -1083,7 +1127,7 @@
       const poiElement = document.getElementById(selectedPoi.id);
       if (poiElement) {
         poiElement.style.backgroundColor = colors.highlight;
-        poiElement.style.border = "1px solid black";
+        poiElement.style.border = poiBorderStyle();
       }
     } else {
       if (popupVisible) {
@@ -1113,9 +1157,9 @@
     //making sure the highlight for the shown image in trail mode is properly applied or in poi mode removed
     if (activePoi) {
       if (trail) {
-        activePoi.style.border = "2px solid" + colors.highlight;
+        activePoi.style.border = poiBorderStyle(true);
       } else {
-        activePoi.style.border = "1px solid black";
+        activePoi.style.border = poiBorderStyle();
       }
     }
   }
@@ -1242,7 +1286,7 @@
     } else {
       const currentElement = getPoiMarkerElement(imagePois[index]);
       if (currentElement) {
-        currentElement.style.border = "2px solid " + colors.highlight;
+        currentElement.style.border = poiBorderStyle(true);
       }
     }
 
@@ -1260,7 +1304,7 @@
       } else {
         const previousElement = getPoiMarkerElement(imagePois[previous]);
         if (previousElement) {
-          previousElement.style.border = "1px solid black";
+          previousElement.style.border = poiBorderStyle();
         }
       }
     }

@@ -6,6 +6,7 @@ import type { Request, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { parse, stringify } from "devalue";
 import { loadEnv } from "vite";
+import { colors } from "../../src/lib/config";
 import {
   expandedPathCoordinates,
   mockGetPathResponse,
@@ -256,7 +257,7 @@ test("trail creation persists and reloads trail and POIs in the database", async
     await firstGetPath;
 
     const editableTrailMarkers = map.locator(
-      '.leaflet-marker-icon.my-custom-pin:not(:has(span[style*="background-color: red"]))',
+      `.leaflet-marker-icon.my-custom-pin:not(:has(span[style*="background-color: ${colors.directionValidation}"]))`,
     );
     await editableTrailMarkers.last().click({ button: "right" });
     await expect(page.locator(".context-menu")).toHaveCount(0);
@@ -277,7 +278,7 @@ test("trail creation persists and reloads trail and POIs in the database", async
     const warning = page.getByRole("status");
     await expect(warning).toContainText("Wegbeschreibung konnte nicht validiert werden");
     const validationMarker = page.locator(
-      '#map .leaflet-marker-icon.my-custom-pin:has(span[style*="background-color: red"])',
+      `#map .leaflet-marker-icon.my-custom-pin:has(span[style*="background-color: ${colors.directionValidation}"])`,
     );
     await expect(validationMarker).toHaveCount(1);
     const firstSavePayload = readRequestPayload(firstSaveResponse.request()) as {
@@ -335,7 +336,7 @@ test("trail creation persists and reloads trail and POIs in the database", async
     ).toHaveCount(0);
 
     const middleMarkerIcon = map.locator(
-      '.leaflet-marker-pane > .leaflet-marker-icon.my-custom-pin:has(> span[style*="background-color: blue"])',
+      `.leaflet-marker-pane > .leaflet-marker-icon.my-custom-pin:has(> span[style*="background-color: ${colors.movableMarker}"])`,
     );
     await expect(middleMarkerIcon).toHaveCount(1);
     await expect(middleMarkerIcon).toHaveClass(/leaflet-marker-draggable/);

@@ -19,6 +19,7 @@ export const colors = {
   movableMarker: "blue",
   editing: "orange",
   poi: "yellow",
+  directionValidation: "red",
   buildTrail: "black",
   path: "#3388ff",
   inactiveTrail: "darkblue",
@@ -27,6 +28,15 @@ export const colors = {
 
 export const wanderwegeConfig = {
   colors,
+  map: {
+    trailWeight: 3,
+    highlightedTrailWeight: 5,
+    poiSize: 2,
+    poiBorderColor: colors.buildTrail,
+    poiBorderWidth: 1,
+    highlightedPoiBorderWidth: 2,
+    startEndSize: 1,
+  },
   tooltipSignCount: 120,
   initialMapZoom: 13,
   initialMapCoordinates: { lat: 52.54, lng: 13.52 },
@@ -64,6 +74,7 @@ export const wanderwegErstellenConfig = {
     clickableTrail: 4,
     inactiveTrail: 2,
     inactivePoi: 1,
+    directionValidationMarker: 2,
   },
   timeToSave: 5000,
   trailResolution: 40,

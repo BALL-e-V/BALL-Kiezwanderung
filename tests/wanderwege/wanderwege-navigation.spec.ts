@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { Buffer } from "node:buffer";
 import { stringify } from "devalue";
+import { colors } from "../../src/lib/config";
 import wuhletalwegDirections from "./fixtures/wuhletalweg-directions.json" with {
   type: "json",
 };
@@ -221,7 +222,7 @@ test("mobile navigation follows, reverses and tracks the Wuhletalweg", async ({
   );
   await expect(userMarker).toBeVisible();
   const startMarker = page.locator(
-    '.leaflet-marker-icon.my-custom-pin:has(span[style*="background-color: green"])',
+    `.leaflet-marker-icon.my-custom-pin:has(span[style*="background-color: ${colors.trailStart}"])`,
   );
   await expect(startMarker).toHaveCount(1);
   const userMarkerPosition = await userMarker.evaluate(

@@ -3,7 +3,10 @@ import type {
   TrailDirections,
   HikingTrail,
 } from "$lib/components/trails/types";
+import { wanderwegeConfig } from "$lib/config";
 import { iconmaker } from "$lib/util";
+
+const { colors, map: mapConfig } = wanderwegeConfig;
 
 export function toLeafletDirections(value: unknown): TrailDirections {
   const entries = typeof value === "string" ? JSON.parse(value) : value;
@@ -129,10 +132,16 @@ export function mapToHikingTrail(item: any): HikingTrail {
     trail,
     polyline: trail.length ? new Polyline(trail) : undefined,
     startMarker: new Marker(start, {
-      icon: iconmaker({ color: "green", size: 1 }),
+      icon: iconmaker({
+        color: colors.trailStart,
+        size: mapConfig.startEndSize,
+      }),
     }),
     endMarker: new Marker(end, {
-      icon: iconmaker({ color: "white", size: 1 }),
+      icon: iconmaker({
+        color: colors.trailEnd,
+        size: mapConfig.startEndSize,
+      }),
     }),
     poiTitles: Array.isArray(getProp(item, "poiTitles"))
       ? getProp(item, "poiTitles")

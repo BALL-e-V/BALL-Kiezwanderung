@@ -305,7 +305,39 @@ test("map trails, POIs and popup stay in sync", async ({ page }, testInfo) => {
   );
 
   const galleryNextIndex = (nextImageIndex + 1) % reversedPoiOrder.length;
-  await page.keyboard.press("ArrowRight");
+  async function swipeGallery(direction: "next" | "previous") {
+    const galleryBox = await gallery.boundingBox();
+    expect(galleryBox).not.toBeNull();
+    const startX =
+      galleryBox!.x +
+      galleryBox!.width * (direction === "next" ? 0.8 : 0.2);
+    const endX =
+      galleryBox!.x +
+      galleryBox!.width * (direction === "next" ? 0.2 : 0.8);
+    const clientY = galleryBox!.y + galleryBox!.height / 2;
+    const touch = {
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      bubbles: true,
+      clientY,
+    };
+
+    await gallery.dispatchEvent("pointerdown", {
+      ...touch,
+      clientX: startX,
+    });
+    await gallery.dispatchEvent("pointerup", {
+      ...touch,
+      clientX: endX,
+    });
+  }
+
+  if (isMobile) {
+    await swipeGallery("next");
+  } else {
+    await page.keyboard.press("ArrowRight");
+  }
   await expect(galleryImage).toHaveAttribute(
     "src",
     reversedPoiOrder[galleryNextIndex].imageUrl,
@@ -313,6 +345,11 @@ test("map trails, POIs and popup stay in sync", async ({ page }, testInfo) => {
   await expect(gallery.locator(".image-label")).toHaveText(
     reversedPoiOrder[galleryNextIndex].title,
   );
+
+  if (isMobile) {
+    await swipeGallery("previous");
+    await expect(galleryImage).toHaveAttribute("src", expectedNextImage);
+  }
 
   const previousButton = gallery.locator("#previous-image");
   const previousButtonBox = await previousButton.boundingBox();
@@ -323,15 +360,19 @@ test("map trails, POIs and popup stay in sync", async ({ page }, testInfo) => {
   );
   await expect(galleryImage).toHaveAttribute(
     "src",
-    expectedNextImage,
+    isMobile
+      ? reversedPoiOrder[reversedTrailImageIndex].imageUrl
+      : expectedNextImage,
   );
   await expect(gallery.locator(".image-label")).toHaveText(
-    reversedPoiOrder[nextImageIndex].title,
+    reversedPoiOrder[isMobile ? reversedTrailImageIndex : nextImageIndex].title,
   );
 
   await galleryImage.click({ position: { x: 10, y: 10 } });
   await expect(gallery).toHaveCount(0);
-  const activePoi = reversedPoiOrder[nextImageIndex];
+  const activePoi = reversedPoiOrder[
+    isMobile ? reversedTrailImageIndex : nextImageIndex
+  ];
   await expect(popup.locator(".trail-popup__title")).toHaveText(
     activePoi.title,
   );

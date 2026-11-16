@@ -6,11 +6,15 @@ export function iconmaker({
   size,
   number,
   id,
+  borderColor = "#000000",
+  borderWidth = 1,
 }: {
   color: string;
   size: number;
   number?: number;
   id?: string;
+  borderColor?: string;
+  borderWidth?: number;
 }) {
   const markerHtmlStyles = `
   background-color: ${color};
@@ -24,7 +28,7 @@ export function iconmaker({
   position: relative;
   border-radius: 2rem 2rem 0;
   transform: rotate(45deg);
-  border: 1px solid #000000`;
+  border: ${borderWidth}px solid ${borderColor}`;
   const numberStyles = `
   transform: rotate(-45deg);
   font-weight: bold;

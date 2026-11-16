@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import PDFParser, { type Output } from "pdf2json";
 import { stringify } from "devalue";
+import { colors } from "../../src/lib/config";
 import trailFixtures from "./fixtures/wanderwege-trails.json" with { type: "json" };
 import wuhletalwegDirections from "./fixtures/wuhletalweg-directions.json" with { type: "json" };
 
@@ -186,7 +187,7 @@ test("Wuhletalweg print PDF preserves map, directions and POI order", async ({
         .filter(({ number }) => number === null)
         .map(({ color }) => color)
         .sort(),
-    ).toEqual(["green", "white"]);
+    ).toEqual([colors.trailStart, colors.trailEnd].sort());
   }
   await expectMapPoiOrder(poiOrder);
 
@@ -240,7 +241,7 @@ test("Wuhletalweg print PDF preserves map, directions and POI order", async ({
     })),
   );
   expect(pathAttributes).toEqual([
-    { fill: "none", stroke: "#b5179e", strokeWidth: "3" },
+    { fill: "none", stroke: colors.trailPalette[1], strokeWidth: "3" },
   ]);
   await snapshotPrintMapSvg();
 

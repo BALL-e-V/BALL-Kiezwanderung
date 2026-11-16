@@ -98,7 +98,10 @@
   let trailMarkers: TrailMarkerEntry[] = $state([]);
   //mark te location where validating the direction failed
   let validateDirectionMarker = new Marker([0, 0]).setIcon(
-    iconmaker({ size: 2, color: "red" }),
+    iconmaker({
+      size: sizes.directionValidationMarker,
+      color: colors.directionValidation,
+    }),
   );
   let validateDirectionMarkerVisible = false;
   //are you editing the trail or the poi
@@ -769,7 +772,8 @@
       }
     } else {
       map.on("click", poiCreatorClick);
-      poiCreatorMarker.setLatLng({ lat: 0, lng: 0 }).addTo(map);
+      poiCreatorMarker.addTo(map);
+      console.log(poiCreatorMarker.getLatLng());
       map.on("pointermove", (e) => moveCreatorMarker(e));
       map.getContainer().style.cursor = "crosshair";
       creatingPoi = true;
@@ -787,7 +791,7 @@
   }
 
   function moveCreatorMarker(e: any) {
-    if (!e.latLng) {
+    if (!e.latlng) {
       console.log("needs a leaflet event");
       return;
     }

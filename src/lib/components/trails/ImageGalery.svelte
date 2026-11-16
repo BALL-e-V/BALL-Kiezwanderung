@@ -12,6 +12,8 @@
   }: ImageGaleryProps = $props();
 
   let flyX = $state(-500);
+  let swipeStart: { x: number; y: number; pointerId: number } | null = null;
+  const swipeThreshold = 50;
 
   const nextImage = () => {
     flyX = -500;
@@ -41,14 +43,61 @@
 
   function handlePointerDown(event: PointerEvent) {
     if (!(event.target instanceof HTMLButtonElement)) {
+      if (event.pointerType === "touch") {
+        if (!event.isPrimary) return;
+
+        if (
+          event.target instanceof Element &&
+          event.target.closest(".galleryWrapper")
+        ) {
+          swipeStart = {
+            x: event.clientX,
+            y: event.clientY,
+            pointerId: event.pointerId,
+          };
+          return;
+        }
+      }
+
+      swipeStart = null;
       closeGalery(currentSlideItem);
     }
   }
+
+  function handlePointerUp(event: PointerEvent) {
+    if (!swipeStart || swipeStart.pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - swipeStart.x;
+    const deltaY = event.clientY - swipeStart.y;
+    swipeStart = null;
+
+    if (
+      Math.abs(deltaX) < swipeThreshold ||
+      Math.abs(deltaX) <= Math.abs(deltaY)
+    ) {
+      closeGalery(currentSlideItem);
+    } else if (deltaX < 0) {
+      nextImage();
+    } else {
+      prevImage();
+    }
+  }
+
+  function handlePointerCancel(event: PointerEvent) {
+    if (swipeStart?.pointerId === event.pointerId) {
+      swipeStart = null;
+    }
+  }
+
   onMount(() => {
     window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
     window.addEventListener("keydown", handleKeydown);
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
       window.removeEventListener("keydown", handleKeydown);
     };
   });
@@ -97,6 +146,7 @@
     align-items: center;
     justify-content: center;
     overflow: visible;
+    touch-action: pan-y;
   }
   .btn {
     border: 2px solid #172033;

@@ -19,22 +19,12 @@
     onClose,
   }: Props = $props();
 
-  let title = $state("");
+  let title = $derived(initialTitle);
   let photoBase64 = $state<string | undefined>(undefined);
   let photoName = $state<string | undefined>(undefined);
   let photoPreview = $state<string | undefined>(undefined);
   let cameraInput = $state<HTMLInputElement | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
-
-  // Sync title when modal opens
-  $effect(() => {
-    if (open) {
-      title = initialTitle || (mode === "trail" ? "Neuer Wanderweg" : "Neuer POI");
-      photoBase64 = undefined;
-      photoName = undefined;
-      photoPreview = undefined;
-    }
-  });
 
   async function handleFileSelected(event: Event) {
     const target = event.currentTarget as HTMLInputElement;
@@ -53,7 +43,8 @@
 
   function handleFormSubmit(e: SubmitEvent) {
     e.preventDefault();
-    const finalTitle = title.trim() || (mode === "trail" ? "Neuer Wanderweg" : "Neuer POI");
+    const finalTitle =
+      title.trim() || (mode === "trail" ? "Neuer Wanderweg" : "Neuer POI");
     onSubmit(finalTitle, photoBase64, photoName);
   }
 
@@ -78,7 +69,9 @@
     >
       <div class="modal-header">
         <h3 id="modal-title">
-          {mode === "trail" ? "Wanderweg benennen" : "Sehenswürdigkeit erstellen"}
+          {mode === "trail"
+            ? "Wanderweg benennen"
+            : "Sehenswürdigkeit erstellen"}
         </h3>
         <button
           type="button"
@@ -93,14 +86,18 @@
       <form onsubmit={handleFormSubmit} class="modal-form">
         <div class="field">
           <label for="title-input">
-            {mode === "trail" ? "Titel des Wanderwegs:" : "Titel der Sehenswürdigkeit:"}
+            {mode === "trail"
+              ? "Titel des Wanderwegs:"
+              : "Titel der Sehenswürdigkeit:"}
           </label>
           <input
             id="title-input"
             class="input-field"
             type="text"
             bind:value={title}
-            placeholder={mode === "trail" ? "z.B. Rundweg Müggelsee" : "z.B. Historischer Brunnen"}
+            placeholder={mode === "trail"
+              ? "z.B. Rundweg Müggelsee"
+              : "z.B. Historischer Brunnen"}
             required
           />
         </div>
@@ -163,7 +160,11 @@
         {/if}
 
         <div class="modal-actions">
-          <button type="button" class="button secondary" onpointerdown={onClose}>
+          <button
+            type="button"
+            class="button secondary"
+            onpointerdown={onClose}
+          >
             Abbrechen
           </button>
           <button type="submit" class="button primary">

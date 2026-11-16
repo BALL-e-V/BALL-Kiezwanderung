@@ -52,24 +52,23 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /.*\.soak\.spec\.ts/,
+      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts)/,
     },
     {
       name: 'mobile-chromium',
       use: { ...devices['iPhone 13'] },
-      testMatch: /wanderwege-(page|navigation)\.spec\.ts/,
+      testMatch: /(?:wanderwege-(page|navigation)|wanderwegErstellen\.mobile)\.spec\.ts/,
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: /.*\.soak\.spec\.ts/,
+      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts)/,
     },
-
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: /.*\.soak\.spec\.ts/,
+      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts)/,
     },
     {
       name: 'soak',

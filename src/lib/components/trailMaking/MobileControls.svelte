@@ -193,6 +193,12 @@
     box-sizing: border-box;
   }
 
+  @media (max-width: 900px) {
+    .mobile-controls-bar {
+      margin-bottom: 0;
+    }
+  }
+
   .action-alert-row {
     display: flex;
     align-items: center;
