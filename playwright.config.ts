@@ -52,7 +52,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts)/,
+      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts|[\\/]findingLeaks[\\/])/,
     },
     {
       name: 'mobile-chromium',
@@ -63,7 +63,7 @@ export default defineConfig({
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts)/,
+      testIgnore: /(?:.*\.soak\.spec\.ts|wanderwegErstellen\.mobile\.spec\.ts|[\\/]findingLeaks[\\/])/,
     },
     {
       name: 'webkit',
@@ -73,6 +73,7 @@ export default defineConfig({
     {
       name: 'soak',
       testMatch: /.*\.soak\.spec\.ts/,
+      testIgnore: /[\\/]findingLeaks[\\/]/,
       workers: 1,
       use: {
         ...devices['Desktop Chrome'],

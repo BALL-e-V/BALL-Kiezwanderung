@@ -13,6 +13,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:e2e": "playwright test --project=chromium --project=mobile-chromium --project=firefox --project=webkit",
     "test:soak": "playwright test --project=soak",
+    "test:soak:find-leaks": "playwright test --config=playwright.findingLeaks.config.ts",
     "test": "npm run test:unit -- --run && npm run test:e2e",
     "test:unit": "vitest",
     "db:push": "drizzle-kit push",
