@@ -197,7 +197,10 @@ export function validateDirections(
   if (directionIndex < direction.length) {
     return {
       validated: false,
+      forward: true,
       coordinates: direction[directionIndex].location,
+      previous: direction[directionIndex - 1]?.location,
+      next: direction[directionIndex + 1]?.location,
     };
   }
   directionIndex = 0;
@@ -223,9 +226,18 @@ export function validateDirections(
   if (directionIndex < reverseDirection.length) {
     return {
       validated: false,
+      forward: false,
       coordinates: reverseDirection[directionIndex].location,
+      previous: reverseDirection[directionIndex - 1]?.location,
+      next: reverseDirection[directionIndex + 1]?.location,
     };
   } else {
-    return { validated: true, coordinates: [0, 0] as [number, number] };
+    return {
+      validated: true,
+      coordinates: [0, 0] as [number, number],
+      forward: true,
+      previous: undefined,
+      next: undefined,
+    };
   }
 }

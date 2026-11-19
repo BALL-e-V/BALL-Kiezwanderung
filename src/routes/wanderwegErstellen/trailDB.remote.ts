@@ -61,7 +61,16 @@ export const saveTrail = command(
     let validationResult: {
       validated: boolean;
       coordinates: [number, number];
-    } = { validated: true, coordinates: [0, 0] };
+      forward: boolean;
+      previous?: [number, number];
+      next?: [number, number];
+    } = {
+      validated: true,
+      coordinates: [0, 0],
+      forward: true,
+      previous: undefined,
+      next: undefined,
+    };
     //if the id is empty we know that we are creating a new trail
     if (data.id === "") {
       let Trail: createTrail;

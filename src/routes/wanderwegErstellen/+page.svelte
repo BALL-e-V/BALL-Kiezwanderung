@@ -27,6 +27,7 @@
     responseToLatlngs,
     compareTrailPosition,
     fileToBase64,
+    crossmaker,
   } from "$lib/util";
   import { wanderwegErstellenConfig } from "$lib/config";
   import {
@@ -101,6 +102,18 @@
     iconmaker({
       size: sizes.directionValidationMarker,
       color: colors.directionValidation,
+    }),
+  );
+  let validationPreviousMarker = new Marker([0, 0]).setIcon(
+    crossmaker({
+      size: 1.5,
+      color: "black",
+    }),
+  );
+  let validationNextMarker = new Marker([0, 0]).setIcon(
+    crossmaker({
+      size: 1.5,
+      color: "black",
     }),
   );
   let validateDirectionMarkerVisible = false;
@@ -185,6 +198,7 @@
     clearTimeout(pathFailureTimer);
     pathFailureTimer = setTimeout(() => {
       pathFailureVisible = false;
+      clearTimeout(pathFailureTimer);
       pathFailureTimer = undefined;
     }, showFailureTime);
   }
@@ -1655,40 +1669,57 @@
         listofTrails[index].updated = new Date().toISOString();
       }
     }
-    console.log(response.validationResult);
-    directionValidationHandler(
-      response.validationResult.coordinates,
-      response.validationResult.validated,
-    );
+    directionValidationHandler(response.validationResult);
     trailUpdate = false;
     loadingTrail--;
   }
 
-  function directionValidationHandler(
-    coordinates: [number, number],
-    validated: boolean,
-  ) {
+  function directionValidationHandler({
+    coordinates,
+    validated,
+    forward,
+    previous,
+    next,
+  }: {
+    coordinates: [number, number];
+    validated: boolean;
+    forward: boolean;
+    previous?: [number, number];
+    next?: [number, number];
+  }) {
     if (validated) {
       if (validateDirectionMarkerVisible) {
         validateDirectionMarker.remove();
+        validationNextMarker.remove();
+        validationPreviousMarker.remove();
         validateDirectionMarkerVisible = false;
       }
     } else {
-      showFailureTooltip(
-        "Wegbeschreibung konnte nicht validiert werden, bitte wegpunkte in der nähe prüfen",
-      );
-      const markerLatLng = validateDirectionMarker
+      if (forward) {
+        showFailureTooltip(
+          "Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte in der nähe prüfen",
+        );
+      } else {
+        showFailureTooltip(
+          "Umgekehrte Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte hinzufügen",
+        );
+      }
+      validateDirectionMarker
         .setLatLng({ lat: coordinates[1], lng: coordinates[0] })
-        .addTo(map)
-        .getLatLng();
-      const markerElement = validateDirectionMarker.getElement();
-      if (markerElement) {
-        markerElement.dataset.lat = String(markerLatLng.lat);
-        markerElement.dataset.lng = String(markerLatLng.lng);
+        .addTo(map);
+      if (previous) {
+        validationPreviousMarker
+          .setLatLng({ lat: previous[1], lng: previous[0] })
+          .addTo(map);
+      }
+      if (next) {
+        validationNextMarker
+          .setLatLng({ lat: next[1], lng: next[0] })
+          .addTo(map);
       }
       map.setView({ lat: coordinates[1], lng: coordinates[0] }, 17);
+      validateDirectionMarkerVisible = true;
     }
-    validateDirectionMarkerVisible = true;
   }
   //function to load a trail from the database
   async function trailFromDB(id: string) {

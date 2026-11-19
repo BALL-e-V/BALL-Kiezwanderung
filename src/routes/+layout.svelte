@@ -285,8 +285,7 @@
     window.dispatchEvent(new CustomEvent("toggle-wanderwege-search"));
   }
 
-  function updateWanderwegeSearch(event: Event) {
-    wanderwegeSearchQuery = (event.currentTarget as HTMLInputElement).value;
+  function updateWanderwegeSearch() {
     if (wanderwegeSearchTimer) clearTimeout(wanderwegeSearchTimer);
     wanderwegeSearchTimer = setTimeout(() => {
       window.dispatchEvent(
@@ -297,6 +296,19 @@
       clearTimeout(wanderwegeSearchTimer!);
       wanderwegeSearchTimer = null;
     }, 1000);
+  }
+  function quickSearch(e: KeyboardEvent) {
+    if (e.key == "Enter") {
+      window.dispatchEvent(
+        new CustomEvent("wanderwege-global-search", {
+          detail: wanderwegeSearchQuery,
+        }),
+      );
+      clearTimeout(wanderwegeSearchTimer!);
+      wanderwegeSearchTimer = null;
+    } else {
+      return;
+    }
   }
 </script>
 
@@ -338,8 +350,9 @@
             type="search"
             aria-label="Wanderwege suchen"
             placeholder="suchen"
-            value={wanderwegeSearchQuery}
+            bind:value={wanderwegeSearchQuery}
             oninput={updateWanderwegeSearch}
+            onkeydown={quickSearch}
             onpointerdown={(event) => event.stopPropagation()}
           />
           <button

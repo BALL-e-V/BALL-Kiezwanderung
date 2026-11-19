@@ -13,7 +13,7 @@
 		"strict": true,
 		"moduleResolution": "bundler"
 	},
-	"files": ["playwright.config.ts"]
+	"files": ["playwright.config.ts", "playwright.findingLeaks.config.ts"]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

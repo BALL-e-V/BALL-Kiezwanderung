@@ -2,9 +2,7 @@ import { Buffer } from "node:buffer";
 import process from "node:process";
 import type { Page } from "@playwright/test";
 import { stringify } from "devalue";
-import trailFixtures from "../fixtures/wanderwege-trails.json" with {
-  type: "json",
-};
+import trailFixtures from "../fixtures/wanderwege-trails.json" with { type: "json" };
 
 const fixtures = Object.values(trailFixtures);
 
@@ -51,7 +49,7 @@ export async function setupWanderwegePage(page: Page) {
 }
 
 export function getSoakOptions() {
-  const passes = Number(process.env.PLAYWRIGHT_SOAK_PASSES ?? 200);
+  const passes = Number(process.env.PLAYWRIGHT_SOAK_PASSES ?? 1000);
   if (!Number.isInteger(passes) || passes < 3) {
     throw new Error("PLAYWRIGHT_SOAK_PASSES must be an integer of at least 3");
   }
