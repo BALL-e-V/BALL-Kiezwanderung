@@ -116,7 +116,8 @@
       color: "black",
     }),
   );
-  let validateDirectionMarkerVisible = false;
+  let validateDirectionMarkerVisible = $state(false);
+  let directionValidationMessage = $state("");
   //are you editing the trail or the poi
   let editing = $state("trail") as "trail" | "poi";
   //is the onpointerdown listener for the trailmaker active?
@@ -1506,6 +1507,16 @@
     if (insertingWaypoint) {
       insertSwitch("off");
     }
+    if (makingTrail) {
+      trailMakerSwitch("off");
+    }
+    if (validateDirectionMarkerVisible) {
+      validateDirectionMarker.remove();
+      validationNextMarker.remove();
+      validationPreviousMarker.remove();
+      validateDirectionMarkerVisible = false;
+      directionValidationMessage = "";
+    }
     //deleting old stuff
     trail.forEach((t) => {
       t.off("contextmenu");
@@ -1531,9 +1542,6 @@
     });
     poiList = [];
     //switch on the trailMaker bacause user will want to buildthe new trail
-    if (makingTrail) {
-      trailMakerSwitch("off");
-    }
   }
   //function to prepare data and save the
   function prepareTrailData() {
@@ -1693,16 +1701,15 @@
         validationNextMarker.remove();
         validationPreviousMarker.remove();
         validateDirectionMarkerVisible = false;
+        directionValidationMessage = "";
       }
     } else {
       if (forward) {
-        showFailureTooltip(
-          "Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte in der nähe prüfen",
-        );
+        directionValidationMessage =
+          "Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte in der nähe prüfen (zentrieren)";
       } else {
-        showFailureTooltip(
-          "Umgekehrte Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte hinzufügen",
-        );
+        directionValidationMessage =
+          "Umgekehrte Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte hinzufügen (zentrieren)";
       }
       validateDirectionMarker
         .setLatLng({ lat: coordinates[1], lng: coordinates[0] })
@@ -1717,10 +1724,17 @@
           .setLatLng({ lat: next[1], lng: next[0] })
           .addTo(map);
       }
-      map.setView({ lat: coordinates[1], lng: coordinates[0] }, 17);
       validateDirectionMarkerVisible = true;
     }
   }
+
+  function goToDirectionValidationMarker() {
+    map.setView(
+      validateDirectionMarker.getLatLng(),
+      Math.max(map.getZoom(), 17),
+    );
+  }
+
   //function to load a trail from the database
   async function trailFromDB(id: string) {
     //turning off editing processes that might have been running from editing the previous trail
@@ -1729,6 +1743,13 @@
     }
     if (insertingWaypoint) {
       insertSwitch("off");
+    }
+    if (validateDirectionMarkerVisible) {
+      validateDirectionMarker.remove();
+      validationNextMarker.remove();
+      validationPreviousMarker.remove();
+      validateDirectionMarkerVisible = false;
+      directionValidationMessage = "";
     }
     loadTrailQuery = false;
     loadingTrail++;
@@ -2325,6 +2346,9 @@
         {trailId}
         {trail}
         {makingTrail}
+        validationMarkerVisible={validateDirectionMarkerVisible}
+        validationMarkerMessage={directionValidationMessage}
+        goToValidationMarker={goToDirectionValidationMarker}
         trailMakerSwitch={() => trailMakerSwitch(makingTrail ? "off" : "on")}
         newTrail={() => {
           if (isMobileLayout) {

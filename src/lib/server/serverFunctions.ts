@@ -96,7 +96,6 @@ export async function getDirections(
 }
 
 export async function formatDirections(waypoints: [number, number][]) {
-  console.log();
   const waypointString = waypoints
     .map((point) => `${point[1]},${point[0]}`)
     .join(";");

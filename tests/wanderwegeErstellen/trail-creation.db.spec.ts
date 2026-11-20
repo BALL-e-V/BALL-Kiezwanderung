@@ -275,8 +275,10 @@ test("trail creation persists and reloads trail and POIs in the database", async
       page.getByRole("button", { name: "Speichern", exact: true }),
     ).toBeDisabled();
 
-    const warning = page.getByRole("status");
-    await expect(warning).toContainText("Wegbeschreibung konnte nicht validiert werden");
+    const validationButton = page.getByRole("button", {
+      name: "Wegbeschreibung konnte nicht validiert werden, bitte Wegpunkte in der nähe prüfen",
+    });
+    await expect(validationButton).toBeVisible();
     const validationMarker = page.locator(
       `#map .leaflet-marker-icon.my-custom-pin:has(span[style*="background-color: ${colors.directionValidation}"])`,
     );
@@ -295,6 +297,7 @@ test("trail creation persists and reloads trail and POIs in the database", async
           trailCreationFixture.formatDirections.invalidOffset,
       ),
     );
+    await validationButton.click();
 
     await editableTrailMarkers.last().click({ button: "right" });
     const mapContextMenu = page.locator(".context-menu");
@@ -323,6 +326,7 @@ test("trail creation persists and reloads trail and POIs in the database", async
     }>(resumedSaveResponse))!;
     expect(resumedSave.result).toBeNull();
     expect(resumedSave.validationResult.validated).toBe(true);
+    await expect(validationButton).toBeHidden();
     expect(
       (readRequestPayload(resumedSaveResponse.request()) as { id: string }).id,
     ).toBe(trailId);

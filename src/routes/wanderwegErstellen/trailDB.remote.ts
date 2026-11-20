@@ -1,7 +1,6 @@
 import { command, query } from "$app/server";
 import * as v from "valibot";
 import { hikingTrails, trailsToPoi, poi } from "$lib/server/db/trails.schema";
-import { directionErrorLog } from "$lib/server/db/logs.schema";
 import { user } from "$lib/server/db/auth.schema";
 import { db } from "$lib/server/db";
 import { aliasedTable, eq } from "drizzle-orm";
@@ -13,7 +12,6 @@ import {
 } from "../../lib/server/serverFunctions";
 
 type createTrail = typeof hikingTrails.$inferInsert;
-type logDirectionError = typeof directionErrorLog.$inferInsert;
 const editor = aliasedTable(user, "editor");
 
 export const saveTrail = command(
@@ -93,17 +91,6 @@ export const saveTrail = command(
           reverseDirections,
           data.trail,
         );
-        if (!validationResult.validated) {
-          const errorLog: logDirectionError = {
-            trailId: data.id,
-            trailData: data.trail,
-            waypointData: data.waypoints,
-            directionData: { directions, reverseDirections },
-            locationlat: validationResult.coordinates![1],
-            locationlng: validationResult.coordinates![0],
-          };
-          await db.insert(directionErrorLog).values(errorLog);
-        }
         Trail = {
           title: data.title,
           description: data.description,
@@ -167,20 +154,6 @@ export const saveTrail = command(
               reverseDirections,
               data.trail,
             );
-            if (validationResult.validated === false) {
-              const errorLog: logDirectionError = {
-                trailId: data.id,
-                trailData: data.trail,
-                waypointData: data.waypoints,
-                directionData: { directions, reverseDirections },
-                locationlat: validationResult.coordinates![1],
-                locationlng: validationResult.coordinates![0],
-              };
-              await db.insert(directionErrorLog).values(errorLog);
-              console.log(
-                "Directions do not match the trail for trailId: " + data.id,
-              );
-            }
 
             await db
               .update(hikingTrails)
@@ -205,7 +178,7 @@ export const saveTrail = command(
               })
               .where(eq(hikingTrails.id, data.id));
           } catch (error) {
-            console.log(error);
+            throw error;
           }
         }
       } else {

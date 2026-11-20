@@ -23,7 +23,10 @@
     deleteQuery: boolean;
     listofTrails: TrailListItem[];
     loadTrailQuery: boolean;
+    validationMarkerVisible: boolean;
+    validationMarkerMessage: string;
     scheduleTrailSave: () => void;
+    goToValidationMarker: () => void;
     trailMakerSwitch: () => void;
     saveTrail: () => void;
     confirmDeleteTrail: () => void;
@@ -43,7 +46,10 @@
     deleteQuery = $bindable(false),
     listofTrails = $bindable([] as TrailListItem[]),
     loadTrailQuery = $bindable(false),
+    validationMarkerVisible,
+    validationMarkerMessage,
     trailMakerSwitch,
+    goToValidationMarker,
     saveTrail,
     confirmDeleteTrail,
     newTrail,
@@ -51,6 +57,16 @@
     scheduleTrailSave,
   }: Props = $props();
 </script>
+
+{#if validationMarkerVisible}
+  <button
+    type="button"
+    class="button secondary validation-marker-button"
+    onclick={goToValidationMarker}
+  >
+    {validationMarkerMessage}
+  </button>
+{/if}
 
 {#if !loadTrailQuery}
   <h3>Wanderweg bearbeiten</h3>
@@ -73,11 +89,14 @@
         id="trailDescription"
         class="block"
         bind:value={trailDescription}
-        onchange={scheduleTrailSave}
-      ></textarea>
+        onchange={scheduleTrailSave}></textarea>
     </div>
     <label class="published-field">
-      <input type="checkbox" bind:checked={published} onchange={scheduleTrailSave} />
+      <input
+        type="checkbox"
+        bind:checked={published}
+        onchange={scheduleTrailSave}
+      />
       Wanderweg veröffentlicht
     </label>
   </div>
@@ -226,6 +245,14 @@
   .action-group button,
   .button-row button {
     width: 100%;
+  }
+
+  .validation-marker-button {
+    width: 100%;
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: red;
   }
 
   button:not(.block) {
